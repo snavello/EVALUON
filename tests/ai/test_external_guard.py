@@ -573,3 +573,30 @@ def test_a_paragraph_split_between_system_and_message_is_blocked(case, fake_exte
     words = case.sheet[3].split()
     decision = build_split(case, " ".join(words[:7]), [("user", " ".join(words[7:14]))])
     assert decision.blocked and decision.reasons == ("huella_compliance",)
+
+
+def split_each_word(paragraph, mark):
+    """El párrafo con `mark` en medio de cada palabra."""
+    return " ".join(mark.join([w[:len(w) // 2], w[len(w) // 2:]]) for w in paragraph.split())
+
+
+@pytest.mark.parametrize("mark", ["​", "­", "⁠", "﻿"])
+def test_invisible_characters_do_not_split_the_fingerprints(case, fake_external, mark):
+    """REQ-121 (H-290-2, intentos F14 y F14b): un espacio de ancho cero, un guion blando, una
+    unión de palabras o una marca de orden de bytes en medio de cada palabra no parten las
+    secuencias: se descartan antes de cortar las palabras."""
+    fake_external.enable()
+    text = split_each_word(case.sheet[3], mark)
+    assert case.sheet[3] not in text
+    decision = ask(case, [guard.instruction(text)])
+    assert decision.blocked and decision.reasons == ("huella_compliance",)
+    assert fake_external.batches == []
+
+
+def test_compatibility_forms_are_normalized(case, fake_external):
+    """REQ-121 (H-290-2): las formas de compatibilidad (letras de ancho completo, ligaduras) se
+    normalizan con NFKC antes de comparar."""
+    fake_external.enable()
+    wide = "".join(chr(ord(c) + 0xFEE0) if "!" <= c <= "~" else c for c in case.sheet[3])
+    decision = ask(case, [guard.instruction(wide)])
+    assert decision.blocked and decision.reasons == ("huella_compliance",)

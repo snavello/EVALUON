@@ -16,8 +16,8 @@ Opciones:
   compliance: cualquier secuencia de 8 palabras seguidas (sin tildes ni mayúsculas) de un
   documento `compliance` cargado en la base, en el pedido armado entero (sistema y mensajes en
   orden) o en cualquier otro texto del hecho. El criterio de REQ-121 es 0; si encuentra alguno,
-  termina con error. Usa una implementación **propia**, que no
-  importa ni llama a la puerta (`evaluon/ai/external/guard.py`): es el control independiente.
+  termina con error. Usa una implementación **propia**, que no importa ni llama a la puerta
+  (`evaluon/ai/external/guard.py`): es el control independiente.
 
 Imprime el gasto real (la suma de `costo_usd`, el que se calculó con el uso informado por el
 proveedor) y la cantidad de pedidos por resultado; cada registro de medición pega esta salida.
@@ -45,8 +45,13 @@ _SEPARATOR = re.compile(r"[^0-9a-z]+")
 
 def _tokens(text):
     """Palabras en minúsculas y sin tildes (implementación propia, distinta de la de la puerta:
-    descompone, descarta lo que no es ASCII y corta en todo lo que no sea letra o número)."""
-    ascii_text = unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode("ascii")
+    descompone, descarta lo que no es ASCII y corta en todo lo que no sea letra o número). Antes
+    descarta los caracteres invisibles de formato (`Cf`) y el guion blando, y normaliza con NFKC
+    (H-290-2): las letras de ancho completo pasan a ser letras comunes y no se pierden."""
+    visible = "".join(char for char in text
+                      if char != "­" and unicodedata.category(char) != "Cf")
+    composed = unicodedata.normalize("NFKC", visible)
+    ascii_text = unicodedata.normalize("NFD", composed).encode("ascii", "ignore").decode("ascii")
     return [token for token in _SEPARATOR.split(ascii_text.lower()) if token]
 
 

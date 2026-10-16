@@ -543,3 +543,24 @@ def test_verifying_the_filter_sees_a_paragraph_split_across_messages(case, logge
         call_command("gasto_externo", "--usuario", logged_in.username, "--verificar-filtro",
                      stdout=out)
     assert "Pedidos con texto de una hoja de compliance: 1" in out.getvalue()
+
+
+@pytest.mark.parametrize("mark", ["​", "­"])
+def test_verifying_the_filter_ignores_invisible_characters(case, logged_in, mark):
+    """REQ-121 (H-290-2): el escaneo del comando también descarta los caracteres invisibles y
+    normaliza con NFKC (letras de ancho completo) antes de cortar las palabras."""
+    words = case.sheet[3].split()
+    hidden = " ".join(mark.join([w[:len(w) // 2], w[len(w) // 2:]]) for w in words[:10])
+    wide = "".join(chr(ord(c) + 0xFEE0) if "!" <= c <= "~" else c
+                   for c in " ".join(words[10:20]))
+    for text in (hidden, wide):
+        audit.record(EventType.EXTERNAL_REQUEST, outcome=Outcome.OK, channel=Channel.COMMAND,
+                     detail={"procedimiento": case.procedure.pk, "etapa": "verificador",
+                             "resultado": "ok", "costo_usd": 0.001, "texto_enviado": {
+                                 "sistema": "Instrucción.",
+                                 "mensajes": [{"rol": "user", "texto": f"Oferta. {text} Fin."}]}})
+    out = StringIO()
+    with pytest.raises(CommandError, match="REQ-121"):
+        call_command("gasto_externo", "--usuario", logged_in.username, "--verificar-filtro",
+                     stdout=out)
+    assert "Pedidos con texto de una hoja de compliance: 2" in out.getvalue()

@@ -213,8 +213,13 @@ _WORD = re.compile(r"\w+")
 
 
 def words(text):
-    """Las palabras de `text` sin tildes ni mayúsculas."""
-    plain = unicodedata.normalize("NFKD", text or "")
+    """Las palabras de `text` sin tildes ni mayúsculas. Antes de cortar (H-290-2) se descartan los
+    caracteres invisibles de formato (categoría Unicode `Cf`: espacio de ancho cero, unión de
+    palabras, marca de orden de bytes) y el guion blando (U+00AD), y se normaliza con NFKC
+    (letras de ancho completo, ligaduras): ninguno de ellos parte una palabra."""
+    visible = "".join(ch for ch in (text or "")
+                      if ch != "­" and unicodedata.category(ch) != "Cf")
+    plain = unicodedata.normalize("NFKD", unicodedata.normalize("NFKC", visible))
     plain = "".join(ch for ch in plain if not unicodedata.combining(ch)).lower()
     return _WORD.findall(plain)
 
