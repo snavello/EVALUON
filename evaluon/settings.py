@@ -6,6 +6,7 @@ audit, norms, queries) las agregan las tareas de la etapa 1.
 """
 
 import os
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -580,3 +581,81 @@ ASSESSMENT_VISION_TILE_DPI = 300
 ASSESSMENT_VISION_TILES = 2
 ASSESSMENT_VISION_TILE_OVERLAP = 0.05
 ASSESSMENT_VISION_TILE_MAX_SIDE = 1600
+
+# --- Uso externo de la feature 016 (plan 016, "Plataforma externa" y "Costo y tope"; ADR-0066 y
+# ADR-0068; constitución 1.6) -------------------------------------------------------------------
+# Todo apagado por omisión: con estos valores el sistema funciona como hoy y no abre ningún
+# socket hacia afuera. Los mismos valores por omisión están en docker-compose.yml y .env.example
+# (tests/test_compose_env.py comprueba que coincidan). La clave del proveedor (ANTHROPIC_API_KEY)
+# NO se lee aquí: la lee el cliente de evaluon/ai/external del entorno, y solo la pone
+# docker-compose.externo.yml para el clon (P4).
+EXTERNAL_STAGE_NAMES = ("matriz", "verificador")
+
+
+def env_choice(name, default, allowed):
+    """Valor de la variable de entorno, que tiene que ser uno de `allowed`."""
+    value = env_str(name, default).strip().lower()
+    if value not in allowed:
+        raise ImproperlyConfigured(
+            f"La variable de entorno {name} tiene que ser una de: {', '.join(allowed)}.")
+    return value
+
+
+def env_decimal(name, default):
+    """Importe o factor decimal de la variable de entorno (exacto, sin coma flotante)."""
+    try:
+        return Decimal(env_str(name, default).strip())
+    except InvalidOperation:
+        raise ImproperlyConfigured(f"La variable de entorno {name} tiene que ser un número.")
+
+
+# Interruptor general: apagado, toda llamada externa falla con `ExternalDisabled` antes de abrir
+# un socket.
+EXTERNAL_ENABLED = env_bool("EXTERNAL_ENABLED", False)
+# Por etapa: `local` (el camino de hoy) o `externo`. Solo cuenta si EXTERNAL_ENABLED es true.
+EXTERNAL_STAGES = {
+    stage: env_choice(f"EXTERNAL_STAGE_{stage.upper()}", "local", ("local", "externo"))
+    for stage in EXTERNAL_STAGE_NAMES}
+# Modelo, esfuerzo y pensamiento fijados por etapa y registrados en cada pedido (ADR-0066,
+# punto 4): el esfuerzo por omisión del proveedor en Sonnet 5.5 es `high`, que dispara la salida.
+EXTERNAL_MODELS = {
+    stage: env_str(f"EXTERNAL_MODEL_{stage.upper()}", "claude-sonnet-5-5")
+    for stage in EXTERNAL_STAGE_NAMES}
+EXTERNAL_EFFORT = {
+    stage: env_choice(f"EXTERNAL_EFFORT_{stage.upper()}", default, ("low", "medium", "high"))
+    for stage, default in (("matriz", "medium"), ("verificador", "low"))}
+# `between_tools` solo lo acepta el proveedor con esfuerzo `high` o menor (ADR-0066).
+# [A confirmar con la medición] el de la matriz no lo fija el plan: `adaptive` es el del proveedor.
+EXTERNAL_THINKING = {
+    stage: env_choice(f"EXTERNAL_THINKING_{stage.upper()}", default,
+                      ("off", "adaptive", "between_tools"))
+    for stage, default in (("matriz", "adaptive"), ("verificador", "between_tools"))}
+# `lotes` (la mitad del precio) o `directo` (la prueba de humo).
+EXTERNAL_MODE = env_choice("EXTERNAL_MODE", "lotes", ("lotes", "directo"))
+# Segundos entre consultas a un lote y espera máxima antes de darlo por vencido.
+EXTERNAL_BATCH_POLL_SECONDS = int(env_str("EXTERNAL_BATCH_POLL_SECONDS", "30"))
+EXTERNAL_BATCH_MAX_WAIT_SECONDS = int(env_str("EXTERNAL_BATCH_MAX_WAIT_SECONDS", "7200"))
+# Topes de gasto del responsable (2026-10-15), en USD: por caso completo y por mes calendario.
+# El libro (ADR-0068) no deja salir un lote que los haría pasar.
+EXTERNAL_CASE_CAP_USD = env_decimal("EXTERNAL_CASE_CAP_USD", "2.00")
+EXTERNAL_MONTH_CAP_USD = env_decimal("EXTERNAL_MONTH_CAP_USD", "10.00")
+# Estimado por etapa en lotes (USD) y factor a partir del cual se frena la etapa (el doble).
+EXTERNAL_STAGE_ESTIMATE_USD = {
+    stage: env_decimal(f"EXTERNAL_STAGE_ESTIMATE_{stage.upper()}_USD", "0.30")
+    for stage in EXTERNAL_STAGE_NAMES}
+EXTERNAL_STAGE_STOP_FACTOR = env_decimal("EXTERNAL_STAGE_STOP_FACTOR", "2")
+# Tabla de precios versionada (ADR-0068, punto 3). USD por millón de tokens; `lotes` es el
+# factor del precio en la API de lotes; `cache_lectura` y `cache_escritura_1h` son factores del
+# precio de entrada. Es un dato de código y no de entorno: cambiarla es cambiar `version`.
+EXTERNAL_PRICES = {
+    "version": "2026-10-15",
+    "fecha": "2026-10-15",
+    "fuente": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "modelos": {
+        "claude-sonnet-5-5": {"entrada": Decimal("2"), "salida": Decimal("10")},
+        "claude-opus-5-5": {"entrada": Decimal("4"), "salida": Decimal("20")},
+    },
+    "lotes": Decimal("0.5"),
+    "cache_lectura": Decimal("0.05"),
+    "cache_escritura_1h": Decimal("2"),
+}

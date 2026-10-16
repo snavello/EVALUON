@@ -20,6 +20,7 @@ Estas pruebas leen `docker-compose.yml` (montado en el contenedor en `/app`) y c
 import os
 import re
 import runpy
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -261,6 +262,144 @@ def test_portal_settings_defaults_are_the_compose_defaults(compose, monkeypatch)
         resolve(environment["PORTAL_PAUSE_SECONDS"], {}))
     assert fresh["PORTAL_REVIEW_HOUR"] == int(resolve(environment["PORTAL_REVIEW_HOUR"], {}))
     assert fresh["PORTAL_USER_AGENT"] == resolve(environment["PORTAL_USER_AGENT"], {})
+
+
+# --- Uso externo de la feature 016 (plan 016, "Plataforma externa"; ADR-0066 y ADR-0068) ----
+
+EXTERNAL_VARIABLES = (
+    "EXTERNAL_ENABLED",
+    "EXTERNAL_STAGE_MATRIZ",
+    "EXTERNAL_STAGE_VERIFICADOR",
+    "EXTERNAL_MODEL_MATRIZ",
+    "EXTERNAL_MODEL_VERIFICADOR",
+    "EXTERNAL_EFFORT_MATRIZ",
+    "EXTERNAL_EFFORT_VERIFICADOR",
+    "EXTERNAL_THINKING_MATRIZ",
+    "EXTERNAL_THINKING_VERIFICADOR",
+    "EXTERNAL_MODE",
+    "EXTERNAL_BATCH_POLL_SECONDS",
+    "EXTERNAL_BATCH_MAX_WAIT_SECONDS",
+    "EXTERNAL_CASE_CAP_USD",
+    "EXTERNAL_MONTH_CAP_USD",
+    "EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD",
+    "EXTERNAL_STAGE_ESTIMATE_VERIFICADOR_USD",
+    "EXTERNAL_STAGE_STOP_FACTOR",
+)
+ENV_EXAMPLE = Path(settings.BASE_DIR) / ".env.example"
+
+
+def test_external_variables_reach_every_service_of_the_app_image(compose):
+    """REQ-122: la aplicación, `migrate` y `worker` (que son los que piden) reciben las mismas
+    variables del uso externo; `portal_worker`, que tiene salida, también las ve y por
+    omisión todo está apagado."""
+    for service in ("app", "migrate", "worker", "portal_worker"):
+        environment = compose["services"][service]["environment"]
+        for name in EXTERNAL_VARIABLES:
+            assert name in environment, f"{service} no recibe {name}"
+    app = compose["services"]["app"]["environment"]
+    assert resolve(app["EXTERNAL_ENABLED"], {}) == "false"
+    assert resolve(app["EXTERNAL_STAGE_MATRIZ"], {}) == "local"
+    assert resolve(app["EXTERNAL_STAGE_VERIFICADOR"], {}) == "local"
+
+
+def test_the_api_key_is_not_in_the_base_compose(compose):
+    """REQ-122, P4: la clave del proveedor no va en el compose base; la pone, en su caso, el
+    archivo de salida (T-289) desde el entorno del clon."""
+    text = COMPOSE_FILE.read_text(encoding="utf-8")
+    assert "ANTHROPIC_API_KEY" not in text
+    for service in compose["services"].values():
+        assert "ANTHROPIC_API_KEY" not in (service.get("environment") or {})
+
+
+def test_external_settings_defaults_are_the_compose_defaults(compose, monkeypatch):
+    """REQ-122: sin variables en el entorno, `settings.py` toma los mismos valores por
+    omisión que el compose, y con ellos el uso externo está apagado (umbral 20)."""
+    environment = compose["services"]["app"]["environment"]
+    for name in EXTERNAL_VARIABLES + ("ANTHROPIC_API_KEY",):
+        monkeypatch.delenv(name, raising=False)
+
+    fresh = runpy.run_path(str(Path(settings.BASE_DIR) / "evaluon" / "settings.py"))
+
+    def default(name):
+        return resolve(environment[name], {})
+
+    assert fresh["EXTERNAL_ENABLED"] is False
+    assert fresh["EXTERNAL_STAGES"] == {"matriz": "local", "verificador": "local"}
+    for stage in ("matriz", "verificador"):
+        upper = stage.upper()
+        assert fresh["EXTERNAL_STAGES"][stage] == default(f"EXTERNAL_STAGE_{upper}")
+        assert fresh["EXTERNAL_MODELS"][stage] == default(f"EXTERNAL_MODEL_{upper}")
+        assert fresh["EXTERNAL_EFFORT"][stage] == default(f"EXTERNAL_EFFORT_{upper}")
+        assert fresh["EXTERNAL_THINKING"][stage] == default(f"EXTERNAL_THINKING_{upper}")
+        assert fresh["EXTERNAL_STAGE_ESTIMATE_USD"][stage] == Decimal(
+            default(f"EXTERNAL_STAGE_ESTIMATE_{upper}_USD"))
+    assert fresh["EXTERNAL_MODE"] == default("EXTERNAL_MODE") == "lotes"
+    assert fresh["EXTERNAL_BATCH_POLL_SECONDS"] == int(default("EXTERNAL_BATCH_POLL_SECONDS"))
+    assert fresh["EXTERNAL_BATCH_MAX_WAIT_SECONDS"] == int(
+        default("EXTERNAL_BATCH_MAX_WAIT_SECONDS"))
+    assert fresh["EXTERNAL_CASE_CAP_USD"] == Decimal(default("EXTERNAL_CASE_CAP_USD"))
+    assert fresh["EXTERNAL_MONTH_CAP_USD"] == Decimal(default("EXTERNAL_MONTH_CAP_USD"))
+    assert fresh["EXTERNAL_STAGE_STOP_FACTOR"] == Decimal(default("EXTERNAL_STAGE_STOP_FACTOR"))
+    # La clave no se lee de `settings` por omisión (ADR-0066): la lee el cliente del entorno.
+    assert not any("API_KEY" in name for name in fresh if name.startswith("EXTERNAL"))
+    assert "ANTHROPIC_API_KEY" not in fresh
+
+
+def test_external_defaults_are_the_ones_the_responsible_decided(monkeypatch):
+    """REQ-122: topes de 2 USD por caso y 10 por mes, etapas de 0,30 USD que se frenan al
+    doble, lotes cada 30 segundos con espera máxima de 2 horas (plan 016, "Costo y tope")."""
+    for name in EXTERNAL_VARIABLES:
+        monkeypatch.delenv(name, raising=False)
+    fresh = runpy.run_path(str(Path(settings.BASE_DIR) / "evaluon" / "settings.py"))
+    assert fresh["EXTERNAL_CASE_CAP_USD"] == Decimal("2.00")
+    assert fresh["EXTERNAL_MONTH_CAP_USD"] == Decimal("10.00")
+    assert fresh["EXTERNAL_STAGE_ESTIMATE_USD"] == {
+        "matriz": Decimal("0.30"), "verificador": Decimal("0.30")}
+    assert fresh["EXTERNAL_STAGE_STOP_FACTOR"] == 2
+    assert fresh["EXTERNAL_BATCH_POLL_SECONDS"] == 30
+    assert fresh["EXTERNAL_BATCH_MAX_WAIT_SECONDS"] == 7200
+    assert set(fresh["EXTERNAL_MODELS"].values()) == {"claude-sonnet-5-5"}
+    assert fresh["EXTERNAL_EFFORT"] == {"matriz": "medium", "verificador": "low"}
+    assert fresh["EXTERNAL_THINKING"]["verificador"] == "between_tools"
+
+
+def test_the_price_table_is_versioned_with_date_and_source(monkeypatch):
+    """REQ-122: la tabla de precios lleva versión, fecha y fuente, y los precios de lista
+    del 2026-10-15 (ADR-0068, punto 3)."""
+    fresh = runpy.run_path(str(Path(settings.BASE_DIR) / "evaluon" / "settings.py"))
+    prices = fresh["EXTERNAL_PRICES"]
+    assert prices["version"] and prices["fecha"] == "2026-10-15"
+    assert prices["fuente"].startswith("https://")
+    sonnet = prices["modelos"]["claude-sonnet-5-5"]
+    opus = prices["modelos"]["claude-opus-5-5"]
+    assert (sonnet["entrada"], sonnet["salida"]) == (Decimal("2"), Decimal("10"))
+    assert (opus["entrada"], opus["salida"]) == (Decimal("4"), Decimal("20"))
+    assert prices["lotes"] == Decimal("0.5")
+    assert prices["cache_lectura"] == Decimal("0.05")
+    assert prices["cache_escritura_1h"] == 2
+
+
+@pytest.mark.parametrize("name,value", [
+    ("EXTERNAL_STAGE_MATRIZ", "nube"),
+    ("EXTERNAL_MODE", "inmediato"),
+    ("EXTERNAL_THINKING_VERIFICADOR", "siempre"),
+    ("EXTERNAL_EFFORT_MATRIZ", "enorme"),
+])
+def test_an_invalid_external_value_stops_the_start(monkeypatch, name, value):
+    """REQ-122: un valor inválido no se interpreta en silencio; detiene el arranque."""
+    from django.core.exceptions import ImproperlyConfigured
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ImproperlyConfigured):
+        runpy.run_path(str(Path(settings.BASE_DIR) / "evaluon" / "settings.py"))
+
+
+def test_env_example_lists_every_external_variable_without_a_key():
+    """REQ-122, P4: `.env.example` nombra cada variable del uso externo y no trae ninguna clave."""
+    text = ENV_EXAMPLE.read_text(encoding="utf-8")
+    for name in EXTERNAL_VARIABLES:
+        assert re.search(rf"^#?\s*{name}=", text, re.MULTILINE), f"falta {name}"
+    assert "sk-ant" not in text
+    assert not re.search(r"^ANTHROPIC_API_KEY=\S", text, re.MULTILINE)
 
 
 # --- Modelo propio del motor de lotes (plan 004, ADR-0041 y ADR-0042) ---------------------
