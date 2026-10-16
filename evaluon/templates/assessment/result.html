@@ -9,6 +9,7 @@
 <p class="notice" role="note">Lo que sigue es una propuesta del sistema. La decisión es de la Comisión.</p>
 
 <p>Evaluación {{ page.run.number }} de la oferta, armada con la matriz versión {{ page.run.matrix_version.number }} el {{ page.run.built_at|date:"d/m/Y H:i" }}.</p>
+<p>{{ external_line }}</p>
 {% if page.newer_version %}
 <p class="notice" role="status">Evaluada con la versión {{ page.run.matrix_version.number }}; la versión vigente es la {{ page.newer_version.number }}.</p>
 {% endif %}

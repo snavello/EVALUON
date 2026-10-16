@@ -20,6 +20,7 @@
     <p>{% if review.state == "propuesto" %}{% include "journey/_icono.html" with icon="nodet" name="A decidir" %} Falta su decisión: confirmar, corregir o rechazar la propuesta.{% else %}{% include "journey/_icono.html" with icon="cumple" name="Decidido" %} {{ decided }}{% endif %}</p>
     {% if page.newer_version %}<p class="aviso aviso-error">Hay una versión más nueva de la matriz ({{ page.newer_version.number }}): esta propuesta se hizo con la {{ page.run.matrix_version.number }}.</p>{% endif %}
     {% if page.question %}<p>Pregunta abierta a la Comisión: {{ page.question.text }}</p>{% endif %}
+    <p class="ayuda">{{ external_line }}</p>
   </div>
 
   <div class="dos">

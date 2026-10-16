@@ -7,6 +7,13 @@ from django.urls import reverse
 from evaluon.assessment.services import evaluate
 from tests.assessment.fakes import model, says  # noqa: F401 - `model` es una fixture
 from tests.assessment.test_evaluate import DECLARATION, number_of, requirement_of, run_all
+from tests.assessment.test_export import (
+    NONE_LINE,
+    VERIFIER_LINE,
+    add_external_run,
+    external_key,
+)
+from tests.assessment.test_matrix import add_run, open_matrix, requirement, three  # noqa: F401
 from tests.offers.test_screens import log_in, text_of
 
 pytestmark = pytest.mark.django_db
@@ -123,3 +130,27 @@ def test_the_page_function_uses_the_current_result(evaluated, offer, procedure,
     page = evaluate.pair_page(operator_user, offer.pk, requirement.pk)
     assert page.result == evaluate.current_result(offer, requirement)
     assert number_of(procedure, "declaración jurada") == page.requirement.number
+
+
+def test_the_page_says_which_stages_ran_outside_the_equipment(
+        client, three, procedure, operator_user):
+    """REQ-122 y P6: junto a la evaluación de la oferta, una sola línea con proveedor, modelo,
+    modo y cantidad de pedidos de la etapa que corrió fuera; o «Ninguna» si la corrida no trae la
+    clave `externo` (las de hoy) o si todas las etapas son locales."""
+    a, b, c = three
+    open_matrix()
+    declaration = requirement(procedure, "declaración jurada")
+    add_external_run(operator_user, procedure, a, {declaration: "cumple"},
+                     external_key({"matriz": "local", "verificador": "externo"}))
+    add_run(operator_user, procedure, b, {declaration: "cumple"})
+    add_external_run(operator_user, procedure, c, {declaration: "cumple"},
+                     external_key({"matriz": "local", "verificador": "local"}))
+    log_in(client, operator_user)
+    pages = {o: text_of(client.get(reverse("assessment:pair", args=[o.pk, declaration.pk])))
+             for o in (a, b, c)}
+    assert VERIFIER_LINE in pages[a] and NONE_LINE not in pages[a]
+    assert NONE_LINE in pages[b] and VERIFIER_LINE not in pages[b]
+    assert NONE_LINE in pages[c]
+    assert pages[a].count("Etapas fuera del equipo") == 1
+    assert pages[a].index("Evaluación 1 de la oferta") < pages[a].index(VERIFIER_LINE) \
+        < pages[a].index("Resultado propuesto")

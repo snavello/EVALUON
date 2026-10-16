@@ -29,7 +29,7 @@ from django.views.decorators.http import require_GET
 from evaluon.accounts.models import CommissionRole
 from evaluon.assessment import not_applicable
 from evaluon.assessment.models import Decision, Outcome, Result
-from evaluon.assessment.services import evaluate, review
+from evaluon.assessment.services import evaluate, external_stages, review
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
 from evaluon.journey import basis, external, memo, points, reading_note
@@ -492,6 +492,7 @@ def pair(request, procedure_id, offer_id, requirement_id):
         "points": points.points_of([page.requirement])[page.requirement.pk],
         "read_note": notes.get(page.result.pk, ""),
         "conditions": condition_views(page.result.facts),
+        "external_line": external_stages.line([page.run]),
     })
     return render(request, "journey/temas/s4_propuesta_par.html", context)
 
