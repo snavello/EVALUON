@@ -457,10 +457,15 @@ def _create_matrix(user, procedure, document, entries):
             procedure=procedure, number=1, status=m.VersionStatus.DRAFT, created_by=user)
         for number, entry in enumerate(entries, start=1):
             technical = entry["clase"] == "tecnico"
+            # T-285 (H-285-1): la opción de la entrada (`opcion`, si la lista la trae) pasa a la fila
+            # como la guarda la extracción (`Requirement.proposed["opcion"]`): con ella decide la
+            # regla de la opción, nunca la marca del modelo.
+            option = (entry.get("opcion") or "").strip()
             requirement = m.Requirement.objects.create(
                 version=version, number=number, category=entry["clase"],
                 items=[entry["renglon"]] if technical else [],
-                origin=m.RequirementOrigin.AGREGADO, state=m.RequirementState.CONFIRMADO)
+                origin=m.RequirementOrigin.AGREGADO, state=m.RequirementState.CONFIRMADO,
+                **({"proposed": {"opcion": option}} if option else {}))
             if technical:
                 header = next((item["key"] for item in reading.items
                                if item["number"] == entry["renglon"]), None)

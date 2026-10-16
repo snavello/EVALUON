@@ -199,8 +199,10 @@ QUESTION_CLIP = 280
 # T-285 (D-283-5): los dos «no consta» que no son «no se encontró el documento».
 OPTION_NOTE = ("La condición vale solo para quien usa una opción y la lectura de la oferta no "
                "muestra que la use: no falta un documento.")
-OPTION_QUESTION = ("¿La oferta usa la opción de la que depende este requisito? Si no la usa, el "
-                   "requisito no aplica a esta oferta.")
+# T-285 (H-285-1, decisión del Coordinador): la marca del modelo nunca decide «no aplica»; la
+# pregunta le pide a la Comisión que lo confirme.
+OPTION_QUESTION = ("El requisito parece la condición de una opción que la oferta no usa: ¿la Comisión "
+                   "lo confirma? Si la oferta no usa la opción, el requisito no aplica a esta oferta.")
 SEEN_NOTE = ("La lectura no identificó el documento que el pliego exige, pero señaló un texto de la "
              "oferta sobre el requisito: no se afirma que el documento falte.")
 SEEN_QUESTION = ("¿Está en la oferta el documento que exige este requisito? La lectura no lo "

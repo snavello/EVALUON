@@ -24,7 +24,10 @@ Orden (cada regla es una función `(pair, ctx) -> Combined | None` en su módulo
 6. no se pudo leer (`unreadable.py`, REQ-064);
 7. Portal (`portal_facts.py`, REQ-062): T-169, con los criterios del 2026-10-12 (T-257);
 8. cumple por ausencia (`absence.py`, T-257, decisión del 2026-10-12): el requisito negativo o
-   supletorio que nada de la oferta contradice.
+   supletorio que nada de la oferta contradice;
+9. opción marcada por el modelo (`options.marked_rule`, T-285, H-285-1): la fila sin `opcion` que el
+   modelo marcó como condición de una opción que la oferta no usa queda «no determinado» con la
+   pregunta de si la Comisión lo confirma; nunca «no aplica».
 
 Una regla nueva se suma en su lugar de la lista, nada más.
 
@@ -58,6 +61,7 @@ RULES = (
     unreadable.rule,
     portal_facts.rule,
     absence.rule,
+    options.marked_rule,
 )
 
 

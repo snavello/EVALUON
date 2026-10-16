@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from evaluon.assessment import absence, combine, options, portal_facts, prompting
+from evaluon.assessment import absence, citations, combine, portal_facts, prompting
 from evaluon.assessment import models as am
 from evaluon.assessment.citations import Located
 from tests.assessment.fakes import model, says  # noqa: F401 - `model` es una fixture
@@ -123,12 +123,12 @@ def test_d283_5_the_condition_of_an_option_marked_unused_is_not_a_missing_docume
     assert combined.question == combine.OPTION_QUESTION
 
 
-def test_d283_5_without_the_option_in_the_matrix_the_mark_of_the_model_makes_it_not_applicable(
-        offer):
-    """REQ-103, REQ-120 (D-13; decisión del 2026-10-10, «Requisito de la forma elegida»): en una
-    matriz sin `opcion` (validada antes de T-258), si el modelo marcó en todos los grupos que la
-    oración vale solo para quien usa una opción y que la oferta no la usa, sin citar nada, la celda
-    es «No aplica (opción no usada)», con el origen de la marca registrado (P6)."""
+def test_h285_1_the_mark_of_the_model_never_decides_not_applicable(offer):
+    """REQ-103, REQ-120, P3 (H-285-1, decisión del Coordinador): en una fila sin `opcion` en la
+    matriz, la marca «no» del modelo no da «no aplica»: la celda queda «no determinado» con
+    `opcion_sin_determinar`, el origen de la marca registrado (P6) y la pregunta que le pide a la
+    Comisión que confirme que es la condición de una opción que la oferta no usa. Nada queda
+    guardado como `cumple` con `aplica = false`."""
     text = ("Quien se presente como taller asociado acompañará la constancia de su asociación "
             "vigente.")
     combined = combine.combine([combine.GroupResult(0, "no_consta", exigence="documento",
@@ -138,10 +138,62 @@ def test_d283_5_without_the_option_in_the_matrix_the_mark_of_the_model_makes_it_
 
     name, result = apply(offer, pair)
 
-    assert name == "opcion_no_usada"
-    assert result.facts["aplica"] is False
-    assert result.facts["opcion"] == options.OTHER and result.facts["opcion_origen"] == "modelo"
-    assert result.question == "" and not result.ask
+    assert name == "opcion_sin_determinar"
+    assert (result.outcome, result.doubt) == ("no_determinado", "sin_dato")
+    assert result.facts.get("aplica") is not False and result.facts["opcion_origen"] == "modelo"
+    assert result.question == combine.OPTION_QUESTION and result.ask
+    assert "parece la condición de una opción que la oferta no usa" in result.question
+    assert "¿la Comisión lo confirma?" in result.question
+
+
+def test_h285_1_a_general_row_the_model_marks_as_an_option_is_not_hidden(offer):
+    """REQ-120, P3 (H-285-1): una fila que vale para toda oferta, con el documento faltante y la marca
+    «no» del modelo, no sale «No aplica»: queda «no determinado» con la pregunta. Si el modelo concluyó
+    sobre una condición, la marca no decide nada."""
+    text = "El oferente acompañará la constancia de inscripción vigente."
+    combined = combine.Combined(outcome="sin_documento", exigence="documento")
+    name, result = apply(offer, pair_with(text, combined, [condition("Acompañar", "no_consta")],
+                                          option_use="no"))
+    assert name == "opcion_sin_determinar" and result.outcome == "no_determinado"
+
+    concluded = combine.Combined(outcome="no_determinado", doubt="sin_dato", exigence="documento")
+    name, _ = apply(offer, pair_with(text, concluded, [condition("Acompañar", "cumple", "x")],
+                                     option_use="no"))
+    assert name != "opcion_sin_determinar"
+
+
+def test_h285_1_not_applicable_comes_only_from_the_option_of_the_matrix_row(offer):
+    """REQ-103 (D-13, H-285-1): con la `opcion` de la fila de la matriz y la marca «no» del modelo,
+    sin nada encontrado, la celda es «No aplica (opción no usada)», con origen «matriz»."""
+    text = "Quien se presente como taller asociado acompañará la constancia de su asociación."
+    combined = combine.combine([combine.GroupResult(0, "no_consta", exigence="documento",
+                                                    option_use="no")], unread=[])
+    name, result = apply(offer, pair_with(text, combined, [condition("Acompañar", "no_consta")],
+                                          opcion="mipyme", option_use="no"))
+
+    assert name == "opcion_no_usada" and result.facts["aplica"] is False
+    assert result.facts["opcion_origen"] == "matriz"
+
+
+def test_h285_1_build_case_carries_the_option_of_the_list_to_the_matrix_row(
+        evaluator_user, db, operator_user, fake_ai):
+    """REQ-103 (H-285-1): si una entrada de la lista esperada trae `opcion`, `build_case` la deja en la
+    fila (`proposed["opcion"]`), como la guarda la extracción; sin ella, la fila no la tiene."""
+    import dataclasses
+
+    from evaluon.assessment import evaluation as ev
+    from tests.assessment.test_evaluation import LIST
+
+    expected = ev.load_expected(LIST)
+    expected.matrix["requisitos"][0]["opcion"] = "mipyme"
+    only_a = dataclasses.replace(expected, offers=expected.offers[:1])
+    only_a.offers[0].documents = []
+
+    procedure, _ = ev.build_case(evaluator_user, only_a)
+
+    version = procedure.matrix_versions.get(number=1)
+    assert version.requirements.get(number=1).proposed == {"opcion": "mipyme"}
+    assert version.requirements.get(number=2).proposed == {}
 
 
 def test_d283_5_without_the_option_and_without_the_mark_the_rule_still_says_nothing(offer):
@@ -533,3 +585,12 @@ def test_h277_2_the_first_threshold_row_fails_with_a_missing_document_without_a_
     assert [ok for _, _, ok in ev.thresholds_016({"three_outputs": base})] == [True, True, True]
     rows = ev.thresholds_016({"three_outputs": bad})
     assert rows[0][2] is False and rows[0][1] == "1 de 2"
+
+
+# --- H-285-2: la cita repetida y la cita que no se ubicó --------------------------------------------
+
+# --- H-285-3: solo una frase de ausencia deja correr la ausencia -----------------------------------
+
+
+# --- H-285-7: huecos de prueba (B11b, B17, B23) ----------------------------------------------------
+
