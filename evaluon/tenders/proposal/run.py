@@ -684,7 +684,7 @@ def _external_chain(run, loaded, to_model, decisions, numbers, anomalies, timing
         _record_external(run, record)
         timings["externo"] = round(time.monotonic() - started, 3)
         return None, record["counts"]
-    anomalies.extend(extracted.anomalies + found_anomalies)
+    anomalies.extend(extracted.anomalies + found_anomalies + stage.anomalies)
     apply_completeness(trial, completion)
     anomalies.extend(completion.anomalies)
     keep_tables_pending(loaded, trial)

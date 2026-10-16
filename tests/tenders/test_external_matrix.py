@@ -748,3 +748,49 @@ def test_the_line_of_a_version_opened_on_another_follows_its_origin(
                                             based_on=first, status="draft",
                                             created_by=operator_user)
     assert matrix_page.external_line(second) == LINE.format(n=2)
+
+
+# --- El freno de la etapa (decisión del Coordinador, verificación de T-291) -------------------------
+
+
+def test_a_stage_stop_after_the_last_request_keeps_the_paid_answers(
+        operator_user, script, rules, fake_external, monkeypatch):  # noqa: F811
+    """REQ-123, ADR-0068 (decisión del Coordinador): si el freno de la etapa llega cuando ya se
+    respondió el último pedido de la propuesta, las respuestas pagadas se usan: la matriz queda
+    externa, con la anomalía `externo_etapa_frenada`, y no se rehace en local."""
+    procedure, _ = _three_items(operator_user, script)
+    limits = []
+
+    def limit(group):
+        # El primer envío (extracción) tiene lugar de sobra; el segundo (completitud y filtro), solo
+        # lo justo para salir: después de responder, la etapa llega a su límite.
+        limits.append(group)
+        if len(limits) == 1:
+            return Decimal("1000")
+        spent = sum(Decimal(str(e.detail["costo_usd"])) for e in requests_of())
+        return spent + Decimal("0.00000001")
+
+    monkeypatch.setattr(ledger, "stage_limit", limit)
+    run = _external_run(operator_user, procedure, fake_external)
+
+    assert len(limits) == 2
+    assert run.models["externo"]["etapas"]["matriz"] == "externo"
+    assert script.calls == []
+    stopped = [a for a in run.anomalies if a["type"] == external.ANOMALY_STOPPED]
+    assert stopped and stopped[0]["respuestas"] == "conservadas"
+    assert not any(a["type"] == external.ANOMALY_UNAVAILABLE for a in run.anomalies)
+    assert run.counts["externo"]["matriz"]["por_etapa"][external.STAGE_COMPLETION]["frenada"]
+    assert {e.detail["resultado"] for e in requests_of(run)} == {"ok"}
+    assert rows_of(run)
+
+
+def test_a_stage_stop_with_requests_left_goes_back_to_the_local_chain(
+        operator_user, script, rules, fake_external, settings):  # noqa: F811
+    """REQ-123, ADR-0068: si el freno llega con pedidos por mandar (después de la extracción), la
+    propuesta vuelve a la cadena local con el motivo `etapa_frenada`."""
+    settings.EXTERNAL_STAGE_ESTIMATE_USD = {**settings.EXTERNAL_STAGE_ESTIMATE_USD,
+                                            "matriz": Decimal("0.0000001")}
+    procedure, _ = _three_items(operator_user, script)
+    run = _external_run(operator_user, procedure, fake_external)
+    _assert_local_after_external(run, script, external.ANOMALY_STOPPED, "etapa_frenada")
+    assert [e.detail["etapa"] for e in requests_of(run)] == [external.STAGE_EXTRACTION]

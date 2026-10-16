@@ -39,7 +39,9 @@ una duda nunca es un descarte silencioso.
 **Si falla.** Un bloqueo de la puerta, un error, un vencimiento, el tope, una etapa frenada o una
 salida que no es el JSON pedido lanzan `Unavailable` con sus anomalías: la propuesta sigue con la
 cadena local y lo registra (`externo_no_disponible`, etapa `local`). Nada de lo externo se aplica a
-medias.
+medias. Excepción (decisión del Coordinador): si el freno de la etapa llega con el último pedido ya
+respondido, las respuestas pagadas se usan y queda `externo_etapa_frenada` con
+`respuestas: conservadas`.
 
 Cada pedido externo deja su fila en `tenders_run_step` (la extracción como `extraccion`, la
 completitud y el filtro como `completitud`) con la referencia al hecho `external_request`, que
@@ -405,7 +407,12 @@ class Stage:
                 "hecho": result.event_id}])
         return result
 
-    def _send(self, admitted):
+    def _send(self, admitted, *, last=False):
+        """Manda los pedidos con el libro. Una falla, un bloqueo o el freno de la etapa lanzan
+        `Unavailable`, salvo un caso (decisión del Coordinador, verificación de T-291): si el freno
+        llega con el último envío de la propuesta (`last`) ya respondido entero, las respuestas
+        pagadas se usan y el freno queda como anomalía (`respuestas: conservadas`); rehacer todo
+        en local las tiraría. Con pedidos por mandar, el freno vuelve a lo local."""
         sent = ledger.send(admitted, measurement=self.measurement, mode=self.mode,
                            channel=self.channel, user=self.user)
         self.sent.append(sent)
@@ -413,6 +420,13 @@ class Stage:
                      **{k: v for k, v in entry.items() if k != "anomalia"}}
                     for entry in sent.anomalies]
         failed = [answer for answer in sent.answers.values() if not answer.ok]
+        if (last and sent.stage_stopped and not failed
+                and all(problem["type"] == ANOMALY_STOPPED for problem in problems)):
+            self.anomalies.extend({**problem, "respuestas": "conservadas"}
+                                  for problem in problems or [{
+                                      "type": ANOMALY_STOPPED, "etapa": sent.stage,
+                                      "gasto_usd": float(sent.spent_stage_usd)}])
+            return sent
         if sent.stage_stopped or failed or problems:
             reason = ("etapa_frenada" if sent.stage_stopped
                       else (failed[0].reason or failed[0].outcome) if failed else "anomalia")
@@ -580,7 +594,7 @@ class Stage:
         admitted = [self._build(STAGE_COMPLETION, f"matriz-{self.run.pk}-cf", message,
                                 completion_schema())]
         started = time.monotonic()
-        sent = self._send(admitted)
+        sent = self._send(admitted, last=True)
         seconds = time.monotonic() - started
         answer = sent.answers[admitted[0].custom_id]
         data = _load(answer.text, ("faltantes", "filas"))
