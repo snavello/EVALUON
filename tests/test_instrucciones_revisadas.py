@@ -646,6 +646,16 @@ DERIVED = {
     "D-64": ("pendiente", (
         'Derivada de D-01 y de D-13 (spec 015, 2026-10-10, «Requisito de la forma elegida»); '
         'origen: O-260-1 de la 015 y T-283, hallazgo D-283-4')),
+    "D-65": ("pendiente", (
+        'Derivada de D-12 (spec 015, 2026-10-10: «una salvedad la moneda de la oferta si es un '
+        'requisito»); origen: T-265 de la 015 (O-263-3: la conversión de la moneda de cotización '
+        'salía descartada) y T-283, hallazgo D-283-4; H-285-6')),
+    "D-66": ("pendiente", (
+        'Derivada de D-51 (ADR-0041, decisión 3: transcribir literalmente el texto visible); '
+        'origen: T-283, hallazgo D-283-9; H-285-6')),
+    "D-67": ("pendiente", (
+        'Derivada de D-42 (spec 016, 2026-10-15: las dos posturas cuando el valor de la oferta y el '
+        'dato del Portal no coinciden) y de D-40; origen: T-283, hallazgo D-283-7; H-285-6')),
 }
 PENDING_MARK = "pendiente de confirmación del responsable"
 CONFIRMED_MARK = re.compile(r"confirmada por el responsable el (\d{4}-\d{2}-\d{2})\b[^«“]*[«“][^»”]+[»”]")
