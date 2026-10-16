@@ -68,6 +68,14 @@ y umbrales"):
   conclusión y el texto de la oferta. Comprobación mecánica (`question_form`) más la plantilla
   local `muestra-preguntas.md`, con todas las preguntas, para leerlas de a una.
 - Tiempo total y memoria de video máxima de lo registrado.
+
+Verificador externo de citas (T-299; REQ-124; plan 016, umbral 17): si alguna celda de la corrida
+pasó por él (`facts["verificador"]`), la medida da las cifras sin el verificador (el `antes` de cada
+celda verificada) y con él (el resultado guardado), de la misma corrida: «no determinado» sin y con,
+exactitud por celda sin y con y, de cada celda que pasó a «no determinado», si era exacta, errada o
+no tiene verdad (`verifier_figures`). `measure_verifier` (`medir_evaluacion --verificador-sobre`)
+aplica el verificador a una corrida ya guardada, sin GPU, y guarda una evaluación derivada por
+oferta: la base es de solo inserción.
 """
 
 import hashlib
@@ -1644,12 +1652,18 @@ def observed_cells(run, offer_number, excluded_rows=frozenset()):
         if row in excluded_rows:
             continue
         cites = list(result.citations.order_by("order").values_list("kind", "text"))
-        cells.append(observed_cell(
+        cell = observed_cell(
             offer_number, row, not_applicable.outcome_key(result), doubt=result.doubt,
             rule=(result.facts or {}).get("regla", ""),
             offer_cites=[t for k, t in cites if k == am.CitationKind.OFERTA],
             portal_cites=[t for k, t in cites if k == am.CitationKind.PORTAL],
-            explanation=result.explanation, criteria_used=criteria_of(result)))
+            explanation=result.explanation, criteria_used=criteria_of(result))
+        mark = (result.facts or {}).get(VERIFIER_KEY)
+        if isinstance(mark, dict) and isinstance(mark.get("antes"), dict):
+            # T-299 (REQ-124): lo que había antes del verificador externo, para el «sin».
+            cell[VERIFIER_KEY] = {"antes": mark["antes"], "despues": mark.get("despues"),
+                                  "respuesta": mark.get("respuesta")}
+        cells.append(cell)
     return cells
 
 
@@ -1688,6 +1702,110 @@ def cell_accuracy(cells, commission, excluded_rows=frozenset()):
         "abstained_cells": [(c["oferta"], c["fila"]) for c in abstained],
         "without_result": missing, "excluded": left_out, "to_read": exact,
     }
+
+
+# --- Verificador externo de citas, con y sin (T-299; REQ-124; plan 016, umbral 17) -------------------
+#
+# El «sin verificador» sale de `facts["verificador"]["antes"]` de la misma corrida y el «con», del
+# resultado guardado (plan 016, «Medición del paso 4»): no hace falta otra corrida local.
+
+VERIFIER_KEY = "verificador"
+
+
+def before_verifier(cells):
+    """Las celdas observadas como estaban antes del verificador: las que verificó vuelven a su
+    `antes` (resultado y motivo); las demás quedan."""
+    out = []
+    for cell in cells:
+        mark = cell.get(VERIFIER_KEY)
+        if mark:
+            before = mark["antes"]
+            cell = dict(cell, obtenido=before.get("resultado"), motivo=before.get("motivo") or "")
+        out.append(cell)
+    return out
+
+
+def verifier_figures(cells, commission=None):
+    """Las cifras del verificador sobre las celdas observadas (`observed_cells`, ya sin las filas
+    excluidas), o `None` si ninguna celda pasó por él. Sin la Comisión: celdas verificadas,
+    respuestas, las que pasaron a «no determinado» y el «no determinado» sin y con. Con la
+    Comisión (`cell_accuracy`): la exactitud sin y con y, de cada celda que pasó a «no
+    determinado», si era exacta, errada o no tiene verdad."""
+    marked = [c for c in cells if c.get(VERIFIER_KEY)]
+    if not marked:
+        return None
+    before = before_verifier(cells)
+    answers = Counter(c[VERIFIER_KEY].get("respuesta") or "sin_respuesta" for c in marked)
+    changed = [c for c in marked if c[VERIFIER_KEY]["antes"].get("resultado") != c["obtenido"]]
+    out = {
+        "verified": len(marked), "answers": dict(sorted(answers.items())),
+        "changed": [(c["oferta"], c["fila"]) for c in changed],
+        "undetermined_before": sum(1 for c in before
+                                   if c["obtenido"] == am.Outcome.NO_DETERMINADO),
+        "undetermined_after": sum(1 for c in cells if c["obtenido"] == am.Outcome.NO_DETERMINADO),
+        "accuracy_before": None, "accuracy_after": None,
+        "from_exact": [], "from_wrong": [], "without_truth": [],
+    }
+    if commission is not None:
+        out["accuracy_before"] = cell_accuracy(before, commission)
+        out["accuracy_after"] = cell_accuracy(cells, commission)
+        for cell in changed:
+            key = (cell["oferta"], cell["fila"])
+            wanted = commission.cells.get(key)
+            if wanted is None:
+                out["without_truth"].append(key)
+            elif wanted == cell[VERIFIER_KEY]["antes"].get("resultado"):
+                out["from_exact"].append(key)
+            else:
+                out["from_wrong"].append(key)
+    return out
+
+
+def thresholds_verifier(figures):
+    """El umbral 17 del plan 016 que se mide con las cifras del verificador: `[(nombre, medido,
+    cumple)]`, vacío si no hay verificador o no hay verdad. «0 cumple sin fundamento» y las
+    preguntas conformes son las medidas de siempre sobre la corrida con el verificador."""
+    if not figures or figures["accuracy_before"] is None:
+        return []
+    before, after = figures["accuracy_before"], figures["accuracy_after"]
+    return [
+        ("Celdas exactas con el verificador, no menos que sin él (REQ-124)",
+         f"{after['exact']['ok']} contra {before['exact']['ok']}",
+         after["exact"]["ok"] >= before["exact"]["ok"]),
+        ("Celdas erradas con el verificador, no más que sin él (REQ-124)",
+         f"{after['wrong']['ok']} contra {before['wrong']['ok']}",
+         after["wrong"]["ok"] <= before["wrong"]["ok"]),
+        ("«No determinado» nuevo que venía de una celda exacta (REQ-124)",
+         str(len(figures["from_exact"])), not figures["from_exact"]),
+    ]
+
+
+def verifier_lines(figures, run=None):
+    """Las líneas del resumen del verificador (solo cifras): sin y con."""
+    if not figures:
+        return []
+    answers = "; ".join(f"{name} {count}" for name, count in figures["answers"].items())
+    lines = [f"- Celdas que pasaron por el verificador externo: {figures['verified']} ({answers}); "
+             f"pasaron a «no determinado»: {len(figures['changed'])}.",
+             f"- «No determinado» sin el verificador: {figures['undetermined_before']}; con el "
+             f"verificador: {figures['undetermined_after']}."]
+    if figures["accuracy_before"] is not None:
+        lines += ["- [sin verificador] " + line.lstrip("- ")
+                  for line in accuracy_lines(figures["accuracy_before"])]
+        lines += ["- [con verificador] " + line.lstrip("- ")
+                  for line in accuracy_lines(figures["accuracy_after"])]
+        lines.append(f"- De las que pasaron a «no determinado»: exactas "
+                     f"{len(figures['from_exact'])}, erradas {len(figures['from_wrong'])}, sin "
+                     f"verdad {len(figures['without_truth'])}.")
+        for name, measured, ok in thresholds_verifier(figures):
+            lines.append(f"- {name}: {measured} · {'cumple' if ok else 'no cumple'}")
+    if run:
+        lines.append(f"- Pasada sobre la corrida {run['fuente']}: {run['pedidos']} pedidos "
+                     f"externos, gasto {run['gasto_usd']} USD"
+                     + (f", medición «{run['medicion']}»" if run.get("medicion") else "")
+                     + "; las evaluaciones derivadas no repiten los pedidos locales (sus tiempos "
+                       "y tokens son los de la corrida de origen).")
+    return lines
 
 
 def write_exact_sample(folder, accuracy):
@@ -2324,11 +2442,10 @@ def run_evaluation(user, procedure, *, clock=time.monotonic):
     return requested.request, runs
 
 
-def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=None,
-            clock=time.monotonic, portal_cells=None, commission_cells=None,
-            cell_exclusions=None):
-    """Comprueba la lista, evalúa todas las ofertas con el canal `eval`, las mide y guarda la
-    carpeta de la corrida en `runs_dir`. Devuelve el `Report`."""
+def _prepare(user, procedure, expected, offers, fichas, commission_cells):
+    """Lo que comprueba toda medición antes de empezar: el rol, el visto bueno y los campos de la
+    lista, la lista contra la lectura, la matriz validada y el mapeo de `M-NNN`. Devuelve
+    `(comprobación, versión, mapeo, celdas de la Comisión resueltas)`."""
     require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
                             channel=Channel.COMMAND)
     if not expected.approval:
@@ -2348,13 +2465,15 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
         # T-271: la verdad ampliada pide las celdas por M-NNN; acá se traducen a la fila de la
         # matriz validada y se queda con las revisadas. El formato anterior pasa sin cambios.
         commission_cells = commission_cells.resolved({i: r.number for i, r in mapping.items()})
-    started_at = timezone.now()
-    video = {"before": video_memory()}
-    started = clock()
-    request, runs = run_evaluation(user, procedure, clock=clock)
-    elapsed = clock() - started
-    video["after"] = video_memory()
-    by_offer = {run.offer_id: run for run in runs}
+    return verification, version, mapping, commission_cells
+
+
+def _measure_runs(expected, offers, by_offer, mapping, *, fichas, portal_cells, commission_cells,
+                  cell_exclusions, questions_from=None):
+    """Mide las evaluaciones `by_offer` (`{oferta: evaluación}`) contra la lista. Devuelve
+    `(resultados por oferta, total)`. `questions_from` (`{oferta: evaluación}`, T-299): de dónde
+    tomar las preguntas de las filas que la evaluación medida no volvió a abrir (una evaluación
+    derivada no abre otra pregunta encima de la abierta de su origen)."""
     finder = PageFinder()
     excluded_rows = frozenset(cell_exclusions.rows) if cell_exclusions else frozenset()
     results = []
@@ -2368,6 +2487,11 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
                      if portal_cells else ())
         measures = measure_offer(entry, offer, run, mapping, finder, fragments, equivalents,
                                  own_cells, excluded_rows)
+        source = (questions_from or {}).get(offer.pk)
+        if source is not None:
+            asked = {q["fila"] for q in measures["questions"]}
+            measures["questions"] += [q for q in question_records(source, excluded_rows)
+                                      if q["fila"] not in asked]
         results.append({"offer": offer.pk, "number": offer.number, "bidder": entry.bidder,
                         "measures": measures, "parameters": run.parameters,
                         "prompt_versions": run.prompt_versions, "models": run.models_used})
@@ -2380,14 +2504,100 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
         "rows": sorted(excluded_rows),
         "motives": dict(cell_exclusions.rows) if cell_exclusions else {},
         "pairs": sum(len(r["measures"].get("excluded_pairs", [])) for r in results)}
+    # T-299: el verificador externo, sin (`antes`) y con, si alguna celda pasó por él.
+    total[VERIFIER_KEY] = verifier_figures(observed, commission_cells)
+    return results, total
+
+
+def _folder(runs_dir, started_at, commit):
     base = f"{started_at:%Y%m%d-%H%M%S}-{commit or 'sin-commit'}"
     folder = Path(runs_dir) / base
     suffix = 1
     while folder.exists():
         suffix += 1
         folder = Path(runs_dir) / f"{base}-{suffix}"
-    report = Report(folder, expected, verification, results, total, request,
-                    round(elapsed, 3), video=video, portal_cells=portal_cells,
+    return folder
+
+
+def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=None,
+            clock=time.monotonic, portal_cells=None, commission_cells=None,
+            cell_exclusions=None):
+    """Comprueba la lista, evalúa todas las ofertas con el canal `eval`, las mide y guarda la
+    carpeta de la corrida en `runs_dir`. Devuelve el `Report`."""
+    verification, version, mapping, commission_cells = _prepare(
+        user, procedure, expected, offers, fichas, commission_cells)
+    started_at = timezone.now()
+    video = {"before": video_memory()}
+    started = clock()
+    request, runs = run_evaluation(user, procedure, clock=clock)
+    elapsed = clock() - started
+    video["after"] = video_memory()
+    by_offer = {run.offer_id: run for run in runs}
+    results, total = _measure_runs(
+        expected, offers, by_offer, mapping, fichas=fichas, portal_cells=portal_cells,
+        commission_cells=commission_cells, cell_exclusions=cell_exclusions)
+    report = Report(_folder(runs_dir, started_at, commit), expected, verification, results, total,
+                    request, round(elapsed, 3), video=video, portal_cells=portal_cells,
+                    commission_cells=commission_cells, cell_exclusions=cell_exclusions)
+    _write(report, procedure, version, started_at, commit, fichas)
+    return report
+
+
+def source_runs(folder, procedure):
+    """Las evaluaciones de una corrida ya guardada (`parametros.json` de su carpeta), por oferta:
+    `{oferta: evaluación}`. Son las que mide `medir_evaluacion --verificador-sobre`."""
+    path = Path(folder) / "parametros.json"
+    if not path.is_file():
+        raise MeasurementRefused(f"No hay parametros.json en {folder}: no es una corrida guardada.")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    wanted = [entry.get("evaluacion") for entry in data.get("evaluaciones") or []]
+    runs = {run.pk: run for run in am.Run.objects.filter(
+        pk__in=[pk for pk in wanted if isinstance(pk, int)], offer__procedure=procedure)
+        .select_related("offer", "request", "matrix_version")}
+    missing = [pk for pk in wanted if pk not in runs]
+    if not wanted or missing:
+        raise MeasurementRefused("La corrida no nombra evaluaciones de este procedimiento que "
+                                 f"estén en la base: {missing or 'ninguna'}.")
+    return {run.offer_id: run for run in runs.values()}
+
+
+def measure_verifier(user, procedure, expected, offers, runs_dir, source, *, measurement=None,
+                     fichas=None, commit=None, clock=time.monotonic, portal_cells=None,
+                     commission_cells=None, cell_exclusions=None):
+    """`medir_evaluacion --verificador-sobre` (T-299; plan 016, «Medición del paso 4»): aplica el
+    verificador externo a las evaluaciones de la corrida guardada `source` (su carpeta) con la
+    misma función que la evaluación (`verifier.verify`), sin GPU, y mide las evaluaciones
+    derivadas que guarda (la base es de solo inserción) igual que `measure`. El «sin» sale del
+    `antes` de cada celda verificada y el «con», del resultado. `measurement` es la medición del
+    libro de pedidos externos: con el mismo nombre, un pedido igual reusa su respuesta."""
+    from evaluon.assessment import verifier
+
+    verification, version, mapping, commission_cells = _prepare(
+        user, procedure, expected, offers, fichas, commission_cells)
+    if not verifier.enabled():
+        raise MeasurementRefused("El verificador externo no está encendido (EXTERNAL_ENABLED=true "
+                                 "y EXTERNAL_STAGE_VERIFICADOR=externo).")
+    origin = source_runs(source, procedure)
+    started_at = timezone.now()
+    started = clock()
+    derived, done = {}, []
+    for offer_id, run in sorted(origin.items()):
+        derived[offer_id], verified = verifier.verify_saved(run, user, measurement=measurement)
+        done.append(verified)
+    elapsed = clock() - started
+    results, total = _measure_runs(
+        expected, offers, derived, mapping, fichas=fichas, portal_cells=portal_cells,
+        commission_cells=commission_cells, cell_exclusions=cell_exclusions,
+        questions_from=origin)
+    total["verifier_run"] = {
+        "fuente": Path(source).name, "medicion": measurement,
+        "pedidos": sum(v.sent.summary()["pedidos"] for v in done if v.sent is not None),
+        "gasto_usd": float(verifier.spent(done)),
+        "derivadas": {str(offer_id): run.pk for offer_id, run in derived.items()},
+        "origen": {str(offer_id): run.pk for offer_id, run in origin.items()}}
+    request = next(iter(origin.values())).request
+    report = Report(_folder(runs_dir, started_at, commit), expected, verification, results, total,
+                    request, round(elapsed, 3), video=None, portal_cells=portal_cells,
                     commission_cells=commission_cells, cell_exclusions=cell_exclusions)
     _write(report, procedure, version, started_at, commit, fichas)
     return report
@@ -2426,6 +2636,9 @@ def _write(report, procedure, version, started_at, commit, fichas):
                           "instrucciones": r["prompt_versions"], "modelos": r["models"]}
                          for r in report.offers],
     }
+    if report.total.get("verifier_run"):
+        # T-299: la pasada del verificador sobre una corrida guardada (de dónde y cuánto gastó).
+        parameters["verificador_sobre"] = report.total["verifier_run"]
     (report.folder / "parametros.json").write_text(
         _dumps(parameters, indent=2) + "\n", encoding="utf-8")
     with (report.folder / "resultados.jsonl").open("w", encoding="utf-8") as handle:
@@ -2478,6 +2691,8 @@ def _summary_015(report):
         lines.append(f"| {name} | {measured} | {'sí' if ok else 'no'} |")
     for name, measured, ok in thresholds_016(total):
         lines.append(f"| {name} | {measured} | {'sí' if ok else 'no'} |")
+    for name, measured, ok in thresholds_verifier(total.get(VERIFIER_KEY)):
+        lines.append(f"| {name} | {measured} | {'sí' if ok else 'no'} |")
     cells = total["cells"]
     portal = total["portal_cells"]
     forms = total["questions_form_parts"]
@@ -2504,6 +2719,9 @@ def _summary_015(report):
               f"- Tiempo de la evaluación completa: {report.seconds} s; memoria de video máxima "
               "registrada: " + (f"{memory} MiB (umbral {VIDEO_MAXIMUM_MIB} MiB)"
                                 if memory is not None else "no registrada") + "."]
+    if total.get(VERIFIER_KEY):
+        lines += ["", "## Verificador externo de citas (016, REQ-124, umbral 17)", "",
+                  *verifier_lines(total[VERIFIER_KEY], total.get("verifier_run"))]
     return lines
 
 

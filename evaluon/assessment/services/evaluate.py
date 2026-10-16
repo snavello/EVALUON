@@ -29,7 +29,12 @@ T-150).
 - `pair_page`: la página de un par, en solo lectura.
 
 El rol se comprueba fuera de toda transacción. Todo corre en el equipo, sin servicios externos
-(P4).
+(P4), salvo el verificador externo de citas (T-299; plan 016, «Paso 4»): con el uso externo
+encendido y la etapa `verificador` en `externo`, después del contraste y de las reglas y antes de la
+pregunta, `verifier.verify` revisa con el modelo externo cada «cumple» o «no cumple» que se apoya en
+una cita; solo puede pasarlos a «no determinado» `sin_corroborar`. La corrida guarda la clave
+`externo` en `models_used`, `parameters`, `prompt_versions` y `counts`. Apagado, nada de esto corre y
+la evaluación es la de siempre.
 """
 
 import re
@@ -47,7 +52,7 @@ from evaluon.ai import InputTooLongError, generation
 from evaluon.assessment import citations as citing
 from evaluon.assessment import combine, documents, externals, grounds, portal_block
 from evaluon.assessment import not_applicable, prompting, rules, sizing
-from evaluon.assessment import unreadable
+from evaluon.assessment import unreadable, verifier
 from evaluon.assessment.models import (
     Answer,
     Cause,
@@ -1239,6 +1244,38 @@ def _contrast_pair(ctx, pair):
     pair.seconds += ctx.clock() - started
 
 
+def _group_documents(ctx, pair):
+    """Los documentos de la oferta que leyó el modelo para el requisito (los de sus pedidos de
+    lectura de un grupo), sin repetir: los que la puerta del verificador mira en la celda."""
+    found = []
+    for step in ctx.steps:
+        if step.purpose != Purpose.GRUPO or step.requirement != pair.requirement:
+            continue
+        for entry in step.documents:
+            if isinstance(entry, dict) and "document" in entry and entry["document"] not in found:
+                found.append(entry["document"])
+    return tuple(found)
+
+
+def _verify(request, offer, pairs, ctx, user, audit_channel):
+    """El verificador externo de citas (T-299, REQ-124) sobre los pares de la oferta, después del
+    contraste y de las reglas. Devuelve la `verifier.Verification` o `None` si la etapa no corre
+    (uso externo apagado o la etapa en `local`): entonces no toca nada."""
+    if not verifier.enabled():
+        return None
+    ctx.report("Verificando las citas con el modelo externo", ctx.total, ctx.total)
+    cells = [verifier.Cell(requirement=pair.requirement, text=pair.text, combined=pair.combined,
+                           external_flagged=pair.external_flagged,
+                           group_documents=_group_documents(ctx, pair)) for pair in pairs]
+    done = verifier.verify(cells, offer=offer, run_id=f"pedido-{request.pk}", finder=ctx.finder,
+                           user=user, channel=audit_channel, clock=ctx.clock)
+    for pair, item in zip(pairs, done.checked):
+        pair.combined = item.combined
+        if item.anomaly:
+            pair.anomalies.append({**item.anomaly, "requirement": pair.requirement.number})
+    return done
+
+
 def _requirements(request, version):
     firm = sheets.firm_requirements(version)
     if request.requirements is None:
@@ -1386,6 +1423,8 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
             if pair.rule:
                 ctx.report(f"Una regla fija decidió el requisito {pair.requirement.number}",
                            ctx.total, ctx.total)
+        # T-299 (REQ-124): el verificador externo de citas, si corre, antes de armar la pregunta.
+        verified = _verify(request, offer, pairs, ctx, user, audit_channel)
         # T-235 (REQ-105): la pregunta a la Comisión la arma el código con el requisito, la
         # conclusión y el texto de la oferta, y la dirige a la Comisión.
         titles = [d.document.title for d in offer_text.documents]
@@ -1412,6 +1451,19 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
                   # T-261: el tope de documentos por grupo de cada requisito (P6).
                   "group_budgets": {str(number): budget
                                     for number, budget in ctx.budgets.items()}}
+        models_used, parameters = _models(), _parameters()
+        # La versión de cada instrucción y la huella SHA-256 de su texto (P6, REQ-106).
+        prompt_versions = {**settings.ASSESSMENT_PROMPT_VERSIONS,
+                           "reglas": settings.ASSESSMENT_RULES_VERSION,
+                           "huellas": prompting.prompt_hashes()}
+        if verified is not None:
+            # T-299 (REQ-122): la clave `externo` de la corrida, con la entrada del verificador.
+            record = verified.record()
+            models_used = {**models_used, "externo": record["models"]}
+            parameters = {**parameters, "externo": record["parameters"]}
+            prompt_versions = {**prompt_versions, "externo": record["prompt_versions"]}
+            counts = {**counts, "externo": record["counts"]}
+            anomalies.extend(verified.anomalies)
         timings = {"total_seconds": round(clock() - started, 3), "pairs": len(pairs),
                    "model_requests": len(ctx.steps),
                    "pair_seconds": {str(p.requirement.number): round(p.seconds, 3)
@@ -1423,13 +1475,8 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
             run = Run.objects.create(
                 request=request, offer=offer, matrix_version=version, number=last + 1,
                 channel=channel, documents=offer_text.record(),
-                norms=grounds.norms_record(version), models_used=_models(),
-                parameters=_parameters(),
-                # La versión de cada instrucción y la huella SHA-256 de su texto (P6, REQ-106).
-                prompt_versions={**settings.ASSESSMENT_PROMPT_VERSIONS,
-                                 "reglas": settings.ASSESSMENT_RULES_VERSION,
-                                 "huellas": prompting.prompt_hashes()},
-                counts=counts,
+                norms=grounds.norms_record(version), models_used=models_used,
+                parameters=parameters, prompt_versions=prompt_versions, counts=counts,
                 timings=timings, anomalies=anomalies, built_at=timezone.now())
             saved = []
             for step in ctx.steps:
