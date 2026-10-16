@@ -353,7 +353,7 @@ Qué significa cada prefijo:
 | **T-284** | 016 | Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de… | pendiente |
 | **T-285** | 016 | Ajuste único del paso 2: todos los hallazgos de T-283 y T-284 en una sola tarea, un commit por hallazgo, corregidos… | terminada |
 | **T-286** | 016 | Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con… | terminada |
-| **T-287** | 016 | Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como… | en verificación |
+| **T-287** | 016 | Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como… | terminada |
 | **T-288** | 016 | Esquema y configuración del uso externo: tipo de hecho external_request y su migración (la única de la feature)… | terminada |
 | **T-289** | 016 | Cliente de la API externa, su doble y la salida a internet: evaluon/ai/external/client.py (mensajes directos y lotes… | terminada |
 | **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | terminada |
@@ -496,7 +496,7 @@ Qué significa cada prefijo:
 | **REQ-124** | 016 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma… |  |
 | **REQ-125** | 016 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral… |  |
 
-## Decisiones (ADR) (70)
+## Decisiones (ADR) (71)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -570,6 +570,7 @@ Qué significa cada prefijo:
 | **ADR-0068** |  | Registro de los pedidos externos en la auditoría y tope de gasto hecho cumplir en código | aceptado |
 | **ADR-0069** |  | Verdad ampliada celda por celda: armada a ciegas del sistema, revisada y firmada por el responsable | aceptado |
 | **ADR-0070** |  | Instrucciones y reglas simples: largo máximo, sin ejemplos de casos, desempate a la corta y tres salidas por… | aceptado |
+| **ADR-0071** |  | Cierre del paso 2: las instrucciones cortas y las reglas a tres salidas quedan en el modelo local | aceptado |
 
 ## Decisiones y definiciones de las instrucciones (D-NN) (67)
 
@@ -680,9 +681,9 @@ Qué significa cada prefijo:
 | **D-269-2** | 007 | La comprobación de la suma del zip no tiene prueba (REQ-110; menor) | T-269 |
 | **D-269-3** | 007 | crear-certificados.sh no tiene prueba automática (ADR-0062; media) | T-269 |
 | **D-269-4** | 007 | Correr caddy.exe a mano, como indica «Si algo no anda», crea reglas automáticas del firewall que pueden anular la regla «EVALUON»… | T-269 |
-| **D-270-1** | 016 | clon_app y clon_worker alcanzan por nombre a db, generation_batch y app de 8000 en evaluon_internal; entorno.md dice lo contrario… | T-270 (verificación, pasa con la… |
-| **D-270-2** | 016 | Resuelto en la ventana real del 2026-10-15: nvidia-smi fallaba solo para el motor de 8000 arrancado antes del reinicio; con el… | T-270 |
-| **D-270-3** | 016 | restaurar no tiene test de la condición --forzar | T-270 |
+| **D-270-1** | 016 | La red compartida deja al clon alcanzar db, generation_batch y app de 8000 (baja; el texto de entorno.md es falso) | T-270 |
+| **D-270-2** | 016 | La condición de GPU libre de ventana-abrir no mide nada hoy (baja) | T-270 |
+| **D-270-3** | 016 | restaurar no tiene ningún test (baja; el código está bien) | T-270 |
 | **D-271-1** | 016 | La verdad tiene que nombrar los documentos sin carpeta si se cargaron con cargar_oferta (baja, condición para las tareas… | T-271 |
 | **D-271-1 a D-271-4** | 016 | D-271-1: cargar_oferta guarda el nombre sin carpeta, así que la verdad nombra los documentos sin carpeta y únicos por oferta… | T-271 (verificación, pasa) |
 | **D-271-2** | 016 | El «cumple por ausencia» no exige cubrir todos los documentos de la oferta (baja) | T-271 |
