@@ -134,3 +134,35 @@ def test_d283_2_a_row_of_an_option_is_never_discarded_as_an_optional_condition()
     assert _verdict("subcontratacion", a_motive="consecuencia_sancion").destination == (
         row_filter.DESCARTADA)
     assert row_filter.RULE_VERSION == "filtro-v5"
+
+
+# --- D-283-3: sobrantes (el texto de un modelo de declaración, la nota de una tabla, la excepción) --
+
+
+def test_d283_3_the_block_leaves_out_what_a_declaration_model_says_and_the_exception():
+    """REQ-119 (D-62 y D-63, derivadas pendientes; D-14, D-31): el bloque vigente dice que no son
+    requisitos lo que afirma el texto de un modelo de declaración (el requisito es presentarla, en la
+    fila de la cláusula que la pide) ni la excepción que dice cuándo algo no se exige; y que la nota
+    de una planilla, una tabla o una declaración que le exige algo al oferente va en la fila de la
+    cláusula que la pide."""
+    text = _block()
+    excluded = text[text.index("No son requisitos de la oferta"):text.index("Sí son requisitos")]
+    included = text[text.index("Sí son requisitos"):text.index("Opciones:")]
+
+    assert "- la excepción que dice cuándo algo no se exige;" in excluded
+    assert ("- lo que afirma el texto de un modelo de declaración: el requisito es presentarla, en la "
+            "fila de la cláusula que la pide;") in excluded
+    assert ("- la nota de una planilla, de una tabla o de una declaración que le exige algo al "
+            "oferente sobre lo que informa, en la fila de la cláusula que la pide.") in included
+
+
+def test_d283_3_the_motives_say_where_the_declaration_text_and_the_exception_go():
+    """REQ-119 (D-62, D-63; ADR-0019): en la extracción y en el filtro, el motivo `formulario` incluye
+    lo que afirma el texto de un modelo de declaración, y `condicion_opcional`, la excepción que dice
+    cuándo algo no se exige (H-280-6: la v10 del filtro la había perdido)."""
+    for text in (extraction.load_prompt("extraccion"), row_filter.load_prompts()[0]):
+        assert "o lo que afirma el texto de un modelo de declaración" in _motive_line(
+            text, "formulario")
+        optional = _motive_line(text, "condicion_opcional")
+        assert "o la excepción que dice cuándo algo no se exige" in optional
+        assert "no le exige nada a quien la usa" in optional

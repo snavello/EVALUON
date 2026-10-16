@@ -337,11 +337,9 @@ def test_the_016_report_has_no_case_text():
 # Un punto que cierra una oración: lo sigue un espacio y una mayúscula, una comilla o un signo de apertura.
 SENTENCE_END = re.compile(r'(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ¿¡«"])')
 # Las oraciones que no llevan fila a propósito, con su motivo (el informe de la 016 lo dice).
-WITHOUT_ROW = {
-    # Procedencia, no regla (H-279-3; el Coordinador, en el encargo de T-280).
-    "matriz-definiciones-v10": {
-        "Estas definiciones son decisiones del responsable y valen para toda la matriz."},
-}
+# T-285: el bloque v10 ya no trae la oración de procedencia del v9 («Estas definiciones son decisiones
+# del responsable…», H-279-3): se quitó por el largo (el bloque entra en la unión, de 5.000 caracteres).
+WITHOUT_ROW = {}
 # T-281 (H-280-4, a): la fila de la salida puede sumar, después de la oración completa, el esqueleto de
 # la salida con marcadores (las de T-279 y T-280). Es lo único que una fila puede agregar.
 SKELETON_NOTE = ", y el esqueleto de la salida con marcadores"
@@ -623,6 +621,13 @@ DERIVED = {
         'Derivada de D-41 (ADR-0038, regla 3: «no se encontró el documento» solo si el pliego '
         'exige un documento y la oferta leída no lo trae) y de D-23; origen: T-283, hallazgo '
         'D-283-5')),
+    "D-62": ("pendiente", (
+        'Derivada de D-06 y del ADR-0019 (motivo `formulario`: las planillas o modelos en blanco) '
+        'y de D-14; origen: T-236 de la 015 (bloque de definiciones hasta la v8: el texto de un '
+        'formulario o de una declaración jurada modelo no es requisito) y T-283, hallazgo D-283-3')),
+    "D-63": ("pendiente", (
+        'Derivada de D-01; origen: T-240 de la 015 (`matriz-filtro-v9`, motivo '
+        '`condicion_opcional`), H-280-6 y T-283, hallazgo D-283-3')),
 }
 PENDING_MARK = "pendiente de confirmación del responsable"
 CONFIRMED_MARK = re.compile(r"confirmada por el responsable el (\d{4}-\d{2}-\d{2})\b[^«“]*[«“][^»”]+[»”]")
