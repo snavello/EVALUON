@@ -628,6 +628,9 @@ DERIVED = {
     "D-63": ("pendiente", (
         'Derivada de D-01; origen: T-240 de la 015 (`matriz-filtro-v9`, motivo '
         '`condicion_opcional`), H-280-6 y T-283, hallazgo D-283-3')),
+    "D-64": ("pendiente", (
+        'Derivada de D-01 y de D-13 (spec 015, 2026-10-10, «Requisito de la forma elegida»); '
+        'origen: O-260-1 de la 015 y T-283, hallazgo D-283-4')),
 }
 PENDING_MARK = "pendiente de confirmación del responsable"
 CONFIRMED_MARK = re.compile(r"confirmada por el responsable el (\d{4}-\d{2}-\d{2})\b[^«“]*[«“][^»”]+[»”]")

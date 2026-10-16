@@ -78,6 +78,7 @@ La columna «Aplica a» es la propuesta de T-278; T-279 a T-282 la confirman al 
 | D-61 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): un documento que el pliego exige está en la oferta si alguno de los documentos leídos lo trae, aunque tenga otro título o venga junto con otros; el modelo cita una oración suya. | Derivada de D-41 (ADR-0038, regla 3: «no se encontró el documento» solo si el pliego exige un documento y la oferta leída no lo trae) y de D-23; origen: T-283, hallazgo D-283-5 | evaluación |
 | D-62 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): lo que afirma el texto de un modelo de declaración que el pliego trae para que el oferente la firme no es una fila por cada afirmación: el requisito es presentar la declaración, en la fila de la cláusula que la pide. | Derivada de D-06 y del ADR-0019 (motivo `formulario`: las planillas o modelos en blanco) y de D-14; origen: T-236 de la 015 (bloque de definiciones hasta la v8: el texto de un formulario o de una declaración jurada modelo no es requisito) y T-283, hallazgo D-283-3 | definiciones, extracción, filtro |
 | D-63 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): la excepción que dice cuándo algo no se exige no es requisito de la oferta. | Derivada de D-01; origen: T-240 de la 015 (`matriz-filtro-v9`, motivo `condicion_opcional`), H-280-6 y T-283, hallazgo D-283-3 | definiciones, extracción, filtro |
+| D-64 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): lo que el pliego le exige a quien no usa una opción rige para toda oferta que no la usa; no es la condición de esa opción. | Derivada de D-01 y de D-13 (spec 015, 2026-10-10, «Requisito de la forma elegida»); origen: O-260-1 de la 015 y T-283, hallazgo D-283-4 | definiciones, extracción |
 
 ## Oración → decisión, por instrucción nueva
 
@@ -606,8 +607,8 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | También lo es lo que el organismo comprueba del oferente con una consulta fuera de la oferta (registros, deudas, sanciones): es un requisito externo. | D-01, D-10, D-33 |
 | Una condición puede estar dicha como efecto sobre la oferta («se considerará», «se entenderá», «quedará»): si nombra algo que la oferta tiene que presentar o cumplir, es requisito; si solo dice qué pasa cuando no se cumple otra condición, es una consecuencia. | D-01, D-04, D-34 |
 | Una fila es una unidad de sentido: la oración completa del pliego, con todas sus condiciones. | D-14, D-15 |
-| Si junta varias condiciones, sigue siendo una fila: la evaluación revisa cada una dentro de la celda. | D-14 |
-| Las oraciones cortas seguidas que continúan el mismo asunto, sin sujeto propio o remitiendo a la anterior, van en la misma fila. | D-14 |
+| Si junta varias condiciones, sigue siendo una fila: la evaluación revisa cada una en la celda. | D-14 |
+| Las oraciones cortas seguidas del mismo asunto, sin sujeto propio o que remiten a la anterior, van en la misma fila. | D-14 |
 | Dos obligaciones distintas sobre un mismo objeto son dos filas, aunque estén seguidas. | D-14, D-31 |
 | El mantenimiento de la oferta, con su plazo, su cómputo y su prórroga automática, es una sola fila. | D-20, D-31 |
 | El aviso del oferente para no renovarla, y lo que pasa si no avisa, no es fila. | D-20 |
@@ -622,14 +623,15 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | lo que afirma el texto de un modelo de declaración: el requisito es presentarla, en la fila de la cláusula que la pide; | D-06, D-14, D-62, ADR-0019 |
 | las definiciones, los datos del procedimiento, la cita de normas, los títulos, los índices y las planillas o modelos en blanco. | D-06, ADR-0019 |
 | Sí son requisitos de la oferta: | D-12, D-13, D-21 |
-| la moneda en que se cotiza la oferta; | D-12 |
+| la moneda en que se cotiza la oferta y la conversión a esa moneda de lo cotizado en otra; | D-12 |
 | entregar en papel lo que el Portal marca como «Requiere presentar», aunque la oración hable también de la carga en el Portal: la carga es forma de presentar; la entrega física, requisito; | D-12, D-21, D-31 |
 | las condiciones de la forma de garantía que el oferente elige, que se evalúan solo en la oferta que eligió esa forma; | D-13 |
-| la nota de una planilla, de una tabla o de una declaración que le exige algo al oferente sobre lo que informa, en la fila de la cláusula que la pide. | D-14, D-31 |
-| Opciones: una condición que solo vale si el oferente usa una opción que puede no usar (oferta alternativa, descuento, cotización parcial, beneficio MiPyME, subcontratación) entra solo como condición de esa opción: la oración que le exige algo a quien usa la opción es requisito de esa opción, con su nombre. | D-13, D-31 |
+| la nota de una planilla, tabla o declaración que le exige algo al oferente sobre lo que informa, en la fila de la cláusula que la pide. | D-14, D-31 |
+| Opciones: una condición que solo vale si el oferente usa una opción que puede no usar (oferta alternativa, descuento, cotización parcial, MiPyME, subcontratación) entra solo como condición de esa opción: la oración que le exige algo a quien usa la opción es requisito de esa opción, con su nombre. | D-13, D-31 |
+| Lo exigido a quien no la usa rige para las ofertas que no la usan. | D-13, D-64 |
 | La oración que solo permite o describe la opción, sin exigirle nada a quien la usa, no es requisito. | D-13 |
-| Clases, si no las fija la sección del pliego: la garantía, el precio y la moneda de cotización son económicos; los documentos, las declaraciones y los compromisos, formales; el bien y su entrega, técnicos, en una fila por renglón con la cita a sus especificaciones. | D-02, D-03, D-12 |
-| Duda: una duda real no se pierde; va como sugerencia con su motivo, nunca a un descarte silencioso. | D-06, D-15 |
+| Clases, si la sección no las fija: la garantía, el precio y la moneda de cotización son económicos; los documentos, las declaraciones y los compromisos, formales; el bien y su entrega, técnicos, en una fila por renglón con la cita a sus especificaciones. | D-02, D-03, D-12 |
+| Duda: una duda real va como sugerencia con su motivo, nunca a un descarte silencioso. | D-06, D-15 |
 
 ### matriz-extraccion-v14
 
@@ -642,7 +644,7 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | "requisitos": cada requisito de la oferta que trae el tramo, con su cita, su clase y su opción. | D-01 |
 | "cita": la oración que lo exige, entera y copiada letra por letra del texto del tramo, junto con las oraciones seguidas del mismo asunto. | D-14, D-15 |
 | "clase": "formal" o "economico", según las definiciones. | D-03 |
-| "opcion": "" si el requisito vale para toda oferta. | D-13 |
+| "opcion": "" si el requisito vale para toda oferta o para toda la que no usa una opción. | D-13, D-64 |
 | Si es la condición de una opción que el oferente puede no usar, el nombre de esa opción: "mipyme", "oferta_alternativa", "descuento", "subcontratacion", "cotizacion_parcial" u "otra". | D-13 |
 | La forma de garantía que el oferente elige no es una opción. | D-13 |
 | "tecnico": si el tramo trata del bien o de su entrega, los renglones a los que se aplica, o "todos" si son todos o no se sabe cuáles; si no, vacío. | D-02 |

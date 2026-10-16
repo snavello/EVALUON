@@ -9,7 +9,7 @@ QUÉ DEVOLVER POR TRAMO
 - "requisitos": cada requisito de la oferta que trae el tramo, con su cita, su clase y su opción.
 - "cita": la oración que lo exige, entera y copiada letra por letra del texto del tramo, junto con las oraciones seguidas del mismo asunto.
 - "clase": "formal" o "economico", según las definiciones.
-- "opcion": "" si el requisito vale para toda oferta. Si es la condición de una opción que el oferente puede no usar, el nombre de esa opción: "mipyme", "oferta_alternativa", "descuento", "subcontratacion", "cotizacion_parcial" u "otra". La forma de garantía que el oferente elige no es una opción.
+- "opcion": "" si el requisito vale para toda oferta o para toda la que no usa una opción. Si es la condición de una opción que el oferente puede no usar, el nombre de esa opción: "mipyme", "oferta_alternativa", "descuento", "subcontratacion", "cotizacion_parcial" u "otra". La forma de garantía que el oferente elige no es una opción.
 - "tecnico": si el tramo trata del bien o de su entrega, los renglones a los que se aplica, o "todos" si son todos o no se sabe cuáles; si no, vacío.
 - "descarte": si el tramo no trae requisitos ni nada técnico, el motivo; si no, vacío.
 

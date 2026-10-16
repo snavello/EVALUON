@@ -121,7 +121,7 @@ f3eba1fe2d2b11df592cfc0bc304958a72b571c8676d368e1f68d2d2bf7e9de6  evaluon/offers
 63249f48a70772ce620162a85345850865182417184045641c25948cb2ca025f  evaluon/tenders/prompts/procedimiento-datos-v3.md
 21d9bee14ad5220f5dd31846ceb5d64836d8a959f3c026587990e652f0705cb9  evaluon/queries/prompts/consulta-v5.txt
 # T-285 (spec 016, REQ-119 y REQ-120): ajuste único del paso 2, hallazgos de T-283 corregidos como definiciones generales
-815123bc8ec2ab37f319bbbba415f8aacd712c17aa1ebf02db80c038949587f0  evaluon/tenders/prompts/matriz-definiciones-v10.md
-a070e481ba4ec3e30a9673f699491cd9e6af95d706158548b0c6b2789ba213e3  evaluon/tenders/prompts/matriz-extraccion-v14.md
+dea40deb7b5fc0e01997d971fce18f0acfd64a6c65756a3f54df965390e5d449  evaluon/tenders/prompts/matriz-definiciones-v10.md
+c09c5330a1cb31e99ddbfc2f04dcff26ae7186fef992484073b141f4d8680d7c  evaluon/tenders/prompts/matriz-extraccion-v14.md
 ef4bce79b56ec507a0460abd31f6d11e3c9a189f2f0d261bf3ed884b88e27362  evaluon/tenders/prompts/matriz-filtro-v11.md
 4480962ca24e766ba358a499dac01349c44ed47fc61708a3c74385234a7b2c9b  evaluon/assessment/prompts/evaluacion-v14.md

@@ -152,8 +152,8 @@ def test_d283_3_the_block_leaves_out_what_a_declaration_model_says_and_the_excep
     assert "- la excepción que dice cuándo algo no se exige;" in excluded
     assert ("- lo que afirma el texto de un modelo de declaración: el requisito es presentarla, en la "
             "fila de la cláusula que la pide;") in excluded
-    assert ("- la nota de una planilla, de una tabla o de una declaración que le exige algo al "
-            "oferente sobre lo que informa, en la fila de la cláusula que la pide.") in included
+    assert ("- la nota de una planilla, tabla o declaración que le exige algo al oferente sobre lo "
+            "que informa, en la fila de la cláusula que la pide.") in included
 
 
 def test_d283_3_the_motives_say_where_the_declaration_text_and_the_exception_go():
@@ -166,3 +166,28 @@ def test_d283_3_the_motives_say_where_the_declaration_text_and_the_exception_go(
         optional = _motive_line(text, "condicion_opcional")
         assert "o la excepción que dice cuándo algo no se exige" in optional
         assert "no le exige nada a quien la usa" in optional
+
+
+# --- D-283-4: la conversión a la moneda de cotización y lo exigido a quien no usa una opción --------
+
+
+def test_d283_4_the_block_keeps_the_conversion_and_what_is_asked_of_who_does_not_use_an_option():
+    """REQ-119 (D-12: la moneda en que se cotiza la oferta es requisito; D-64, derivada pendiente):
+    el bloque vigente dice que la conversión a la moneda de cotización de lo cotizado en otra es
+    requisito, y que lo exigido a quien no usa una opción rige para las ofertas que no la usan."""
+    text = _block()
+    included = text[text.index("Sí son requisitos"):text.index("Opciones:")]
+    options = text[text.index("Opciones:"):text.index("Clases")]
+
+    assert ("- la moneda en que se cotiza la oferta y la conversión a esa moneda de lo cotizado en "
+            "otra;") in included
+    assert "Lo exigido a quien no la usa rige para las ofertas que no la usan." in options
+
+
+def test_d283_4_what_binds_every_offer_that_does_not_use_an_option_has_no_option_name():
+    """REQ-119 (D-13, D-64): en la extracción, `opcion` va vacía para lo que vale para toda oferta o
+    para toda la que no usa una opción (no es la condición de esa opción)."""
+    line = next(row for row in extraction.load_prompt("extraccion").splitlines()
+                if row.startswith('- "opcion":'))
+
+    assert '"" si el requisito vale para toda oferta o para toda la que no usa una opción' in line
