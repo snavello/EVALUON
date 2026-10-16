@@ -1,6 +1,6 @@
 # Revisión de las instrucciones al modelo de la 016 · decisiones y oraciones
 
-Spec 016, REQ-119 · ADR-0070 · Tareas T-278 (tabla de decisiones), T-279 a T-282 y T-291 (instrucciones nuevas).
+Spec 016, REQ-119 · ADR-0070 · Tareas T-278 (tabla de decisiones), T-279 a T-282, T-291 y T-299 (instrucciones nuevas).
 
 Este archivo es el resumen para el repositorio: **no lleva texto ni cifras de los casos** (P4). Tiene dos partes:
 
@@ -866,3 +866,30 @@ Límites conocidos (verificación de T-285, H-285-4): la ausencia verificada no 
 | No agregues títulos, comentarios ni formato. | D-51 |
 | Texto plano, sin JSON. | D-30, D-51 |
 | Después de la última línea, escribí <<FIN>> en una línea aparte, sin nada más. | D-30 |
+
+## Instrucciones de T-299
+
+### verificador-v1
+
+La instrucción propia del verificador externo de citas (plan 016, «Paso 4 · Qué se le pide»). Va como sistema de cada pedido; el mensaje trae lo mismo que ve el contraste local y nada más: el requisito con su punto completo y la oración marcada, la conclusión, la oración citada de la oferta con su documento, su página y el contexto de la misma página, y el dato del Portal citado (sin el razonamiento del modelo local ni respuestas de la Comisión). Cubre lo mismo que `contraste-v5` (D-41, D-43) con un campo más, la pregunta a la Comisión (D-40), y cambia el nombre del veredicto (`sostiene`). Qué hace el sistema con la respuesta (solo restar: «no» o «parcial» pasan la celda a «no determinado» `sin_corroborar`; la pregunta se usa solo si tiene la forma de REQ-105) lo fija el código, no la instrucción. Largo: 23 líneas y 2.299 caracteres (tope de las demás: 50 y 5.000).
+
+| Oración | Decisión |
+|---|---|
+| Revisás una conclusión que el sistema propuso al evaluar una oferta de una contratación pública: si el texto citado demuestra la conclusión. | D-41 |
+| No evaluás la oferta de nuevo ni buscás otro texto. | D-41 |
+| Proponés; la decisión final es de una persona de la Comisión. | D-23, D-54 |
+| El requisito del pliego con su punto completo: lo que se evalúa es la oración entre <<< y >>>. | D-28, D-39 |
+| La conclusión propuesta: "cumple" o "no cumple". | D-41 |
+| El texto citado de la oferta: la oración completa, con su documento y su página, y el contexto en la misma página. | D-39 |
+| El contexto sirve para entender la cita; lo que sostiene la conclusión tiene que estar en la oración citada o en un dato del Portal. | D-39, D-41 |
+| Si los hay, los datos del Portal citados: son datos oficiales y valen igual que un texto de la oferta. | D-16, D-17 |
+| "razonamiento": una o dos oraciones, de hasta 400 caracteres: qué condiciones tiene el requisito, qué dicen la cita y el Portal sobre cada una y si alcanzan para la conclusión. | D-39 |
+| "sostiene": "si" si el texto muestra, con datos concretos, lo que la conclusión afirma para todas las condiciones del requisito; con "no cumple", "si" quiere decir que el texto muestra que lo exigido no se satisface. | D-41 |
+| "no" si el texto no trata de lo que el requisito exige o muestra lo contrario de la conclusión. | D-41 |
+| "parcial" si trata del tema pero no alcanza: falta el dato de una de las condiciones o solo anuncia un documento que no reproduce. | D-39, D-41 |
+| "pregunta": vacía si "sostiene" es "si". | D-40, D-41 |
+| Si no, una pregunta dirigida a la Comisión que nombra el requisito por su número y copia entre « » su oración del pliego, dice la conclusión propuesta, copia entre « » el texto citado de la oferta con su documento y su página, y dice qué falta para decidir. | D-40 |
+| Juzgá solo contra lo que el requisito pide: si el texto afirma lo mismo, con las mismas palabras o con otras equivalentes, alcanza. | D-43 |
+| Si el requisito tiene varias condiciones y el texto responde solo a algunas, es "parcial" y el razonamiento dice cuál falta. | D-14, D-39 |
+| No uses nada que no esté en la cita, en su contexto o en los datos del Portal. | D-41 |
+| La pregunta es para la Comisión y nunca le pide nada al oferente. | D-40 |

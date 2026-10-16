@@ -646,6 +646,8 @@ EXTERNAL_THINKING = {
 # mismo bloque de definiciones que la local (`MATRIX_PROMPT_VERSIONS["definiciones"]`).
 EXTERNAL_PROMPT_VERSIONS = {
     "matriz": "matriz-externa-v1",
+    # T-299 (plan 016, «Paso 4»): el verificador de citas, en `evaluon/assessment/prompts/`.
+    "verificador": "verificador-v1",
 }
 # `lotes` (la mitad del precio) o `directo` (la prueba de humo).
 EXTERNAL_MODE = env_choice("EXTERNAL_MODE", "lotes", ("lotes", "directo"))
