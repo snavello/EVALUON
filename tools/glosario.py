@@ -24,6 +24,7 @@ PREFIJOS = [
     ("D-NNN-N", "Hallazgo de una verificación que impide o condiciona (defecto); NNN es la tarea verificada"),
     ("H-NNN-N", "Hallazgo de una verificación (misma idea que D-, nombre usado desde la 016)"),
     ("O-NNN-N", "Observación de una verificación: no impide integrar"),
+    ("D-NN", "Decisión literal del responsable o definición derivada usada en las instrucciones al modelo (specs/NNN/revision-instrucciones.md)"),
     ("M-NNN", "Entrada de la lista esperada de un caso (un requisito que la matriz debe traer); fuera de git"),
     ("EV-NNN", "Caso del conjunto dorado de evals (pregunta pública con respuesta esperada)"),
     ("P1 a P11", "Principio de la constitución"),
@@ -171,9 +172,34 @@ def principle_rows(root: Path) -> list[dict]:
     return rows
 
 
-def collect(root: Path) -> list[dict]:
-    return (principle_rows(root) + feature_rows(root) + task_rows(root) + req_rows(root)
-            + adr_rows(root) + finding_rows(root) + eval_rows(root))
+def decision_rows(root: Path) -> list[dict]:
+    """D-NN del informe de revisión de instrucciones: decisiones literales y derivadas."""
+    rows = []
+    for folder in feature_folders(root):
+        path = folder / "revision-instrucciones.md"
+        if not path.exists():
+            continue
+        for line in read(path).splitlines():
+            if re.match(r"^\| D-\d{2} \|", line):
+                c = cells(line)
+                texto = c[1]
+                estado = "decisión literal"
+                low = texto.lower()
+                if "definición derivada" in low:
+                    estado = "derivada, confirmada" if "confirmada" in low else "derivada, pendiente de confirmación"
+                rows.append({"codigo": c[0], "tipo": "Decisión", "feature": folder.name[:3],
+                             "que": plain(texto, 150), "estado": estado})
+    return rows
+
+
+def collect(root: Path, extras: list[Path]) -> list[dict]:
+    rows = (principle_rows(root) + feature_rows(root) + task_rows(root) + req_rows(root)
+            + adr_rows(root) + eval_rows(root))
+    vistos: dict[str, dict] = {}
+    for base in [root] + extras:
+        for r in decision_rows(base) + finding_rows(base):
+            vistos.setdefault(r["codigo"], r)
+    return rows + sorted(vistos.values(), key=lambda r: (r["tipo"], r["codigo"]))
 
 
 def md_table(rows: list[dict], estado: str) -> list[str]:
@@ -189,12 +215,14 @@ def build_md(rows: list[dict]) -> str:
            "", "Qué significa cada prefijo:", "", "| Prefijo | Qué es |", "|---|---|"]
     out += [f"| **{p}** | {q} |" for p, q in PREFIJOS]
     for tipo, estado in [("Principio", ""), ("Feature", ""), ("Tarea", "Estado"), ("Requisito", ""),
-                         ("ADR", "Estado"), ("Hallazgo", "Dónde"), ("Observación", "Dónde"), ("Eval", "")]:
+                         ("ADR", "Estado"), ("Decisión", "Estado"), ("Hallazgo", "Dónde"),
+                         ("Observación", "Dónde"), ("Eval", "")]:
         sub = [r for r in rows if r["tipo"] == tipo]
         if not sub:
             continue
         titulo = {"Principio": "Principios de la constitución", "Feature": "Features",
                   "Tarea": "Tareas", "Requisito": "Requisitos", "ADR": "Decisiones (ADR)",
+                  "Decisión": "Decisiones y definiciones de las instrucciones (D-NN)",
                   "Hallazgo": "Hallazgos de verificación", "Observación": "Observaciones de verificación",
                   "Eval": "Casos de evals"}[tipo]
         out += ["", f"## {titulo} ({len(sub)})", ""] + md_table(sub, estado or "·")
@@ -258,9 +286,11 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=str(Path(__file__).resolve().parent.parent))
     ap.add_argument("--html", default=None, help="escribe además el fragmento HTML de la solapa")
+    ap.add_argument("--tambien", action="append", default=[],
+                    help="otra copia de trabajo de la que tomar informes de revisión y verificaciones que main no tiene todavía")
     args = ap.parse_args(argv)
     root = Path(args.root)
-    rows = collect(root)
+    rows = collect(root, [Path(p) for p in args.tambien])
     out = root / "docs" / "glosario.md"
     out.write_text(build_md(rows), encoding="utf-8")
     print(f"Escrito {out.relative_to(root)} ({len(rows)} códigos)")
