@@ -80,6 +80,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 |---|---|---|---|
 | 2026-10-15 12:23 | 1: T-270, T-271, T-278 | e5724b1d | 6187 pasaron, 1 omitida, 0 fallaron (22 min 46 s, `-n 2`, con `corpus/casos` montado) |
 | 2026-10-15 22:54 | 2: T-277, T-279, T-280, T-281, T-282 | e489985f | 6418 pasaron, 1 omitida, 0 fallaron (25 min 21 s, `-n 2`, con `corpus/casos` montado) |
+| 2026-10-16 07:08 | 3: T-285, T-288, T-289, T-290, T-300 | c93b33bd | 6760 pasaron, 1 omitida, 0 fallaron (25 min 31 s, `-n 2`, con `corpus/casos` y los compose del clon montados) |
 
 ## Lista de revisión (hallazgos que no impiden integrar; se corrigen en una sola tarea por lote, ADR-0025)
 
