@@ -10,12 +10,21 @@ que ningún otro archivo de `evaluon/` llama a `from_guard`.
 El pedido es inmutable: todo lo que lleva son textos, números y tuplas. El cuerpo del mensaje
 se arma con `to_params()` (una copia nueva cada vez) y su huella sale de él.
 
+Un pedido no se copia ni se rehace por fuera de la puerta (O-289-4, T-290): cada llamada a
+`from_guard` habilita una sola construcción con una marca de un solo uso, así que
+`dataclasses.replace` (que vuelve a construir con la marca ya usada) falla; `copy`, `deepcopy` y
+`pickle` fallan; y el pedido lleva un sello (HMAC de todos sus campos con una clave que nace con
+el proceso y no sale de él) que el cliente comprueba (`sealed`): un pedido cambiado por la
+fuerza (`object.__setattr__`) no sale.
+
 No importa ningún módulo de red.
 """
 
 import hashlib
+import hmac
 import json
-from dataclasses import dataclass, field
+import os
+from dataclasses import dataclass, field, fields
 
 # El nombre de la etapa de un pedido empieza con una etapa de la configuración
 # (EXTERNAL_STAGE_NAMES): `matriz_extraccion` es de `matriz`, `verificador` es de `verificador`.
@@ -23,9 +32,14 @@ THINKING_LEVELS = ("off", "adaptive", "between_tools")
 ROLES = ("user", "assistant")
 MAX_CUSTOM_ID = 64
 
-# Marca con la que `from_guard` identifica su propio llamado. No es una defensa contra código
-# malicioso: impide armar un pedido por descuido sin pasar por la puerta.
-_ISSUED_BY_GUARD = object()
+# Marcas de un solo uso con las que `from_guard` habilita cada construcción (O-289-4). No es una
+# defensa contra código malicioso: impide armar, copiar o rehacer un pedido por descuido sin pasar
+# por la puerta.
+_PENDING = set()
+# Clave del sello: nace con el proceso, no se guarda ni se registra (no es un secreto del equipo).
+_SEAL_KEY = os.urandom(32)
+_NOT_FROM_GUARD = ("ExternalPayload solo se construye con ExternalPayload.from_guard(), que "
+                   "llama la puerta de filtrado (evaluon/ai/external/guard.py).")
 
 
 def stage_group(stage):
@@ -82,12 +96,34 @@ class ExternalPayload:
     definitions_version: str = ""
     definitions_sha256: str = ""
     issued_by: object = field(default=None, repr=False, compare=False)
+    seal: str = field(default="", init=False, repr=False, compare=False)
 
     def __post_init__(self):
-        if self.issued_by is not _ISSUED_BY_GUARD:
-            raise TypeError(
-                "ExternalPayload solo se construye con ExternalPayload.from_guard(), que "
-                "llama la puerta de filtrado (evaluon/ai/external/guard.py).")
+        token = self.issued_by
+        if token is None or token not in _PENDING:
+            raise TypeError(_NOT_FROM_GUARD)
+        _PENDING.discard(token)  # de un solo uso: `replace` la trae ya usada
+        object.__setattr__(self, "seal", self._compute_seal())
+
+    def _compute_seal(self):
+        values = {f.name: getattr(self, f.name) for f in fields(self)
+                  if f.name not in ("issued_by", "seal")}
+        text = json.dumps(values, sort_keys=True, ensure_ascii=False, default=str)
+        return hmac.new(_SEAL_KEY, text.encode("utf-8"), hashlib.sha256).hexdigest()
+
+    @property
+    def sealed(self):
+        """El pedido es el mismo que armó la puerta: nadie lo cambió después (O-289-4)."""
+        return bool(self.seal) and hmac.compare_digest(self.seal, self._compute_seal())
+
+    def __copy__(self):
+        raise TypeError(_NOT_FROM_GUARD)
+
+    def __deepcopy__(self, memo):
+        raise TypeError(_NOT_FROM_GUARD)
+
+    def __reduce_ex__(self, protocol):
+        raise TypeError(_NOT_FROM_GUARD)
 
     @classmethod
     def from_guard(cls, *, stage, model, max_tokens, system, messages, custom_id,
@@ -133,10 +169,13 @@ class ExternalPayload:
         unknown = set(ids) - known
         if unknown:
             raise TypeError(f"ExternalPayload: campos desconocidos {sorted(unknown)}.")
+        # La marca la consume `__post_init__`: una segunda construcción con ella (`replace`) falla.
+        token = object()
+        _PENDING.add(token)
         return cls(stage=stage, model=model, max_tokens=max_tokens, system=system,
                    messages=tuple(pairs), custom_id=custom_id, effort=effort,
                    thinking=thinking, output_schema=schema_text,
-                   cache_system_ttl=cache_system_ttl, issued_by=_ISSUED_BY_GUARD, **ids)
+                   cache_system_ttl=cache_system_ttl, issued_by=token, **ids)
 
     @property
     def stage_group(self):
