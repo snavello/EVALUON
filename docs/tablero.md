@@ -75,7 +75,7 @@ flowchart LR
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
-| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 18/38 | █████░░░░░ 47% |
+| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 19/38 | █████░░░░░ 50% |
 
 <a id="001"></a>
 
@@ -1523,7 +1523,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 20 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 19 tareas sin terminar.
+- ▶ T-294 · Ajuste único de la matriz externa (`matriz-externa-v2` y parámetros) con todos los hallazgos de T-293; se cierra sin cambios si T-293 cumple todo (en curso)
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
@@ -1531,8 +1532,6 @@ flowchart LR
 - ○ T-275 · Verdad celda por celda del segundo caso de aceptación, con el mismo método y el mismo umbral (pendiente)
 - ○ T-276 · Cierre del paso 1: documento de revisión por caso, revisión y firma celda por celda del responsable (quién y cuándo en cada celda), congelado de los casos de aceptación y verificación de REQ-118. Umbral 1 a 4: al menos 3 casos (2 de aceptación), 40 celdas decididas por caso y 150 en total, 100 % con quién y cuándo, 0 corridas de evaluación en aceptación (pendiente)
 - ○ T-284 · Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de arranque (B0) y con el candidato, celda por celda. Umbrales 7, 9 y 10: 0 «cumple» sin fundamento, 0 contradicciones, tres salidas, exactitud por celda sin llegar a 6 filas en contra con 0 a favor ni a 8 contra 1 (pendiente)
-- ○ T-293 · Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286. Umbral 16 (puerta): lista presente y firmes con pareja no peores en cada caso y 0 pedazos; gasto ≈ 1,20 USD (pendiente)
-- ○ T-294 · Ajuste único de la matriz externa (`matriz-externa-v2` y parámetros) con todos los hallazgos de T-293; se cierra sin cambios si T-293 cumple todo (pendiente)
 - ○ T-295 · Re-medición del paso 3, ronda 2 (ajuste): lo que cambió T-294. Mismo umbral 16; si no lo pasa, el externo no pasa a aceptación y queda local (pendiente)
 - ○ T-296 · Medición final del paso 3 (aceptación, una sola corrida): matriz local simplificada y externa de 03, 04 y 05, mismo commit y listas congeladas. Umbrales 13 a 15: el externo sube al menos 5 puntos en lista presente en al menos 2 de 3 sin bajar en ninguno, firmes con pareja no bajan, 0 pedazos; si no, queda local. Se cierra sin correr si T-295 no pasó la puerta (pendiente)
 - ○ T-297 · Segunda comparación con `claude-opus-5-5`, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma instrucción, solo la etapa que falló, una vez; se cierra sin correr si no corresponde (pendiente)
@@ -1565,6 +1564,7 @@ flowchart LR
 - ✓ T-290 · Puerta de filtrado, libro de gasto y registro: `guard.py` (lista permitida, exclusiones, huellas), `ledger.py` (hecho por pedido, tope por caso y por mes, reuso por huella, freno al doble) y `gasto_externo` con `--verificar-filtro`; hoja de compliance inventada para las pruebas. Umbral 19 y 21 con el doble: 0 pedidos con texto de la hoja; el lote que pasa el tope no sale (`2ed9665a` 2026-10-16, `314e0728` 2026-10-16, `7f227a00` 2026-10-16, `de0012c9` 2026-10-16, `f7f0af60` 2026-10-16, `4600614c` 2026-10-16, `46b354c8` 2026-10-16, `2c5e89de` 2026-10-16, `25363f69` 2026-10-16, `f43db2ce` 2026-10-16, `73ff52b0` 2026-10-16, `d4d02fe5` 2026-10-16)
 - ✓ T-291 · Matriz con modelo externo: `matriz-externa-v1`, `proposal/external.py` con el contrato de la etapa local, enchufe en `run.py` con vuelta a lo local si falla, clave `externo` en el registro de la propuesta y `medir_matriz --externo matriz`; probada con el doble y el caso chico (`893d8e63` 2026-10-16, `ee1a4bed` 2026-10-16, `b82a3f6e` 2026-10-16, `922dd2ca` 2026-10-16, `7e665e0f` 2026-10-16, `7bc99653` 2026-10-16)
 - ✓ T-292 · Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada cargada; registro completo, `gasto_externo --verificar-filtro` en 0 y gasto ≤ 0,10 USD
+- ✓ T-293 · Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286. Umbral 16 (puerta): lista presente y firmes con pareja no peores en cada caso y 0 pedazos; gasto ≈ 1,20 USD
 - ✓ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (`da3d49d7` 2026-10-16, `aa2f3090` 2026-10-16, `9ee42ad2` 2026-10-16, `ab2637f7` 2026-10-16)
 
 ### Mapa de tareas
@@ -1594,8 +1594,8 @@ flowchart TD
   T290["✓ T-290 · Puerta de filtrado, libro de gasto y regist…"]:::done
   T291["✓ T-291 · Matriz con modelo externo: matriz-externa-v…"]:::done
   T292["✓ T-292 · Prueba de humo con el proveedor real (caso…"]:::done
-  T293["○ T-293 · Medición del paso 3, ronda 1 (ajuste): prop…"]:::todo
-  T294["○ T-294 · Ajuste único de la matriz externa (matriz-e…"]:::todo
+  T293["✓ T-293 · Medición del paso 3, ronda 1 (ajuste): prop…"]:::done
+  T294["▶ T-294 · Ajuste único de la matriz externa (matriz-e…"]:::active
   T295["○ T-295 · Re-medición del paso 3, ronda 2 (ajuste): l…"]:::todo
   T296["○ T-296 · Medición final del paso 3 (aceptación, una…"]:::todo
   T297["○ T-297 · Segunda comparación con claude-opus-5-5, so…"]:::todo

@@ -359,8 +359,8 @@ Qué significa cada prefijo:
 | **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | terminada |
 | **T-291** | 016 | Matriz con modelo externo: matriz-externa-v1, proposal/external.py con el contrato de la etapa local, enchufe en run.py… | terminada |
 | **T-292** | 016 | Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada… | terminada |
-| **T-293** | 016 | Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286.… | pendiente |
-| **T-294** | 016 | Ajuste único de la matriz externa (matriz-externa-v2 y parámetros) con todos los hallazgos de T-293; se cierra sin… | pendiente |
+| **T-293** | 016 | Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286.… | terminada |
+| **T-294** | 016 | Ajuste único de la matriz externa (matriz-externa-v2 y parámetros) con todos los hallazgos de T-293; se cierra sin… | en curso |
 | **T-295** | 016 | Re-medición del paso 3, ronda 2 (ajuste): lo que cambió T-294. Mismo umbral 16; si no lo pasa, el externo no pasa a… | pendiente |
 | **T-296** | 016 | Medición final del paso 3 (aceptación, una sola corrida): matriz local simplificada y externa de 03, 04 y 05, mismo… | pendiente |
 | **T-297** | 016 | Segunda comparación con claude-opus-5-5, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma… | pendiente |
@@ -644,7 +644,7 @@ Qué significa cada prefijo:
 | **D-66** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-66: en un documento de identidad… | derivada, confirmada |
 | **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-67: una condición numérica compara… | derivada, confirmada |
 
-## Hallazgos de verificación (146)
+## Hallazgos de verificación (153)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -712,6 +712,13 @@ Qué significa cada prefijo:
 | **D-286-6** | 016 | (baja) · Visión vision-v6: el DNI sigue sin la fecha de vencimiento (15/18) y el pagaré baja un dato (10/18: una palabra del… | T-286 |
 | **D-286-7** | 016 | (baja) · Preguntas (REQ-120, escenario 3): 21 de 24 conformes; las 3 no conformes son R87 (lo que el pliego solo permite), igual… | T-286 |
 | **D-286-8** | 016 | (baja) · REQ-031 del caso-06: 0 de 3 (M-004, M-005 y M-025 sin cambio ni marca; T-266 1 de 3; T-283 0 de 3); en el resumen sale… | T-286 |
+| **D-293-1** | 016 | una fila firme de «descuento» por el Portal en los tres casos (sobrante sistemático) | T-293 |
+| **D-293-1 a D-293-6, O-293-1 a O-293-11** | 016 | D-293-1: fila firme de «descuento» por el Portal en 6.2 en los 3 casos (sobrante). D-293-2: una oración que continúa a otra sale… | T-293 (medición del paso 3, ronda 1: la… |
+| **D-293-2** | 016 | una oración que continúa a otra sale como fila aparte, sin su sujeto (pedazos sin sujeto) | T-293 |
+| **D-293-3** | 016 | el mismo requisito sale firme en un caso y a revisión en otro (M-052, M-053, M-060) | T-293 |
+| **D-293-4** | 016 | el pedido de completitud y filtro reescribe la caché del pliego (costo, no calidad) | T-293 |
+| **D-293-5** | 016 | el estimado de etapa de 0,30 USD y el del libro no calzan con el tamaño real | T-293 |
+| **D-293-6** | 016 | el caso-01 no cabe en el diseño de costo actual y quedó sin medir | T-293 |
 | **H-241-1** | 015 | (medida, del Coordinador) | T-241 |
 | **H-241-2** | 015 | (código) | T-241 |
 | **H-241-3** | 015 | (código, deliberado) | T-241 |
@@ -795,7 +802,7 @@ Qué significa cada prefijo:
 | **H-299-1, H-299-2, O-299-1 a O-299-9** | 016 | Corregidos: la segunda pasada de --verificador-sobre mide la pregunta de la celda cambiada (H-299-1), 17 controles con prueba… | T-299 (verificación: no pasa… |
 | **H-299-2** | 016 | (pruebas) | T-299 |
 
-## Observaciones de verificación (241)
+## Observaciones de verificación (252)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -1029,6 +1036,17 @@ Qué significa cada prefijo:
 | **O-292-6** | 016 | el libro suma por base | T-292 |
 | **O-292-7** | 016 | gasto_externo --por-etapa no separa por medición | T-292 |
 | **O-292-8** | 016 | el error de la clave inválida deja duracion_s y modelo_respuesta vacíos en el hecho, como es de esperar con un 401; la validación… | T-292 |
+| **O-293-1** | 016 | la primera apertura de la ventana volvió a fallar (17:13 a 17:21), con el mismo error de T-286 (nvidia-container-cli: ldcache… | T-293 |
+| **O-293-10** | 016 | la fila 26 del 00 (17.3.1, los demás interesados cotizan por la cantidad total) sale sin opcion; T-286 la marcaba… | T-293 |
+| **O-293-11** | 016 | gasto_externo --por-etapa no separa por medición ni por corrida (O-292-7): en 02 y 06 muestra «4 pedidos (bloqueado 2, ok 2)» por… | T-293 |
+| **O-293-2** | 016 | medir_matriz --externo matriz no tiene una opción «solo externo» : corre también la propuesta local (15 a 60 minutos de GPU por… | T-293 |
+| **O-293-3** | 016 | error propio del encargo y de este testeador: un tope del mes de 1,50 USD que bloquea por el estimado | T-293 |
+| **O-293-4** | 016 | las cifras de caché cierran O-292-2 a medias (D-293-4): el segundo pedido de extracción acierta; la completitud, no | T-293 |
+| **O-293-5** | 016 | modo de lotes con el proveedor real, visto por primera vez (O-292-5): 6 lotes, todos terminaron; extracción 336,6 a 427,9 s… | T-293 |
+| **O-293-6** | 016 | pantalla: la línea «Etapas fuera del equipo» dice «3 pedidos» y el modo; para 00 se leyó la versión abierta de la revisión | T-293 |
+| **O-293-7** | 016 | --verificar-filtro dio 0 sobre procedimientos sin hojas de compliance: el 0 es cierto, pero no prueba la puerta frente a una hoja… | T-293 |
+| **O-293-8** | 016 | anomalías de la propuesta: descartado_en_renglon 2 en 00 y 5 en 02 (la cadena local de las filas técnicas, no la etapa externa) y… | T-293 |
+| **O-293-9** | 016 | el reuso por huella no se ejercitó (una sola invocación por caso, O-291-3): no hubo que repetir ninguna propuesta | T-293 |
 | **O-299-1** | 016 | la pregunta dice «el contraste no lo corroboró» cuando fue el verificador | T-299 |
 | **O-299-2** | 016 | la línea dice «Ninguna» cuando la etapa volvió a lo local tras haber mandado pedidos (respuesta inválida, vencido, error del… | T-299 |
 | **O-299-3** | 016 | _message indexa CONCLUSIONS | T-299 |
