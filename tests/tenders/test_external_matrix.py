@@ -231,7 +231,7 @@ def test_the_external_proposal_makes_rows_with_literal_located_quotes(
         assert detail["resultado"] == "ok" and detail["modo"] == "lotes"
         assert detail["texto_enviado"]["sistema"].startswith(instruction.text.rstrip())
         assert "PLIEGO COMPLETO" in detail["texto_enviado"]["sistema"]
-        assert detail["instruccion"]["version"] == "matriz-externa-v1"
+        assert detail["instruccion"]["version"] == "matriz-externa-v2"
         assert detail["definiciones"]["version"] == "matriz-definiciones-v10"
         assert detail["parametros"]["max_tokens"] == 32000
         assert detail["parametros"]["effort"] == "medium"
@@ -268,7 +268,7 @@ def test_the_proposal_keeps_the_external_key_in_its_record(
     assert key["modelo"] == "claude-sonnet-5-5"
     assert run.parameters["externo"]["modo"] == "lotes"
     assert run.parameters["externo"]["matriz"]["reemplaza"] == list(external.REPLACED_PASSES)
-    assert run.prompt_versions["externo"]["matriz"] == "matriz-externa-v1"
+    assert run.prompt_versions["externo"]["matriz"] == "matriz-externa-v2"
     assert run.prompt_versions["externo"]["huellas"]["matriz"] == (
         external.load_instruction().sha256)
     counts = run.counts["externo"]["matriz"]

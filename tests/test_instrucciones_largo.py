@@ -80,7 +80,8 @@ SIMPLIFIED = {
     "procedimiento-datos-v3": {"path": "evaluon/tenders/prompts/procedimiento-datos-v3.md"},
     "consulta-v6": {"path": "evaluon/queries/prompts/consulta-v6.txt"},  # T-285
     # T-291: la instrucción propia del modelo externo de la matriz (decisora), con el bloque v10.
-    "matriz-externa-v1": {"path": "evaluon/tenders/prompts/matriz-externa-v1.md",
+    # T-294: la v2 (ajuste único del paso 3) reemplaza a la v1, que sigue publicada.
+    "matriz-externa-v2": {"path": "evaluon/tenders/prompts/matriz-externa-v2.md",
                           "definitions": "matriz-definiciones-v10"},
     # T-299: la instrucción propia del verificador externo de citas (no decisora: 50 y 5.000).
     "verificador-v1": {"path": "evaluon/assessment/prompts/verificador-v1.md"},
@@ -251,7 +252,7 @@ def test_the_limits_are_the_ones_of_the_plan():
     assert limits_of("matriz-extraccion-v14") == (90, 9000)
     assert limits_of("matriz-filtro-v11") == (90, 9000)
     assert limits_of("evaluacion-v14") == (90, 9000)
-    assert limits_of("matriz-externa-v1") == (90, 9000)
+    assert limits_of("matriz-externa-v2") == (90, 9000)
     for other in ("matriz-completitud-v7", "matriz-union-v2", "matriz-consecuencias-v3",
                   "matriz-circulares-v8", "matriz-circulares-cambios-v7", "matriz-respaldo-v3",
                   "contraste-v5", "clausulas-v6",
