@@ -67,7 +67,7 @@ def rule(pair, ctx):
     if any(r.get("cita")
            or (r.get("resultado_modelo") or r.get("resultado")) in ("cumple", "no_cumple")
            or ((r.get("dato") or "").strip()
-               and not criteria.only_says_nothing(r.get("dato"), ctx))
+               and not criteria.only_says_nothing(r, ctx))
            for r in records):
         # El modelo trae una cita, una conclusión o un dato sobre la condición: no es ausencia.
         # T-285 (D-283-6, d): el «dato» de una condición sin cita ni conclusión que solo dice que la

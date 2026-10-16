@@ -670,5 +670,29 @@ def test_h285_2_a_word_cut_at_the_end_of_a_line_is_found():
 # --- H-285-3: solo una frase de ausencia deja correr la ausencia -----------------------------------
 
 
+@pytest.mark.parametrize("datum", [
+    # sondas V3 y V3c de la verificación: negaciones de contenido que no están en la oferta
+    "el oferente no acepta la prórroga automática y fija el plazo en treinta días",
+    "la oferta no cumple con el plazo exigido por el pliego",
+    "el oferente rechaza la prórroga",
+])
+def test_h285_3_a_negative_paraphrase_of_the_model_stops_the_absence(offer, datum):
+    """REQ-104, P3 (H-285-3): un dato del modelo que niega algo de la oferta (no cumple, no acepta,
+    rechaza), aunque no esté en sus documentos y la condición venga «no consta», frena la ausencia."""
+    assert absence.rule(_absence_pair(datum), _ctx(offer, "Ofrecemos los bienes pedidos.")) is None
+
+
+def test_h285_3_only_an_absence_phrase_of_a_no_consta_condition_lets_the_absence_run(offer):
+    """REQ-104 (H-285-3): la ausencia corre con un dato que solo dice que la oferta no trae nada, si la
+    condición vino «no consta»; con la misma frase en una condición «no determinado», frena."""
+    ctx = _ctx(offer, "Ofrecemos los bienes pedidos.")
+    assert absence.rule(_absence_pair("No se menciona en la oferta."), ctx) is not None
+
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_dato", exigence="condicion")
+    pair = pair_with(NEGATIVE, combined, [
+        condition("La oferta no está condicionada", "no_determinado", "No se menciona.")])
+    assert absence.rule(pair, ctx) is None
+
+
 # --- H-285-7: huecos de prueba (B11b, B17, B23) ----------------------------------------------------
 
