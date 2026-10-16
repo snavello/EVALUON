@@ -154,3 +154,7 @@ docker compose -p evaluon-016 -f docker-compose.clon.yml -f docker-compose.exter
 ## Verificación de T-270
 
 Ver `specs/016-calidad-medible/verificacion/T-270.md` (la deja el testeador evaluador). Lo que hizo el desarrollador está en el informe de entrega.
+
+### Suite completa del Coordinador (lotes de `016-integracion`)
+
+Proyecto de Compose propio `evaluon-integ` sobre la copia `evaluon-wt-016-suite` (solo su Postgres, sin puertos): `docker compose -p evaluon-integ -f docker-compose.yml up -d --no-deps db` y después `run --rm --no-deps -T app pytest -n 2 --dist worksteal -q` con estos montajes, que el compose base no trae: `corpus/casos` (la copia local de los casos, solo lectura), `docker-compose.clon.yml`, `docker-compose.externo.yml` y `tools/` (los piden `tests/test_clon_compose.py` y `tests/portal/test_network.py`). Dos cosas que cuestan tiempo si se olvidan (O-287-2): desde Git Bash hay que correr con `MSYS_NO_PATHCONV=1`, porque si no las rutas `/app/...` de los `-v` llegan convertidas a rutas de Windows y los tests que piden esos archivos se omiten en silencio; y si la base del proyecto da «password authentication failed», el volumen `evaluon-integ_pgdata` guarda una contraseña vieja: `down -v` y volver a levantar (es una base de pruebas descartable).
