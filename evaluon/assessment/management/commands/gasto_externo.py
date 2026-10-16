@@ -16,8 +16,9 @@ Opciones:
   compliance: cualquier secuencia de 8 palabras seguidas (sin tildes ni mayúsculas) de un
   documento `compliance` cargado en la base (o con la sugerencia `compliance` en su lectura,
   H-290-3), en el pedido armado entero (sistema y mensajes en orden) o en cualquier otro texto
-  del hecho. El criterio de REQ-121 es 0; si encuentra alguno, termina con error. Usa una implementación **propia**, que no importa ni llama a la puerta
-  (`evaluon/ai/external/guard.py`): es el control independiente.
+  del hecho. El criterio de REQ-121 es 0; si encuentra alguno, termina con error. Usa una
+  implementación **propia**, que no importa ni llama a la puerta (`evaluon/ai/external/guard.py`):
+  es el control independiente.
 
 Los hechos `en_vuelo` (uno por lote, O-290-6) no son pedidos ni gasto real: se informan aparte
 los lotes sin cerrar, con su estimado.
