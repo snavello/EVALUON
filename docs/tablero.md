@@ -1524,7 +1524,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 24 tareas sin terminar.
-- ▶ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (en curso)
+- ◐ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (en verificación)
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
@@ -1600,7 +1600,7 @@ flowchart TD
   T296["○ T-296 · Medición final del paso 3 (aceptación, una…"]:::todo
   T297["○ T-297 · Segunda comparación con claude-opus-5-5, so…"]:::todo
   T298["○ T-298 · Cierre del paso 3: ADR-0072 (matriz: local…"]:::todo
-  T299["▶ T-299 · Verificador externo de citas: verifier.py,…"]:::active
+  T299["◐ T-299 · Verificador externo de citas: verifier.py,…"]:::review
   T300["◐ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::review
   T301["○ T-301 · Medición del paso 4, ronda 1 (ajuste, sin G…"]:::todo
   T302["○ T-302 · Ajuste único del verificador (verificador-v…"]:::todo
