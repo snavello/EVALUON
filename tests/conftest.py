@@ -9,6 +9,9 @@
   arma con ellas los dos regímenes de prueba de REQ-020.
 - Dobles de los tres clientes de IA (T-011): `fake_generation`, `fake_embeddings`,
   `fake_reranker` y los tres juntos en `fake_ai`. Sin red ni GPU.
+- Doble del cliente de la API externa (T-289, REQ-122): `fake_external` y `external_payload`.
+  Un fixture automático (`no_real_external_calls`) hace fallar toda llamada real a esa API
+  dentro de la suite, aunque la configuración esté encendida por error.
 
 Todos los textos son sintéticos (P4). Las fábricas no crean versiones de la normativa:
 si una prueba las necesita, usa `record(..., creates_corpus_version=True)`.
@@ -31,6 +34,8 @@ from evaluon.ai import (
 from evaluon.ai import embeddings as embeddings_client
 from evaluon.ai import generation as generation_client
 from evaluon.ai import reranker as reranker_client
+from evaluon.ai.external import client as external_client
+from evaluon.ai.external.payload import ExternalPayload
 
 # Clave sintética de 15 caracteres o más, el mínimo de la feature (plan 001, ADR-0005).
 TEST_PASSWORD = "clave-sintetica-de-prueba"
@@ -661,3 +666,240 @@ def fake_ai(fake_generation, fake_embeddings, fake_reranker):
     return SimpleNamespace(
         generation=fake_generation, embeddings=fake_embeddings, reranker=fake_reranker
     )
+
+
+# --- API externa (T-289; ADR-0066) --------------------------------------------------------------
+
+
+class RealExternalCallError(AssertionError):
+    """Una prueba intentó una llamada real a la API externa."""
+
+
+@pytest.fixture(autouse=True)
+def no_real_external_calls(monkeypatch):
+    """Ninguna prueba sale a internet por el cliente de la API externa (REQ-122, P4).
+
+    Reemplaza el único punto del cliente que toca la red (`client._urlopen`) por uno que
+    falla, y saca la clave del entorno. Aunque una prueba encienda `EXTERNAL_ENABLED`, ponga
+    la etapa en `externo` y una clave, sin el doble (`fake_external`) la llamada falla con
+    `RealExternalCallError`. Las pruebas del propio cliente lo reemplazan por un servidor
+    local de prueba (`tests/ai/test_external_client.py`)."""
+
+    def blocked(request, timeout):
+        raise RealExternalCallError(
+            f"Llamada real a la API externa dentro de la suite: {request.full_url}")
+
+    monkeypatch.setattr(external_client, "_urlopen", blocked)
+    monkeypatch.delenv(external_client.KEY_ENV, raising=False)
+
+
+def external_payload(**overrides):
+    """Un `ExternalPayload` sintético (T-289): lo que `guard.py` va a construir, sin pasar por
+    la puerta. Cualquier campo de `from_guard` se pisa con `overrides`."""
+    fields = {
+        "stage": "matriz_extraccion", "model": "claude-sonnet-5-5", "max_tokens": 1000,
+        "system": "Instrucción sintética de la prueba.",
+        "messages": [{"role": "user", "content": "Texto público sintético."}],
+        "custom_id": "ext-0001", "effort": "medium", "thinking": "adaptive",
+        "procedure_id": 7, "run_kind": "matrix", "run_id": 1,
+    }
+    fields.update(overrides)
+    return ExternalPayload.from_guard(**fields)
+
+
+class FakeExternal:
+    """Doble del cliente de la API externa (`evaluon.ai.external.client`).
+
+    Reemplaza las operaciones del cliente (`send_message`, `create_batch`, `retrieve_batch`,
+    `fetch_results`) y su reloj (`_sleep`, `_now`: nadie espera de verdad). Lo demás del
+    cliente es el real: la comprobación de que esté habilitado (`require_enabled`), la
+    validación de los lotes, la lectura de las respuestas (`parse_message` y
+    `parse_batch_results`) y `run_batch` con su sondeo. Por eso el doble fabrica respuestas con
+    la forma de la API y el cliente real las lee.
+
+    Respuestas guiadas por `custom_id` (el de `ExternalPayload`; sin `custom_id`, para todos
+    los que no tengan la suya):
+
+    - `respond(text, ...)`: un mensaje con ese texto (y `model`, `stop_reason`, `usage`).
+    - `fail()`, `expire()`, `cancel()`: en un lote, el pedido termina `errored`, `expired` o
+      `canceled`; en el modo directo, `fail` lanza `ExternalUnavailableError` y `expire`,
+      `ExternalExpired`.
+    - `fail_call(error_class)`, `timeout()`, `unavailable()`, `input_too_long()`: la llamada
+      entera lanza ese error (también al crear un lote); `working()` vuelve a responder.
+    - `polls_before_end(n)` (1 por omisión): el lote informa `in_progress` en las primeras n
+      consultas y `ended` en la siguiente; `never_ends()` no termina nunca.
+    - `enable(*stages)`: enciende `EXTERNAL_ENABLED`, pone las etapas en `externo` (por omisión
+      `matriz` y `verificador`) y una clave sintética en el entorno.
+
+    Registros: `messages` (pedidos directos), `batches` (listas de pedidos de cada lote
+    creado), `retrievals` (consultas por lote), `sleeps` (esperas pedidas) y `clock`.
+    """
+
+    def __init__(self, test_settings, monkeypatch):
+        self._settings = test_settings
+        self._monkeypatch = monkeypatch
+        self.messages = []
+        self.batches = []
+        self.retrievals = {}
+        self.sleeps = []
+        self.clock = 0.0
+        self._replies = {}
+        self._default = {"kind": "respond", "text": "Respuesta sintética del doble externo.",
+                         "model": None, "stop_reason": "end_turn", "usage": None}
+        self._call_error = None
+        self._polls = 1
+        self._serial = itertools.count(1)
+
+    # --- guion
+
+    def _script(self, custom_id, **reply):
+        if custom_id is None:
+            self._default = {**self._default, **reply}
+        else:
+            self._replies[custom_id] = {**self._default, **reply}
+
+    def respond(self, text, custom_id=None, *, model=None, stop_reason="end_turn", usage=None):
+        self._script(custom_id, kind="respond", text=text, model=model,
+                     stop_reason=stop_reason, usage=usage)
+
+    def fail(self, custom_id=None):
+        self._script(custom_id, kind="errored")
+
+    def expire(self, custom_id=None):
+        self._script(custom_id, kind="expired")
+
+    def cancel(self, custom_id=None):
+        self._script(custom_id, kind="canceled")
+
+    def fail_call(self, error_class):
+        self._call_error = error_class
+
+    def timeout(self):
+        self._call_error = external_client.ExternalTimeoutError
+
+    def unavailable(self):
+        self._call_error = external_client.ExternalUnavailableError
+
+    def input_too_long(self):
+        self._call_error = external_client.ExternalInputTooLongError
+
+    def working(self):
+        self._call_error = None
+
+    def polls_before_end(self, count):
+        self._polls = count
+
+    def never_ends(self):
+        self._polls = float("inf")
+
+    def enable(self, *stages):
+        self._settings.EXTERNAL_ENABLED = True
+        stages = stages or tuple(self._settings.EXTERNAL_STAGE_NAMES)
+        self._settings.EXTERNAL_STAGES = {**self._settings.EXTERNAL_STAGES,
+                                          **{stage: "externo" for stage in stages}}
+        self._monkeypatch.setenv(external_client.KEY_ENV, "clave-sintetica-de-prueba-externa")
+
+    # --- cuerpos con la forma de la API
+
+    def _reply(self, payload):
+        return self._replies.get(payload.custom_id, self._default)
+
+    def _message(self, payload, reply):
+        text = reply["text"]
+        sent = " ".join([payload.system] + [content for _, content in payload.messages])
+        usage = {"input_tokens": count_words(sent), "output_tokens": count_words(text),
+                 "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}
+        usage.update(reply["usage"] or {})
+        return {"id": f"msg_fake_{next(self._serial)}", "type": "message", "role": "assistant",
+                "model": reply["model"] or payload.model,
+                "content": [{"type": "text", "text": text}],
+                "stop_reason": reply["stop_reason"], "stop_sequence": None, "usage": usage}
+
+    def _raise_call_error(self):
+        if self._call_error:
+            raise self._call_error("Falla simulada por el doble de lo externo.")
+
+    # --- las operaciones del cliente
+
+    def send_message(self, payload, *, timeout=None):
+        external_client._check_payload(payload)
+        external_client.require_enabled(payload.stage)
+        self.messages.append(payload)
+        self._raise_call_error()
+        reply = self._reply(payload)
+        if reply["kind"] == "errored":
+            raise external_client.ExternalUnavailableError("Falla simulada del pedido.")
+        if reply["kind"] in ("expired", "canceled"):
+            raise external_client.ExternalExpired("Pedido vencido en el doble.")
+        return external_client.parse_message(payload, self._message(payload, reply),
+                                             mode="directo", duration_s=0.0)
+
+    def create_batch(self, payloads):
+        payloads = external_client.check_batch(payloads)
+        external_client.require_enabled(payloads[0].stage)
+        self.batches.append(payloads)
+        self._raise_call_error()
+        batch_id = f"msgbatch_fake_{len(self.batches)}"
+        request_body = {"requests": [{"custom_id": p.custom_id, "params": p.to_params()}
+                                     for p in payloads]}
+        counts = {"processing": len(payloads), "succeeded": 0, "errored": 0, "canceled": 0,
+                  "expired": 0}
+        self.retrievals[batch_id] = 0
+        return external_client.ExternalBatch(
+            id=batch_id, stage=payloads[0].stage, status="in_progress", request_counts=counts,
+            payloads=payloads, request_body=request_body,
+            response_body={"id": batch_id, "type": "message_batch",
+                           "processing_status": "in_progress", "request_counts": counts})
+
+    def retrieve_batch(self, batch):
+        external_client.require_enabled(batch.stage)
+        self._raise_call_error()
+        self.retrievals[batch.id] += 1
+        status = "ended" if self.retrievals[batch.id] > self._polls else "in_progress"
+        counts = ({"processing": 0, "succeeded": len(batch.payloads), "errored": 0,
+                   "canceled": 0, "expired": 0} if status == "ended" else batch.request_counts)
+        return external_client.replace(
+            batch, status=status, request_counts=counts,
+            response_body={"id": batch.id, "type": "message_batch",
+                           "processing_status": status, "request_counts": counts})
+
+    def fetch_results(self, batch):
+        if batch.status != "ended":
+            raise ValueError(f"El lote {batch.id} no terminó (estado {batch.status}).")
+        external_client.require_enabled(batch.stage)
+        self._raise_call_error()
+        lines = []
+        for payload in batch.payloads:
+            reply = self._reply(payload)
+            if reply["kind"] == "respond":
+                result = {"type": "succeeded", "message": self._message(payload, reply)}
+            elif reply["kind"] == "errored":
+                result = {"type": "errored", "error": {"type": "error", "error": {
+                    "type": "api_error", "message": "Falla simulada del pedido."}}}
+            else:
+                result = {"type": reply["kind"]}
+            lines.append(json.dumps({"custom_id": payload.custom_id, "result": result}))
+        return external_client.parse_batch_results(batch, "\n".join(lines))
+
+    # --- reloj: nadie espera de verdad
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.clock += seconds
+
+    def now(self):
+        return self.clock
+
+
+@pytest.fixture
+def fake_external(monkeypatch, settings):
+    """Doble del cliente de la API externa (T-289): ver `FakeExternal`. Arranca apagado, como
+    la configuración por omisión; `fake_external.enable()` lo enciende."""
+    double = FakeExternal(settings, monkeypatch)
+    monkeypatch.setattr(external_client, "send_message", double.send_message)
+    monkeypatch.setattr(external_client, "create_batch", double.create_batch)
+    monkeypatch.setattr(external_client, "retrieve_batch", double.retrieve_batch)
+    monkeypatch.setattr(external_client, "fetch_results", double.fetch_results)
+    monkeypatch.setattr(external_client, "_sleep", double.sleep)
+    monkeypatch.setattr(external_client, "_now", double.now)
+    return double
