@@ -1564,7 +1564,7 @@ flowchart LR
 - ✓ T-298 · Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del paso y pull request `016-integracion` → `main`
 - ✓ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (`da3d49d7` 2026-10-16, `aa2f3090` 2026-10-16, `9ee42ad2` 2026-10-16, `ab2637f7` 2026-10-16)
 - ✓ T-301 · Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre las evaluaciones guardadas de T-286 del caso-00 y del caso de ajuste con verdad. Umbral 17 como puerta: 0 «cumple» sin fundamento, preguntas conformes 100 %, exactas no bajan, erradas no suben, todo «no determinado» nuevo viene de una celda errada; gasto ≈ 0,60 USD
-- ✓ T-302 · Ajuste único del verificador (`verificador-v2` y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si cumple todo
+- ✓ T-302 · Ajuste único del verificador (`verificador-v2` y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si cumple todo (`f7b804d7` 2026-10-17, `5cd72f2e` 2026-10-17, `93909460` 2026-10-17, `261d546a` 2026-10-17, `08e31537` 2026-10-17, `4051c00d` 2026-10-17)
 - ✓ T-303 · Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta
 
 ### Mapa de tareas
