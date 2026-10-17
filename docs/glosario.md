@@ -361,13 +361,13 @@ Qué significa cada prefijo:
 | **T-292** | 016 | Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada… | terminada |
 | **T-293** | 016 | Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286.… | terminada |
 | **T-294** | 016 | Ajuste único de la matriz externa (matriz-externa-v2 y parámetros) con todos los hallazgos de T-293; se cierra sin… | terminada |
-| **T-295** | 016 | Re-medición del paso 3, ronda 2 (ajuste): lo que cambió T-294. Mismo umbral 16; si no lo pasa, el externo no pasa a… | pendiente |
-| **T-296** | 016 | Medición final del paso 3 (aceptación, una sola corrida): matriz local simplificada y externa de 03, 04 y 05, mismo… | pendiente |
-| **T-297** | 016 | Segunda comparación con claude-opus-5-5, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma… | pendiente |
-| **T-298** | 016 | Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del… | pendiente |
+| **T-295** | 016 | Re-medición del paso 3, ronda 2 (ajuste): lo que cambió T-294. Mismo umbral 16; si no lo pasa, el externo no pasa a… | terminada |
+| **T-296** | 016 | Medición final del paso 3 (aceptación, una sola corrida): matriz local simplificada y externa de 03, 04 y 05, mismo… | terminada |
+| **T-297** | 016 | Segunda comparación con claude-opus-5-5, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma… | terminada |
+| **T-298** | 016 | Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del… | en verificación |
 | **T-299** | 016 | Verificador externo de citas: verifier.py, verificador-v1, enchufe en evaluate_offer después del contraste y de las… | terminada |
 | **T-300** | 016 | Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave externo de la… | en verificación |
-| **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | pendiente |
+| **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | en curso |
 | **T-302** | 016 | Ajuste único del verificador (verificador-v2 y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si… | pendiente |
 | **T-303** | 016 | Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta | pendiente |
 | **T-304** | 016 | Medición final del paso 4 (aceptación, una sola corrida): evaluación local de los casos de aceptación con verdad y… | pendiente |
@@ -644,7 +644,7 @@ Qué significa cada prefijo:
 | **D-66** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-66: en un documento de identidad… | derivada, confirmada |
 | **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-67: una condición numérica compara… | derivada, confirmada |
 
-## Hallazgos de verificación (153)
+## Hallazgos de verificación (160)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -719,6 +719,13 @@ Qué significa cada prefijo:
 | **D-293-4** | 016 | el pedido de completitud y filtro reescribe la caché del pliego (costo, no calidad) | T-293 |
 | **D-293-5** | 016 | el estimado de etapa de 0,30 USD y el del libro no calzan con el tamaño real | T-293 |
 | **D-293-6** | 016 | el caso-01 no cabe en el diseño de costo actual y quedó sin medir | T-293 |
+| **D-295-1** | 016 | el modelo omite las oraciones siguientes de un tramo de varias oraciones (recuperación) | T-295 |
+| **D-295-1 a D-295-6, O-295-1 a O-295-6** | 016 | D-295-1 (principal): en tramos de varias oraciones el modelo cita solo la primera y 16 entradas pasan a faltantes (02 ×5, 06 ×1… | T-295 (re-medición del paso 3, ronda 2… |
+| **D-295-2** | 016 | la regla del «descuento por el Portal» se obedece solo en 00 (D-293-1 a medias) | T-295 |
+| **D-295-3** | 016 | la guarda externo_fila_sin_sujeto baja el pedazo pero no lo une | T-295 |
+| **D-295-4** | 016 | en el caso-01 el externo pierde filas de circular y marca P3 | T-295 |
+| **D-295-5** | 016 | el estimador de salida se queda corto en el caso-01 | T-295 |
+| **D-295-6** | 016 | el estimado de etapa por omisión no cubre un pliego grande (D-293-6, sin cambio) | T-295 |
 | **H-241-1** | 015 | (medida, del Coordinador) | T-241 |
 | **H-241-2** | 015 | (código) | T-241 |
 | **H-241-3** | 015 | (código, deliberado) | T-241 |
@@ -802,7 +809,7 @@ Qué significa cada prefijo:
 | **H-299-1, H-299-2, O-299-1 a O-299-9** | 016 | Corregidos: la segunda pasada de --verificador-sobre mide la pregunta de la celda cambiada (H-299-1), 17 controles con prueba… | T-299 (verificación: no pasa… |
 | **H-299-2** | 016 | (pruebas) | T-299 |
 
-## Observaciones de verificación (258)
+## Observaciones de verificación (270)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -1053,6 +1060,18 @@ Qué significa cada prefijo:
 | **O-294-3** | 016 | D-293-1 y D-293-3 son solo de instrucción | T-294 |
 | **O-294-4** | 016 | la regla del antecedente es heurística | T-294 |
 | **O-294-5** | 016 | cambios menores de la v2 sin hallazgo detrás: desaparece «en el orden del documento» de la descripción de los tramos (el orden lo… | T-294 |
+| **O-295-1** | 016 | la ventana abrió al primer intento (23:56 a 00:03:30; sin ldcache error) | T-295 |
+| **O-295-2** | 016 | --solo-externo cumplió (O-293-2 cerrada): 4 casos, sin arnés, con la referencia recalculada idéntica a T-286; las 4 propuestas… | T-295 |
+| **O-295-3** | 016 | el lote de 01 tardó 519 s y los de 00, 02 y 06 entre 306 y 336 s; la completitud, entre 123 y 184 s | T-295 |
+| **O-295-4** | 016 | tiempo de la propuesta completa: 00 607,4 s (T-286 879,8), 01 1.247,4 (3.650,1), 02 871,6 (1.397,1), 06 626,2 (870,1): −31 %, −66… | T-295 |
+| **O-295-5** | 016 | gasto_externo no separa por medición (O-292-7 / O-293-11, abierta): las cifras por procedimiento suman T-293 y T-295 y las sondas… | T-295 |
+| **O-295-6** | 016 | --verificar-filtro = 0 sobre procedimientos sin hojas (O-293-7, abierta): queda para el verificador del paso 4 | T-295 |
+| **O-295-7** | 016 | anomalías de la propuesta: 00 descartado_en_renglon 2; 02 descartado_en_renglon 5 y externo_fila_sin_sujeto 1; 06… | T-295 |
+| **O-295-8** | 016 | la revisión del 00 tiene una decisión dudosa (16.3) ; el resultado de la puerta no depende de ella (el 00 no pasa por las firmes… | T-295 |
+| **O-295-9** | 016 | medir_matriz se niega con un borrador abierto : hubo que descartar el borrador nº 4 del 00 (versión pk 65) que T-293 dejó para su… | T-295 |
+| **O-298-1** | 016 | D-295-1 es una regresión introducida por la v2 (en T-293 las entradas del 02 y el 06 estaban firmes): la regla «citá la oración… | T-298 |
+| **O-298-2** | 016 | El 01 solo cupo con estimado propio (0,9563 USD con estimado 0,75; con el 0,30 por omisión habría vuelto a local tras pagar) | T-298 |
+| **O-298-3** | 016 | --verificar-filtro dio 0 en todos los casos sin hojas de compliance cargadas: la puerta solo se ejercitó con texto de pliegos (y… | T-298 |
 | **O-299-1** | 016 | la pregunta dice «el contraste no lo corroboró» cuando fue el verificador | T-299 |
 | **O-299-2** | 016 | la línea dice «Ninguna» cuando la etapa volvió a lo local tras haber mandado pedidos (respuesta inválida, vencido, error del… | T-299 |
 | **O-299-3** | 016 | _message indexa CONCLUSIONS | T-299 |
