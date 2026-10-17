@@ -84,7 +84,8 @@ SIMPLIFIED = {
     "matriz-externa-v2": {"path": "evaluon/tenders/prompts/matriz-externa-v2.md",
                           "definitions": "matriz-definiciones-v10"},
     # T-299: la instrucción propia del verificador externo de citas (no decisora: 50 y 5.000).
-    "verificador-v1": {"path": "evaluon/assessment/prompts/verificador-v1.md"},
+    # T-302: la v2 (ajuste único del paso 4) reemplaza a la v1, que sigue publicada.
+    "verificador-v2": {"path": "evaluon/assessment/prompts/verificador-v2.md"},
 }
 
 # Los esquemas de salida de las instrucciones simplificadas: `{nombre: "módulo:atributo"}`; el
@@ -105,7 +106,7 @@ SIMPLIFIED_SCHEMAS = {
     "procedimiento-datos-v3": "evaluon.tenders.proposal.procedure_fields:MODEL_SCHEMA",
     "consulta-v6": "tests.test_instrucciones_largo:query_schema",  # T-285
     # T-299: el del verificador externo de citas (sin largos: los valida el código).
-    "verificador-v1": "evaluon.assessment.verifier:OUTPUT_SCHEMA",
+    "verificador-v2": "evaluon.assessment.verifier:OUTPUT_SCHEMA",
 }
 
 
@@ -258,7 +259,7 @@ def test_the_limits_are_the_ones_of_the_plan():
                   "contraste-v5", "clausulas-v6",
                   "reescritura-v3", "vision-v6", "ficha-v4", "ficha-renglon-v6",
                   "informe-tecnico-v3", "oferente-nombre-v3", "procedimiento-datos-v3",
-                  "consulta-v6", "verificador-v1"):
+                  "consulta-v6", "verificador-v2"):
         assert limits_of(other) == (50, 5000), other
     assert limits_of("matriz-definiciones-v10") == (None, 5000)
     assert DESCRIPTION_CHARS == 80

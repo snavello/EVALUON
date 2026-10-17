@@ -659,6 +659,10 @@ DERIVED = {
     "D-67": ("confirmada", (
         'Derivada de D-42 (spec 016, 2026-10-15: las dos posturas cuando el valor de la oferta y el '
         'dato del Portal no coinciden) y de D-40; origen: T-283, hallazgo D-283-7; H-285-6')),
+    # T-302: la derivada del ajuste único del paso 4; pendiente hasta que el responsable la confirme.
+    "D-68": ("pendiente", (
+        'Derivada de D-43 (el texto citado se juzga solo contra lo que el requisito pide) y de '
+        'D-41 (ADR-0038); origen: T-301, hallazgo D-301-2')),
 }
 PENDING_MARK = "pendiente de confirmación del responsable"
 CONFIRMED_MARK = re.compile(r"confirmada por el responsable el (\d{4}-\d{2}-\d{2})\b[^«“]*[«“][^»”]+[»”]")

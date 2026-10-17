@@ -647,7 +647,8 @@ EXTERNAL_THINKING = {
 EXTERNAL_PROMPT_VERSIONS = {
     "matriz": "matriz-externa-v2",
     # T-299 (plan 016, «Paso 4»): el verificador de citas, en `evaluon/assessment/prompts/`.
-    "verificador": "verificador-v1",
+    # T-302: la v2 (ajuste único del paso 4) reemplaza a la v1, que sigue publicada.
+    "verificador": "verificador-v2",
 }
 # `lotes` (la mitad del precio) o `directo` (la prueba de humo).
 EXTERNAL_MODE = env_choice("EXTERNAL_MODE", "lotes", ("lotes", "directo"))

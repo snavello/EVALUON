@@ -131,3 +131,5 @@ cf9b7f7c9810af82a11b7d20b0fd2da776ce65fee69a3a6ddb1dfdf87ed35658  evaluon/tender
 6964ad11f54ee47933f2d23289a6c47820b7b2cd14e9119ea8b4c85387b03b24  evaluon/tenders/prompts/matriz-externa-v2.md
 # T-299 (spec 016, REQ-124): la instrucción del verificador externo de citas
 3f0a21844b5945d74cae9e85296c07f4ff34162c69ec3b955d1420908222e817  evaluon/assessment/prompts/verificador-v1.md
+# T-302 (spec 016, REQ-124): la v2 del verificador (ajuste único del paso 4); la v1 sigue publicada
+f0d43d4b37e7941aa51a9bec928206cd8fbcf05e7d8c029f4b79c773069c8a45  evaluon/assessment/prompts/verificador-v2.md
