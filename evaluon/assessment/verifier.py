@@ -23,11 +23,12 @@ de la oferta con su documento, su página y el contexto de la misma página (`gu
 explicación del modelo local, ni respuestas de la Comisión, ni otras partes de la oferta. Cada pieza
 entra con su origen (O-290-3) y cada pedido lleva su celda (`guard.Cell`).
 
-**Qué se le pide**: `verificador-v2` (`EXTERNAL_PROMPT_VERSIONS["verificador"]`), un objeto JSON con
+**Qué se le pide**: `verificador-v3` (`EXTERNAL_PROMPT_VERSIONS["verificador"]`), un objeto JSON con
 `razonamiento`, `sostiene` (`si`, `no`, `parcial`) y `falta`; esfuerzo y pensamiento de la etapa
 (`EXTERNAL_EFFORT`, `EXTERNAL_THINKING`: `low` y `between_tools`). Un pedido por celda, todos los de
-una oferta en un lote (`ledger.send`, que registra cada pedido, hace cumplir el tope y guarda el
-lote apenas existe: O-290-6).
+una oferta en un lote: `verify_many` crea con `ledger.begin` los lotes de todas las ofertas (cada
+uno registra sus pedidos, hace cumplir el tope y guarda el lote apenas existe: O-290-6) y recién
+después espera cada uno con `ledger.finish` (T-302, D-301-5; O-302-6).
 
 **Qué hace con la respuesta** (`decide`): `si`, la celda queda; `no` o `parcial`, «no determinado»
 `sin_corroborar` con las mismas citas; la pregunta la arma siempre el código
@@ -421,7 +422,7 @@ def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, us
 
     `run_id` identifica la corrida en el registro (`corrida`: tipo `evaluacion`); sin medición,
     el freno de la etapa se cuenta por esa corrida. `measurement` delimita el reuso por huella y
-    el freno de la etapa (`ledger.send`). `finder`: el `PageFinder` de la evaluación. Es
+    el freno de la etapa (`ledger.begin`). `finder`: el `PageFinder` de la evaluación. Es
     `verify_many` con una sola oferta."""
     return verify_many([Job(cells, offer, run_id, finder)], measurement=measurement, mode=mode,
                        user=user, channel=channel, clock=clock)[0]
