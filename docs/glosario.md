@@ -368,7 +368,7 @@ Qué significa cada prefijo:
 | **T-299** | 016 | Verificador externo de citas: verifier.py, verificador-v1, enchufe en evaluate_offer después del contraste y de las… | terminada |
 | **T-300** | 016 | Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave externo de la… | en verificación |
 | **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | terminada |
-| **T-302** | 016 | Ajuste único del verificador (verificador-v2 y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si… | en curso |
+| **T-302** | 016 | Ajuste único del verificador (verificador-v2 y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si… | terminada |
 | **T-303** | 016 | Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta | pendiente |
 | **T-304** | 016 | Medición final del paso 4 (aceptación, una sola corrida): evaluación local de los casos de aceptación con verdad y… | pendiente |
 | **T-305** | 016 | Segunda comparación del verificador con claude-opus-5-5, solo si Sonnet no pasó el umbral 17 y la etapa pasó la puerta… | pendiente |
@@ -573,7 +573,7 @@ Qué significa cada prefijo:
 | **ADR-0071** |  | Cierre del paso 2: las instrucciones cortas y las reglas a tres salidas quedan en el modelo local | aceptado |
 | **ADR-0072** |  | Matriz de requisitos: queda en el modelo local; la etapa externa no pasa a aceptación | aceptado |
 
-## Decisiones y definiciones de las instrucciones (D-NN) (67)
+## Decisiones y definiciones de las instrucciones (D-NN) (68)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -644,6 +644,7 @@ Qué significa cada prefijo:
 | **D-65** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-65: la conversión a la moneda de… | derivada, confirmada |
 | **D-66** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-66: en un documento de identidad… | derivada, confirmada |
 | **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-67: una condición numérica compara… | derivada, confirmada |
+| **D-68** | 016 | Definición derivada (desarrollador, T-302, 2026-10-17), pendiente de confirmación del responsable: en el verificador de citas, «no» o «parcial» vale… | derivada, pendiente de confirmación |
 
 ## Hallazgos de verificación (166)
 
@@ -816,7 +817,7 @@ Qué significa cada prefijo:
 | **H-299-1, H-299-2, O-299-1 a O-299-9** | 016 | Corregidos: la segunda pasada de --verificador-sobre mide la pregunta de la celda cambiada (H-299-1), 17 controles con prueba… | T-299 (verificación: no pasa… |
 | **H-299-2** | 016 | (pruebas) | T-299 |
 
-## Observaciones de verificación (278)
+## Observaciones de verificación (287)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -1098,6 +1099,15 @@ Qué significa cada prefijo:
 | **O-301-6** | 016 | Los pedidos del humo usan la hoja inventada solo en la oferta A , así que el humo prueba que esa oferta no manda celdas (O-299-5)… | T-301 |
 | **O-301-7** | 016 | El umbral 17 no puede premiar una captura fundada cuando la verdad de la Comisión es «cumple» | T-301 |
 | **O-301-8** | 016 | --verificar-filtro del caso-00 revisa contra 0 hojas (la base no tiene hojas cargadas): el control de la hoja lo hace el humo… | T-301 |
+| **O-302-1** | 016 | Dos controles nuevos sin prueba del desarrollador | T-302 |
+| **O-302-1 a O-302-8** | 016 | O-302-1: el contador faltas_del_verificador y el recorte de falta a 300 no tienen prueba del desarrollador (las del testeador… | T-302 (ajuste único del verificador… |
+| **O-302-2** | 016 | La eficacia de D-301-2 solo se ve con el proveedor real | T-302 |
+| **O-302-3** | 016 | D-301-5 resuelto solo para la pasada sobre lo guardado | T-302 |
+| **O-302-4** | 016 | Lectura de D-68 | T-302 |
+| **O-302-5** | 016 | accept_cleared_pages no comprueba que hubo una relectura | T-302 |
+| **O-302-6** | 016 | Frases del plan que quedaron desactualizadas (plan.md en ed5fb545; el plan no se tocó, como corresponde) | T-302 |
+| **O-302-7** | 016 | Rama preexistente sin prueba (5.3) | T-302 |
+| **O-302-8** | 016 | Archivos fuera de la lista de la tarea | T-302 |
 
 ## Casos de evals (56)
 
