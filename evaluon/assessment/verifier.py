@@ -23,7 +23,7 @@ de la oferta con su documento, su página y el contexto de la misma página (`gu
 explicación del modelo local, ni respuestas de la Comisión, ni otras partes de la oferta. Cada pieza
 entra con su origen (O-290-3) y cada pedido lleva su celda (`guard.Cell`).
 
-**Qué se le pide**: `verificador-v1` (`EXTERNAL_PROMPT_VERSIONS["verificador"]`), un objeto JSON con
+**Qué se le pide**: `verificador-v2` (`EXTERNAL_PROMPT_VERSIONS["verificador"]`), un objeto JSON con
 `razonamiento`, `sostiene` (`si`, `no`, `parcial`) y `pregunta`; esfuerzo y pensamiento de la etapa
 (`EXTERNAL_EFFORT`, `EXTERNAL_THINKING`: `low` y `between_tools`). Un pedido por celda, todos los de
 una oferta en un lote (`ledger.send`, que registra cada pedido, hace cumplir el tope y guarda el

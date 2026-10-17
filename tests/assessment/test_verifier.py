@@ -240,7 +240,7 @@ def test_what_is_sent_is_what_the_contrast_sees_and_nothing_of_the_local_reasoni
         offer, operator_user, procedure, model, fake_external, numbers):
     """REQ-121, REQ-124 (plan, «Qué se manda»): el pedido lleva el requisito con su punto, la
     conclusión, la oración citada con su documento y su página, con la instrucción
-    `verificador-v1`, esfuerzo `low`, pensamiento `between_tools` y el esquema de la salida; no
+    `verificador-v2`, esfuerzo `low`, pensamiento `between_tools` y el esquema de la salida; no
     lleva el razonamiento ni la explicación del modelo local. Cada pieza entra con su origen."""
     evaluate_with_verifier(operator_user, procedure, model, fake_external)
     payload = next(p for p in fake_external.batches[0]
@@ -257,7 +257,7 @@ def test_what_is_sent_is_what_the_contrast_sees_and_nothing_of_the_local_reasoni
     assert params["max_tokens"] == verifier.MAX_TOKENS
     assert params["output_config"]["format"]["schema"] == verifier.OUTPUT_SCHEMA
     event = next(e for e in external_requests() if e.detail["custom_id"] == payload.custom_id)
-    assert event.detail["instruccion"]["version"] == "verificador-v1"
+    assert event.detail["instruccion"]["version"] == "verificador-v2"
     assert event.detail["filtro"]["piezas"]["requisito"] == 1
     assert event.detail["filtro"]["piezas"]["oferta"] >= 1
     assert "respuesta_comision" not in event.detail["filtro"]["piezas"]
@@ -275,7 +275,7 @@ def test_the_run_records_the_external_key_and_the_screen_line(
     assert externo["verificador"] == {"proveedor": "anthropic", "modelo": "claude-sonnet-5-5"}
     own = run.parameters["externo"]["verificador"]
     assert own["modo"] == "lotes" and own["effort"] == "low" and own["lote_id"]
-    assert run.prompt_versions["externo"]["verificador"] == "verificador-v1"
+    assert run.prompt_versions["externo"]["verificador"] == "verificador-v2"
     counts = run.counts["externo"]["verificador"]
     assert counts["pedidos"] == 3 and counts["enviadas"] == 3
     assert counts["sostiene"] == {"si": 2, "no": 1, "parcial": 0}
@@ -589,14 +589,54 @@ def test_the_verifier_over_a_saved_run_needs_the_stage_on(
 
 
 def test_the_instruction_is_registered_and_within_its_limit():
-    """REQ-119, REQ-122: `verificador-v1` es la instrucción de la etapa, existe y cumple el tope de
-    las instrucciones no decisoras (50 líneas, 5.000 caracteres)."""
+    """REQ-119, REQ-122: `verificador-v2` es la instrucción de la etapa (la v1 sigue publicada, sin
+    editar), existe y cumple el tope de las instrucciones no decisoras (50 líneas, 5.000
+    caracteres)."""
     from django.conf import settings
 
     instruction = verifier.load_instruction()
-    assert settings.EXTERNAL_PROMPT_VERSIONS["verificador"] == instruction.version == "verificador-v1"
+    assert settings.EXTERNAL_PROMPT_VERSIONS["verificador"] == instruction.version == "verificador-v2"
     assert len(instruction.text.splitlines()) <= 50 and len(instruction.text) <= 5000
     assert '"sostiene"' in instruction.text and '"pregunta"' in instruction.text
+    assert (verifier.PROMPTS_DIR / "verificador-v1.md").is_file()
+
+
+def test_the_instruction_judges_only_what_the_requirement_asks_in_400_characters():
+    """REQ-124 (T-302, D-301-2): la instrucción manda juzgar solo la condición que el requisito
+    nombra, sin agregar condiciones ni pedir datos que no exige, y deja `no` y `parcial` para cuando
+    la cita no dice lo que la conclusión afirma; el razonamiento, de hasta 400 caracteres en
+    total."""
+    text = " ".join(verifier.load_instruction().text.split())
+    for rule in ("Juzgá solo contra lo que el requisito pide, sin agregarle condiciones ni pedir "
+                 "datos que no nombra",
+                 "Lo que exige otro requisito del pliego, o un dato del proceso que no está en la "
+                 "cita, no es una falta de la oferta",
+                 '"no" o "parcial" solo cuando el texto no dice lo que la conclusión afirma para '
+                 "una condición que el requisito nombra",
+                 "de hasta 400 caracteres en total"):
+        assert rule in text, rule
+
+
+def test_a_reasoning_over_400_characters_is_cut_with_a_mark_and_the_answer_stays_valid(
+        offer, operator_user, procedure, model, fake_external, numbers):
+    """REQ-124 (T-302, D-301-2; T-301: razonamientos de hasta 497 caracteres): el código recorta el
+    razonamiento a 400 caracteres con la marca «…» y la respuesta sigue valiendo: la celda pasa a
+    «no determinado» igual y el hecho del registro conserva la respuesta completa."""
+    long = ("La cita muestra el precio total pero no dice nada del dato que pide el requisito. " * 7
+            )[:497]
+    assert len(long) == 497
+    sostiene, reasoning, _ = verifier.parse(answer("parcial", reasoning=long))
+    assert sostiene == "parcial" and len(reasoning) <= 400 and reasoning.endswith("…")
+    moneda = numbers["moneda"]
+    run = evaluate_with_verifier(operator_user, procedure, model, fake_external, {
+        verifier.custom_id_of(offer, moneda): answer("parcial", reasoning=long)})
+    changed = results_of(run)[moneda.number]
+    assert (changed.outcome, changed.doubt) == ("no_determinado", "sin_corroborar")
+    mark = changed.facts["verificador"]
+    assert mark["respuesta"] == "parcial" and 300 < len(mark["razonamiento"]) <= 400
+    assert mark["razonamiento"].endswith("…") and "anomalia" not in mark
+    event = AuditEvent.objects.get(pk=mark["hecho"])
+    assert long in json.dumps(event.detail["respuesta"], ensure_ascii=False)
 
 
 # --- Controles de la verificación de T-299 (H-299-1 y H-299-2) -----------------------------------
