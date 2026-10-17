@@ -370,7 +370,7 @@ Qué significa cada prefijo:
 | **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | terminada |
 | **T-302** | 016 | Ajuste único del verificador (verificador-v2 y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si… | terminada |
 | **T-303** | 016 | Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta | terminada |
-| **T-304** | 016 | Medición final del paso 4 (aceptación, una sola corrida): evaluación local de los casos de aceptación con verdad y… | pendiente |
+| **T-304** | 016 | Medición final del paso 4 (aceptación, una sola corrida): evaluación local de los casos de aceptación con verdad y… | bloqueada |
 | **T-305** | 016 | Segunda comparación del verificador con claude-opus-5-5, solo si Sonnet no pasó el umbral 17 y la etapa pasó la puerta… | pendiente |
 | **T-306** | 016 | Cierre del paso 4: ADR-0073 (verificador: con o sin, y por qué) con las cifras, gasto real por etapa, registro del paso… | pendiente |
 | **T-307** | 016 | Verificación transversal con el uso externo apagado y encendido: suite completa sobre la combinación; caso-00 completo… | pendiente |
