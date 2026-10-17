@@ -1,6 +1,6 @@
 # ADR-0068 · Registro de los pedidos externos en la auditoría y tope de gasto hecho cumplir en código
 
-Estado: aceptado · Fecha: 2026-10-15 · Propuso: planificador (plan 016) · Decidió: responsable del proyecto (2026-10-15, «Apruebo el plan 016 y los ADR 0066 a 0070»)
+Estado: aceptado · Fecha: 2026-10-15 · Propuso: planificador (plan 016) · Decidió: responsable del proyecto (2026-10-15, «Apruebo el plan 016 y los ADR 0066 a 0070») · Enmendado el 2026-10-17 (punto 4: estimador calibrado; decisión del responsable, ver «Enmienda»)
 
 ## Contexto
 
@@ -33,7 +33,7 @@ Se propone **A**, con el límite de la consola como segundo freno.
 1. **Un hecho por pedido** (`external_request`): proveedor; modelo pedido y modelo devuelto; etapa; nombre, versión y huella de la instrucción (y del bloque de definiciones); modo (`lotes` o `directo`), identificador del lote y del pedido; parámetros (esfuerzo, pensamiento, `max_tokens`, formato de salida); procedimiento, oferta y requisito; corrida; el texto enviado tal como salió; la huella del pedido; la respuesta completa; el uso (entrada, salida, escritura y lectura de caché); el costo en USD; la versión, la fecha y la fuente de la tabla de precios; la duración; el resultado (`ok`, `error`, `vencido`, `bloqueado` o `reutilizado`); y lo que comprobó la puerta de filtrado (ADR-0067). Un pedido bloqueado no lleva texto.
 2. **En las corridas**, la clave `externo` de `models`, `parameters` o `models_used` y de `counts` dice qué etapas fueron `externo` o `local`, con modelo, modo, cantidad de pedidos y gasto; de ahí sale la línea «Etapas fuera del equipo» de la pantalla y de la exportación de la evaluación.
 3. **Tabla de precios versionada** (`EXTERNAL_PRICES` en la configuración, con versión, fecha y fuente). El costo se calcula con el uso que informa el proveedor, no con una estimación.
-4. **El libro** (`ledger.py`) suma el costo del mes calendario y del procedimiento antes de cada lote, con una estimación conservadora de tokens (caracteres entre 2,5). Si el pedido haría pasar el caso de 2 USD o el mes de 10 USD, no sale: queda `bloqueado` con el motivo «tope» y la etapa sigue en local. Una etapa que supera el doble de su estimado (0,60 USD para la matriz y para el verificador) se frena y se informa antes de seguir.
+4. **El libro** (`ledger.py`) suma el costo del mes calendario y del procedimiento antes de cada lote, con una estimación **calibrada** de tokens (caracteres entre 1,9, salida esperada de 10.000 tokens por pedido sin pasar de `max_tokens`, escritura de caché al precio de escritura en el primer pedido de cada sistema del lote y lectura en los que lo comparten; *enmienda del 2026-10-17, ver abajo*). Si el pedido haría pasar el caso de 2 USD o el mes de 10 USD, no sale: queda `bloqueado` con el motivo «tope» y la etapa sigue en local. Una etapa que supera el doble de su estimado (0,60 USD para la matriz y para el verificador) se frena y se informa antes de seguir.
 5. **Reuso por huella.** Un pedido con la misma huella (pedido, modelo, parámetros, versión) que uno ya respondido en la misma medición se contesta con la respuesta guardada y queda como `reutilizado`, con costo 0. Es un control de gasto ligado al tope.
 6. **Comando** `manage.py gasto_externo [--mes] [--procedimiento] [--por-etapa] [--verificar-filtro]`: el gasto real por etapa que cada medición pega en su registro, y el escaneo independiente del filtro (ADR-0067).
 7. **Segundo freno**: el límite mensual de 10 USD del espacio de trabajo de la clave en la consola del proveedor.
@@ -44,3 +44,15 @@ Se propone **A**, con el límite de la consola como segundo freno.
 - Más difícil: la base del clon crece con los pedidos (unos MB por caso); la suma sobre JSON se hace con una consulta menos directa que una columna. Si el uso externo pasara a ser de producción y diario, convendría la alternativa B.
 - Una migración: `evaluon/audit/migrations/0009_*.py`, que agrega un valor permitido a `EventType`.
 - Para revertir: dejar de usar las etapas externas; los hechos ya guardados quedan como registro. La migración no necesita deshacerse.
+
+## Enmienda del 2026-10-17 · Estimador calibrado (punto 4)
+
+**Antes:** estimación conservadora con 2,5 caracteres por token y `max_tokens` entero reservado como salida; con ella el libro sobreestimaba el costo 1,6 a 2,2 veces y a la vez subestimaba los tokens de entrada 1,17 a 1,27 veces (T-293: pliegos de 50 mil a 81 mil tokens a 1,97–2,14 caracteres por token; el lote de extracción del caso-01 estimado en 1,48 USD contra un costo real proyectado de 0,7 a 0,8).
+
+**Ahora (T-294, D-293-5):** 1,9 caracteres por token, salida esperada de 10.000 tokens por pedido (acotada por `max_tokens`), escritura de caché a su precio en el primer pedido de cada sistema del lote y lectura en los que lo comparten. Con las cifras de T-293 el estimado queda en 1,2 a 1,4 veces el costo real (00: 0,382 contra 0,275; 02: 0,498 contra 0,413; 06: 0,416 contra 0,314).
+
+**Qué cambia en la garantía:** el estimado es el costo esperado con margen, no el peor caso; el tope de 2 USD por caso y 10 por mes lo hace cumplir la puerta sobre ese estimado, y lo acotan el **freno de etapa** (al doble del estimado de etapa, que mira lo ya gastado antes de cada lote) y el **límite mensual de la consola del proveedor** (10 USD), que es independiente del código. Un `en_vuelo` cuyo pedido ya está `ok` no cuenta dos veces; uno huérfano sigue contando hasta que se cierra (O-291-2).
+
+**Decidió:** responsable del proyecto, 2026-10-17: «Enmendá el ADR-0068 (punto 4) y el plan con el estimador calibrado de T-294: 1,9 caracteres por token y salida esperada de 10.000 tokens; el tope lo acotan el freno de etapa y el límite de la consola.»
+
+**Estimado de etapa propio para un caso grande:** el estimado de etapa (0,30 USD para la matriz, freno 0,60) es por omisión; para un pliego fuera del tamaño previsto el responsable puede fijar otro por corrida (`EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD`), como decidió para el caso-01 el 2026-10-16 (0,75 USD, freno 1,50), siempre dentro de los topes de 2 USD por caso y 10 por mes.
