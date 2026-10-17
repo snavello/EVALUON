@@ -401,6 +401,17 @@ def _stage_anomalies(sent):
             for entry in sent.anomalies]
 
 
+@dataclass
+class Job:
+    """Las celdas de una oferta que se verifican: la oferta, la identificación de la corrida en el
+    registro (`run_id`) y el `PageFinder` de su evaluación, si lo hay."""
+
+    cells: list
+    offer: object
+    run_id: object
+    finder: object = None
+
+
 def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, user=None,
            channel=None, clock=time.monotonic):
     """Verifica las celdas de la oferta `offer` (una lista de `Cell`) con el modelo externo: arma
@@ -410,17 +421,23 @@ def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, us
 
     `run_id` identifica la corrida en el registro (`corrida`: tipo `evaluacion`); sin medición,
     el freno de la etapa se cuenta por esa corrida. `measurement` delimita el reuso por huella y
-    el freno de la etapa (`ledger.send`). `finder`: el `PageFinder` de la evaluación."""
-    started = clock()
-    instruction = load_instruction()
-    mode = mode or settings.EXTERNAL_MODE
-    finder = finder or citing.PageFinder()
+    el freno de la etapa (`ledger.send`). `finder`: el `PageFinder` de la evaluación. Es
+    `verify_many` con una sola oferta."""
+    return verify_many([Job(cells, offer, run_id, finder)], measurement=measurement, mode=mode,
+                       user=user, channel=channel, clock=clock)[0]
+
+
+def _prepare(job, instruction, *, mode, measurement, user, channel):
+    """Arma los pedidos de una oferta: la `Verification` con una `Checked` por celda, los pedidos
+    que la puerta admitió y los que bloqueó."""
+    offer = job.offer
+    finder = job.finder or citing.PageFinder()
     reserved = reserved_documents(offer)
     done = Verification(checked=[], instruction=instruction, mode=mode,
                         model=settings.EXTERNAL_MODELS[STAGE], measurement=measurement,
-                        run_id=run_id)
+                        run_id=job.run_id)
     admitted, refused = {}, {}
-    for cell in cells:
+    for cell in job.cells:
         reason = skip_reason(cell, reserved)
         if reason:
             done.checked.append(Checked(cell, cell.combined, skipped=reason))
@@ -434,7 +451,7 @@ def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, us
             system=guard.instruction(instruction.text),
             messages=[("user", _message(cell, finder))], max_tokens=MAX_TOKENS,
             output_schema=OUTPUT_SCHEMA, cache_system_ttl=CACHE_TTL, run_kind=RUN_KIND,
-            run_id=run_id, instruction_name=INSTRUCTION_NAME,
+            run_id=job.run_id, instruction_name=INSTRUCTION_NAME,
             instruction_version=instruction.version, instruction_sha256=instruction.sha256,
             measurement=measurement, channel=channel, user=user)
         if decision.blocked:
@@ -443,19 +460,11 @@ def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, us
             admitted[custom_id] = decision
         done.checked.append(Checked(cell, cell.combined, custom_id=custom_id))
     done.blocked = len(refused)
+    return done, admitted, refused
 
-    answers = {}
-    if admitted:
-        try:
-            done.sent = ledger.send(list(admitted.values()), measurement=measurement, mode=mode,
-                                    channel=channel, user=user)
-            answers = done.sent.answers
-            done.anomalies.extend(_stage_anomalies(done.sent))
-        except ImproperlyConfigured as error:
-            # Un tope o un precio mal configurado: no sale nada y la evaluación local sigue.
-            done.anomalies.append({"type": ANOMALY, "etapa": STAGE, "motivo": "configuracion",
-                                   "mensaje": str(error)})
 
+def _apply(done, answers, refused, instruction):
+    """Aplica a cada celda mandada la respuesta de su pedido (`decide`)."""
     for item in done.checked:
         if item.skipped:
             continue
@@ -479,8 +488,45 @@ def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, us
         item.combined, item.missing_used = decide(
             item.cell, item.answer, reasoning=item.reasoning, missing=item.missing,
             event_id=item.event_id, anomaly=item.anomaly, version=instruction.version)
-    done.seconds = clock() - started
-    return done
+
+
+def verify_many(jobs, *, measurement=None, mode=None, user=None, channel=None,
+                clock=time.monotonic):
+    """Verifica las celdas de varias ofertas (`jobs`: una `Job` por oferta, del mismo
+    procedimiento) con un lote por oferta, **todos creados antes de esperar el primero**: el
+    proveedor los procesa a la vez y la espera total es la de un lote, no la suma de las de cada
+    uno (T-302, D-301-5; T-301: 5,6 a 6,6 minutos por lote). Cada oferta conserva su envío del
+    libro (su lote, sus pedidos y su gasto); el freno de la etapa y el tope del caso valen por
+    lote, y el tope cuenta el estimado de los lotes ya creados. Devuelve una `Verification` por
+    `Job`, en el mismo orden; nunca lanza por una falla del proveedor, un bloqueo o el tope."""
+    started = clock()
+    instruction = load_instruction()
+    mode = mode or settings.EXTERNAL_MODE
+    prepared = [_prepare(job, instruction, mode=mode, measurement=measurement, user=user,
+                         channel=channel) for job in jobs]
+
+    # Primero se crean todos los lotes; recién después se espera cada uno.
+    begun = []
+    for done, admitted, _ in prepared:
+        try:
+            begun.append(ledger.begin(list(admitted.values()), measurement=measurement,
+                                      mode=mode, channel=channel, user=user)
+                         if admitted else None)
+        except ImproperlyConfigured as error:
+            # Un tope o un precio mal configurado: no sale nada y la evaluación local sigue.
+            done.anomalies.append({"type": ANOMALY, "etapa": STAGE, "motivo": "configuracion",
+                                   "mensaje": str(error)})
+            begun.append(None)
+
+    for (done, admitted, refused), start in zip(prepared, begun):
+        answers = {}
+        if start is not None:
+            done.sent = ledger.finish(start)
+            answers = done.sent.answers
+            done.anomalies.extend(_stage_anomalies(done.sent))
+        _apply(done, answers, refused, instruction)
+        done.seconds = clock() - started
+    return [done for done, _, _ in prepared]
 
 
 # --- Pasada sobre una evaluación guardada (medición, plan 016, «Medición del paso 4») ---------
@@ -550,21 +596,38 @@ def _outcome_counts(combineds):
 
 
 def verify_saved(run, user, *, measurement=None, mode=None, channel=Channel.COMMAND):
-    """Aplica el verificador a la evaluación guardada `run` con la misma función que la
-    evaluación (`verify`), sin GPU, y guarda una **evaluación nueva derivada** (la base es de solo
-    inserción): los mismos resultados y citas, con las conclusiones que el verificador no corroboró
-    en «no determinado», `facts["verificador"]` en cada celda mandada, la clave `externo` y
-    `parameters["derivada_de"]`. Cada resultado nuevo apunta al de `run` como anterior. La celda
-    que el verificador pasó a «no determinado» lleva siempre su pregunta, ligada a la derivada
-    (H-299-1); las demás copian la del origen si no hay una abierta del par. Devuelve
-    `(evaluación derivada, Verification)`."""
-    results = list(run.results.select_related("requirement").order_by("requirement__number", "pk"))
-    citations = {r.pk: list(r.citations.select_related("document", "reading").order_by("order"))
-                 for r in results}
-    cells = _saved_cells(run, results, citations)
+    """Aplica el verificador a la evaluación guardada `run`: `verify_saved_many` con una sola.
+    Devuelve `(evaluación derivada, Verification)`."""
+    return verify_saved_many([run], user, measurement=measurement, mode=mode, channel=channel)[0]
+
+
+def verify_saved_many(runs, user, *, measurement=None, mode=None, channel=Channel.COMMAND):
+    """Aplica el verificador a las evaluaciones guardadas `runs` (las ofertas de una corrida) con la
+    misma función que la evaluación (`verify_many`), sin GPU: los lotes de todas las ofertas se
+    crean antes de esperar el primero (T-302, D-301-5). Por cada una guarda una **evaluación nueva
+    derivada** (la base es de solo inserción): los mismos resultados y citas, con las conclusiones
+    que el verificador no corroboró en «no determinado», `facts["verificador"]` en cada celda
+    mandada, la clave `externo` y `parameters["derivada_de"]`. Cada resultado nuevo apunta al de la
+    evaluación de origen como anterior. La celda que el verificador pasó a «no determinado» lleva
+    siempre su pregunta, ligada a la derivada (H-299-1); las demás copian la del origen si no hay
+    una abierta del par. Devuelve `[(evaluación derivada, Verification)]`, en el orden de `runs`."""
+    loaded = []
+    for run in runs:
+        results = list(run.results.select_related("requirement")
+                       .order_by("requirement__number", "pk"))
+        citations = {r.pk: list(r.citations.select_related("document", "reading")
+                                .order_by("order")) for r in results}
+        loaded.append((run, results, citations, _saved_cells(run, results, citations)))
+    dones = verify_many(
+        [Job(cells, run.offer, f"sobre-evaluacion-{run.pk}") for run, _, _, cells in loaded],
+        measurement=measurement, mode=mode, user=user, channel=channel)
+    return [(_save_derived(run, results, citations, done, user, channel), done)
+            for (run, results, citations, _), done in zip(loaded, dones)]
+
+
+def _save_derived(run, results, citations, done, user, channel):
+    """Guarda la evaluación derivada de `run` con lo que decidió el verificador (`done`)."""
     offer = run.offer
-    done = verify(cells, offer=offer, run_id=f"sobre-evaluacion-{run.pk}",
-                  measurement=measurement, mode=mode, user=user, channel=channel)
     titles, unread = _documents_read(run)
     record = done.record()
     cell_anomalies = [{**item.anomaly, "requirement": item.cell.requirement.number}
@@ -618,7 +681,7 @@ def verify_saved(run, user, *, measurement=None, mode=None, channel=Channel.COMM
                     "derivada_de": {"evaluacion": run.pk, "numero": run.number},
                     "externo": record, "questions_created": questions,
                     "anomalies": derived.anomalies})
-    return derived, done
+    return derived
 
 
 def spent(verifications):

@@ -704,6 +704,52 @@ def test_a_failed_batch_closes_its_in_flight_fact(case, fake_external):
     assert ledger.spent_case(case.procedure.pk) == 0
 
 
+def test_begin_creates_the_batch_without_waiting_and_finish_waits_for_it(case, fake_external):
+    """REQ-122 (T-302, D-301-5): `begin` hace todo lo de `send` hasta crear el lote (reuso, freno,
+    tope, hecho en vuelo) sin esperarlo ni registrar los pedidos; `finish` espera, registra y
+    devuelve el mismo `Sent`."""
+    fake_external.enable()
+    fake_external.respond("ok", usage={"input_tokens": 1000, "output_tokens": 100})
+    started = ledger.begin([economic(case), technical(case)], measurement=MEASUREMENT)
+    assert len(fake_external.batches) == 1 and fake_external.sleeps == []
+    assert not external_requests() and len(in_flight_events()) == 1
+    sent = ledger.finish(started)
+    assert fake_external.sleeps and len(external_requests()) == 2
+    assert sent.batch_id == "msgbatch_fake_1" and list(sent.answers) == ["pedido-1", "pedido-2"]
+    assert all(answer.ok for answer in sent.answers.values())
+    assert sent.cost_usd == Decimal("0.003") == ledger.spent_case(case.procedure.pk)
+
+
+def test_a_batch_created_by_begin_counts_for_the_cap_of_the_next_begin(
+        case, fake_external, settings):
+    """REQ-122 (T-302, D-301-5): dos `begin` seguidos antes de esperar: el estimado del lote en
+    vuelo del primero cuenta para el tope del caso del segundo, que no sale; el primero se
+    espera igual."""
+    fake_external.enable()
+    first, second = economic(case), technical(case, custom_id="pedido-3")
+    estimate = sum(ledger.estimate_batch([first.payload], "lotes"), Decimal(0))
+    settings.EXTERNAL_CASE_CAP_USD = estimate * Decimal("1.5")
+    one = ledger.begin([first], measurement=MEASUREMENT)
+    two = ledger.begin([second], measurement=MEASUREMENT)
+    assert len(fake_external.batches) == 1
+    assert two.sent.answers["pedido-3"].outcome == "bloqueado"
+    assert two.sent.answers["pedido-3"].reason == "tope"
+    done = ledger.finish(one)
+    assert done.answers["pedido-1"].ok
+    assert ledger.finish(two).answers["pedido-3"].outcome == "bloqueado"
+
+
+def test_begin_in_direct_mode_sends_when_finished(case, fake_external):
+    """REQ-122 (T-302): en el modo directo `begin` no manda nada y `finish` manda los pedidos de a
+    uno, como `send`."""
+    fake_external.enable()
+    started = ledger.begin([economic(case), technical(case)], mode="directo")
+    assert not fake_external.messages and not external_requests()
+    sent = ledger.finish(started)
+    assert len(fake_external.messages) == 2 and len(external_requests()) == 2
+    assert all(answer.ok for answer in sent.answers.values())
+
+
 def test_the_command_reports_open_batches_apart(case, fake_external, logged_in, monkeypatch):
     """REQ-122 (O-290-6): `gasto_externo` no cuenta un hecho `en_vuelo` como pedido ni como gasto
     real, e informa aparte los lotes sin cerrar con su estimado."""

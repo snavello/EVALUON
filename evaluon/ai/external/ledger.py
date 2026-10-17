@@ -502,13 +502,43 @@ def _reusable(payload, measurement):
         .order_by("pk").first())
 
 
+@dataclass
+class Started:
+    """Un envío empezado por `begin` y todavía sin esperar: lo que `finish` necesita para esperar
+    el lote (o mandar los pedidos directos), registrar y devolver el `Sent`."""
+
+    items: list
+    sent: "Sent"
+    limits: tuple
+    group: str
+    procedure_id: int
+    first: object
+    measurement: str | None
+    record: dict
+    batch: object = None            # `ExternalBatch` creado, si hay un lote en vuelo
+    batch_started: float = 0.0      # instante en que se creó (para la espera máxima)
+    batch_items: list = field(default_factory=list)
+    direct_items: list = field(default_factory=list)
+
+
 def send(admitted, *, measurement=None, mode=None, channel=None, user=None):
     """Manda los pedidos admitidos por la puerta (una etapa, un procedimiento) y registra cada
     uno. Devuelve `Sent`; nunca lanza por una falla del proveedor (queda en cada `Answer` y en el
     registro). Lanza `ImproperlyConfigured` si un tope, estimado o factor no es válido.
 
     `measurement`: la medición (por ejemplo `T-293-caso-00-r1`); delimita el reuso por huella y
-    el freno de la etapa. `mode`: `lotes` o `directo` (por omisión, `EXTERNAL_MODE`)."""
+    el freno de la etapa. `mode`: `lotes` o `directo` (por omisión, `EXTERNAL_MODE`).
+
+    Es `begin` y `finish` seguidos. Varios envíos pueden empezar (`begin`) antes de esperar el
+    primero (`finish`): sus lotes se procesan a la vez en el proveedor (T-302, D-301-5)."""
+    return finish(begin(admitted, measurement=measurement, mode=mode, channel=channel, user=user))
+
+
+def begin(admitted, *, measurement=None, mode=None, channel=None, user=None):
+    """La primera mitad de `send`: el reuso por huella, el freno de la etapa y el tope, y, en
+    modo `lotes`, la creación del lote con su hecho `en_vuelo`; no espera. Devuelve un `Started`
+    para `finish`. El tope de un `begin` posterior cuenta el estimado de los lotes en vuelo de los
+    anteriores. Lanza `ImproperlyConfigured` como `send`, antes de crear nada."""
     items = _admitted(admitted)
     mode = mode or settings.EXTERNAL_MODE
     if mode not in ("lotes", "directo"):
@@ -520,10 +550,12 @@ def send(admitted, *, measurement=None, mode=None, channel=None, user=None):
     price_factors()  # H-290-5: también antes de mandar
     sent = Sent(stage=first.stage, mode=mode, model=first.model)
     record = {"measurement": measurement, "channel": channel, "user": user}
+    started = Started(items=items, sent=sent, limits=limits, group=group,
+                      procedure_id=procedure_id, first=first, measurement=measurement,
+                      record=record)
 
     def scope_spent():
-        return spent_stage(group, procedure_id, measurement=measurement,
-                           run_kind=first.run_kind, run_id=first.run_id)
+        return _scope_spent(started)
 
     pending = []
     for item in items:
@@ -547,16 +579,33 @@ def send(admitted, *, measurement=None, mode=None, channel=None, user=None):
                                    "etapa": first.stage, "pedidos": len(pending), **extra})
             sent.stage_stopped = reason == STAGE_STOP
         elif mode == "lotes":
-            _send_batch(pending, sent, record)
+            _start_batch(pending, started)
         else:
-            _send_direct(pending, sent, record)
+            started.direct_items = pending
+    return started
 
+
+def _scope_spent(started):
+    first = started.first
+    return spent_stage(started.group, started.procedure_id, measurement=started.measurement,
+                       run_kind=first.run_kind, run_id=first.run_id)
+
+
+def finish(started):
+    """La segunda mitad de `send`: espera el lote creado por `begin` (o manda los pedidos
+    directos), registra cada pedido, suma el gasto y avisa si la etapa llegó a su freno. Devuelve
+    el `Sent`."""
+    sent, record, limits = started.sent, started.record, started.limits
+    if started.batch is not None:
+        _finish_batch(started, sent, record)
+    elif started.direct_items:
+        _send_direct(started.direct_items, sent, record)
     sent.answers = {item.payload.custom_id: sent.answers[item.payload.custom_id]
-                    for item in items}
-    sent.spent_stage_usd = scope_spent()
+                    for item in started.items}
+    sent.spent_stage_usd = _scope_spent(started)
     if sent.spent_stage_usd >= limits[2] and not sent.stage_stopped:
         sent.stage_stopped = True
-        sent.anomalies.append({"anomalia": "externo_etapa_frenada", "etapa": first.stage,
+        sent.anomalies.append({"anomalia": "externo_etapa_frenada", "etapa": started.first.stage,
                                "gasto_usd": _number(sent.spent_stage_usd),
                                "limite_usd": _number(limits[2])})
     return sent
@@ -627,7 +676,10 @@ def _record_in_flight(items, batch, *, measurement, channel, user):
     return _write(detail, channel=channel, user=user)
 
 
-def _send_batch(items, sent, record):
+def _start_batch(items, started):
+    """Crea el lote de `items` y deja su hecho `en_vuelo`; no lo espera. Si la creación falla, los
+    pedidos quedan como error y no hay lote que esperar."""
+    sent, record = started.sent, started.record
     created = {}
 
     def on_created(batch):
@@ -636,9 +688,20 @@ def _send_batch(items, sent, record):
         _record_in_flight(items, batch, **record)
 
     try:
-        run = client.run_batch([item.payload for item in items], on_created=on_created)
+        started.batch, started.batch_started = client.start_batch(
+            [item.payload for item in items], on_created=on_created)
     except client.ExternalError as error:
         _fail(sent, items, error, record, mode="lotes", batch_id=created.get("id"))
+        return
+    started.batch_items = items
+
+
+def _finish_batch(started, sent, record):
+    items = started.batch_items
+    try:
+        run = client.finish_batch(started.batch, started.batch_started)
+    except client.ExternalError as error:
+        _fail(sent, items, error, record, mode="lotes", batch_id=started.batch.id)
         return
     for item in items:
         _take(sent, item, run.results[item.payload.custom_id], record,

@@ -624,6 +624,31 @@ def test_the_verifier_over_a_saved_run_gives_the_before_and_the_after(
     assert "«No determinado» nuevo que venía de una celda exacta (REQ-124): 1 · no cumple" in text
 
 
+def test_the_pass_over_a_saved_run_creates_the_batches_of_all_the_offers_before_waiting(
+        db, operator_user, fake_ai, model, fake_external, tmp_path, monkeypatch):
+    """REQ-124 (T-302, D-301-5): `medir_evaluacion --verificador-sobre` manda las ofertas con
+    pedidos en lotes creados todos antes de la primera espera: el tiempo de la pasada es el de un
+    lote (T-301: 336 a 397 s por oferta, uno detrás de otro), y cada derivada guarda su lote."""
+    source, procedure, offers = _measured_small_case(operator_user, model, tmp_path)
+    seen = batches_ready_after(fake_external, monkeypatch)
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+    before = set(am.Run.objects.values_list("pk", flat=True))
+
+    ev.measure_verifier(
+        operator_user, procedure, ev.load_expected(LIST), offers, tmp_path / "con",
+        source.folder, measurement="T-302-lotes", commit="abc1234",
+        commission_cells=ev.load_commission_cells(TRUTH))
+
+    created = len(fake_external.batches)
+    assert created >= 2, "el caso chico tendría que mandar al menos dos ofertas"
+    assert set(seen) == {created}
+    assert fake_external.clock < 2 * BATCH_READY_SECONDS
+    derived = am.Run.objects.exclude(pk__in=before)
+    lots = {r.parameters["externo"]["verificador"]["lote_id"] for r in derived} - {None}
+    assert len(lots) == created
+
+
 def test_the_verifier_over_a_saved_run_needs_the_stage_on(
         db, operator_user, fake_ai, model, fake_external, tmp_path):
     """REQ-122: sin el uso externo encendido y la etapa en `externo`, la pasada no corre y no
@@ -689,6 +714,112 @@ def test_a_reasoning_over_400_characters_is_cut_with_a_mark_and_the_answer_stays
     assert mark["razonamiento"].endswith("…") and "anomalia" not in mark
     event = AuditEvent.objects.get(pk=mark["hecho"])
     assert long in json.dumps(event.detail["respuesta"], ensure_ascii=False)
+
+
+# --- Los lotes de las ofertas, juntos (T-302, D-301-5) ---------------------------------------------
+
+BATCH_READY_SECONDS = 300
+
+
+def batches_ready_after(fake_external, monkeypatch, seconds=BATCH_READY_SECONDS):
+    """El tiempo del proveedor en el doble: cada lote termina `seconds` segundos virtuales después
+    de creado, sin importar cuántas veces se lo consulte (T-301: 336 a 397 s por lote). Devuelve
+    la lista de los lotes creados que había en cada espera (`_sleep`)."""
+    from evaluon.ai.external import client
+
+    created, seen = {}, []
+
+    def create(payloads):
+        batch = fake_external.create_batch(payloads)
+        created[batch.id] = fake_external.clock
+        return batch
+
+    def retrieve(batch):
+        ready = fake_external.clock - created[batch.id] >= seconds
+        fake_external._polls = 0 if ready else float("inf")
+        return fake_external.retrieve_batch(batch)
+
+    def sleep(amount):
+        seen.append(len(fake_external.batches))
+        fake_external.sleep(amount)
+
+    monkeypatch.setattr(client, "create_batch", create)
+    monkeypatch.setattr(client, "retrieve_batch", retrieve)
+    monkeypatch.setattr(client, "_sleep", sleep)
+    return seen
+
+
+def _three_offers_with_a_cell(procedure, operator_user, numbers):
+    jobs = []
+    for name in ("Oferente Uno", "Oferente Dos", "Oferente Tres"):
+        offer = make_offer(procedure, operator_user, name, {"oferta.pdf": [DECLARATION, PRICES]})
+        cell = real_cell(numbers["moneda"], docs_of(offer)["oferta.pdf"], PRICES)
+        jobs.append(verifier.Job([cell], offer, f"prueba-{name}"))
+    return jobs
+
+
+def test_the_batches_of_all_the_offers_are_created_before_the_first_wait(
+        procedure, operator_user, fake_external, fake_ai, numbers, monkeypatch):
+    """REQ-124 (T-302, D-301-5; T-301: un lote por oferta, en serie, tardaba 5,6 a 6,6 minutos aunque
+    llevara 3 a 7 pedidos): con 3 ofertas los 3 lotes se crean antes de la primera espera y el
+    tiempo total es el de una espera, no el de tres; cada oferta conserva su lote, sus pedidos y
+    su gasto."""
+    seen = batches_ready_after(fake_external, monkeypatch)
+    jobs = _three_offers_with_a_cell(procedure, operator_user, numbers)
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(answer("parcial", MISSING_PRICE))
+
+    done = verifier.verify_many(jobs)
+
+    assert len(fake_external.batches) == 3 and set(seen) == {3}
+    assert fake_external.clock < 2 * BATCH_READY_SECONDS
+    assert len({d.sent.batch_id for d in done}) == 3
+    for item, job in zip(done, jobs):
+        assert [c.cell for c in item.checked] == job.cells
+        (checked,) = item.checked
+        assert checked.answer == "parcial" and checked.changed
+        assert item.sent.summary()["pedidos"] == 1
+        assert item.record()["counts"]["verificador"]["pedidos"] == 1
+    total = sum(d.sent.cost_usd for d in done)
+    assert verifier.spent(done) == total and total > 0
+    assert len(external_requests()) == 3
+
+
+def test_one_offer_alone_waits_once_as_before(procedure, operator_user, fake_external, fake_ai,
+                                              numbers, monkeypatch):
+    """REQ-124 (T-302): `verify` de una oferta es el caso de una sola: un lote y una espera."""
+    seen = batches_ready_after(fake_external, monkeypatch)
+    (job, *_) = _three_offers_with_a_cell(procedure, operator_user, numbers)
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+    done = verifier.verify(job.cells, offer=job.offer, run_id=job.run_id)
+    assert len(fake_external.batches) == 1 and set(seen) == {1}
+    assert done.sent.summary()["pedidos"] == 1 and not done.anomalies
+
+
+def test_a_cap_stops_the_next_batch_but_not_the_ones_already_created(
+        procedure, operator_user, fake_external, fake_ai, numbers, monkeypatch, settings):
+    """REQ-122, REQ-124 (T-302, D-301-5): los lotes se crean uno detrás de otro y el tope del caso
+    cuenta el estimado de los que ya están en vuelo: con lugar para uno solo, el segundo y el
+    tercero no salen (`externo_bloqueado`, motivo `tope`) y el primero se espera y se aplica."""
+    seen = batches_ready_after(fake_external, monkeypatch)
+    jobs = _three_offers_with_a_cell(procedure, operator_user, numbers)
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+    # El estimado de un lote de una oferta sale del bloqueo de una pasada con un tope mínimo.
+    settings.EXTERNAL_CASE_CAP_USD = Decimal("0.0000001")
+    (probe,) = verifier.verify_many(jobs[:1])
+    estimate = Decimal(str(probe.anomalies[0]["estimado_usd"]))
+    assert not fake_external.batches
+    settings.EXTERNAL_CASE_CAP_USD = estimate * Decimal("1.5")
+
+    done = verifier.verify_many(jobs)
+
+    assert len(fake_external.batches) == 1 and set(seen) == {1}
+    assert done[0].sent.answers and done[0].anomalies == []
+    for blocked in done[1:]:
+        assert [a["motivo"] for a in blocked.anomalies] == ["tope"]
+        assert blocked.checked[0].answer is None and not blocked.checked[0].changed
 
 
 # --- Controles de la verificación de T-299 (H-299-1 y H-299-2) -----------------------------------

@@ -2580,10 +2580,12 @@ def measure_verifier(user, procedure, expected, offers, runs_dir, source, *, mea
     origin = source_runs(source, procedure)
     started_at = timezone.now()
     started = clock()
-    derived, done = {}, []
-    for offer_id, run in sorted(origin.items()):
-        derived[offer_id], verified = verifier.verify_saved(run, user, measurement=measurement)
-        done.append(verified)
+    # T-302 (D-301-5): los lotes de todas las ofertas se crean antes de esperar el primero.
+    order = sorted(origin)
+    saved = verifier.verify_saved_many([origin[offer_id] for offer_id in order], user,
+                                       measurement=measurement)
+    derived = {offer_id: run for offer_id, (run, _) in zip(order, saved)}
+    done = [verified for _, verified in saved]
     elapsed = clock() - started
     results, total = _measure_runs(
         expected, offers, derived, mapping, fichas=fichas, portal_cells=portal_cells,
