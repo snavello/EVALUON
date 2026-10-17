@@ -948,11 +948,11 @@ La instrucción propia del verificador externo de citas (plan 016, «Paso 4 · Q
 
 ## Instrucciones de T-302
 
-Ajuste único del paso 4 (ADR-0025): los hallazgos D-301-2 a D-301-5 de la medición T-301. `verificador-v2` reemplaza a `verificador-v1`, que sigue publicada sin editar. Cambia lo que se le pide (juzgar solo la condición que el requisito nombra, sin agregar condiciones de otro requisito ni datos del proceso que el requisito no pide; razonamiento de hasta 400 caracteres en total). Las oraciones que no cambiaron conservan la fila de la v1; las nuevas o cambiadas citan la decisión de la que salen. Una definición derivada nueva, D-68, pendiente de confirmación del responsable; el resto sale de decisiones ya confirmadas.
+Ajuste único del paso 4 (ADR-0025): los hallazgos D-301-2 a D-301-5 de la medición T-301. `verificador-v2` reemplaza a `verificador-v1`, que sigue publicada sin editar. Cambia lo que se le pide (juzgar solo la condición que el requisito nombra, sin agregar condiciones de otro requisito ni datos del proceso que el requisito no pide; razonamiento de hasta 400 caracteres en total). El campo `pregunta` se reemplaza por `falta` (D-301-4): el verificador dice solo qué dato no consta y el código arma la pregunta completa (requisito, conclusión y texto de la oferta, una sola vez: D-40), que cierra con esa frase. Las oraciones que no cambiaron conservan la fila de la v1; las nuevas o cambiadas citan la decisión de la que salen. Una definición derivada nueva, D-68, pendiente de confirmación del responsable; el resto sale de decisiones ya confirmadas.
 
 ### verificador-v2
 
-Largo: 25 líneas y 2.644 caracteres (tope de las demás: 50 y 5.000).
+Largo: 25 líneas y 2.540 caracteres (tope de las demás: 50 y 5.000).
 
 | Oración | Decisión |
 |---|---|
@@ -968,11 +968,11 @@ Largo: 25 líneas y 2.644 caracteres (tope de las demás: 50 y 5.000).
 | "sostiene": "si" si el texto muestra, con datos concretos, lo que la conclusión afirma para todas las condiciones del requisito; con "no cumple", "si" quiere decir que el texto muestra que lo exigido no se satisface. | D-41 |
 | "no" si el texto no trata de lo que el requisito exige o muestra lo contrario de la conclusión. | D-41 |
 | "parcial" si trata del tema pero no alcanza: falta el dato de una de las condiciones o solo anuncia un documento que no reproduce. | D-39, D-41 |
-| "pregunta": vacía si "sostiene" es "si". | D-40, D-41 |
-| Si no, una pregunta dirigida a la Comisión que nombra el requisito por su número y copia entre « » su oración del pliego, dice la conclusión propuesta, copia entre « » el texto citado de la oferta con su documento y su página, y dice qué falta para decidir. | D-40 |
+| "falta": vacía si "sostiene" es "si". | D-39, D-41 |
+| Si no, en una frase corta para la Comisión, el dato que el requisito pide y el texto citado no trae, sin repetir el requisito ni la cita. | D-39, D-40 |
 | Juzgá solo contra lo que el requisito pide, sin agregarle condiciones ni pedir datos que no nombra: si el texto afirma lo mismo, con las mismas palabras o con otras equivalentes, alcanza. | D-43, D-68 |
 | Lo que exige otro requisito del pliego, o un dato del proceso que no está en la cita, no es una falta de la oferta. | D-68 |
 | "no" o "parcial" solo cuando el texto no dice lo que la conclusión afirma para una condición que el requisito nombra. | D-41, D-68 |
 | Si el requisito tiene varias condiciones y el texto responde solo a algunas, es "parcial" y el razonamiento dice cuál falta. | D-14, D-39 |
 | No uses nada que no esté en la cita, en su contexto o en los datos del Portal. | D-41 |
-| La pregunta es para la Comisión y nunca le pide nada al oferente. | D-40 |
+| Lo que escribís en "falta" es para la Comisión y nunca le pide nada al oferente. | D-40 |

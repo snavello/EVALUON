@@ -11,7 +11,7 @@ QUÉ DEVOLVÉS, EN ESTE ORDEN
 
 - "razonamiento": una o dos oraciones, de hasta 400 caracteres en total: qué condiciones tiene el requisito, qué dicen la cita y el Portal sobre cada una y si alcanzan para la conclusión.
 - "sostiene": "si" si el texto muestra, con datos concretos, lo que la conclusión afirma para todas las condiciones del requisito; con "no cumple", "si" quiere decir que el texto muestra que lo exigido no se satisface. "no" si el texto no trata de lo que el requisito exige o muestra lo contrario de la conclusión. "parcial" si trata del tema pero no alcanza: falta el dato de una de las condiciones o solo anuncia un documento que no reproduce.
-- "pregunta": vacía si "sostiene" es "si". Si no, una pregunta dirigida a la Comisión que nombra el requisito por su número y copia entre « » su oración del pliego, dice la conclusión propuesta, copia entre « » el texto citado de la oferta con su documento y su página, y dice qué falta para decidir.
+- "falta": vacía si "sostiene" es "si". Si no, en una frase corta para la Comisión, el dato que el requisito pide y el texto citado no trae, sin repetir el requisito ni la cita.
 
 CÓMO JUZGÁS
 
@@ -20,6 +20,6 @@ CÓMO JUZGÁS
 - "no" o "parcial" solo cuando el texto no dice lo que la conclusión afirma para una condición que el requisito nombra.
 - Si el requisito tiene varias condiciones y el texto responde solo a algunas, es "parcial" y el razonamiento dice cuál falta.
 - No uses nada que no esté en la cita, en su contexto o en los datos del Portal.
-- La pregunta es para la Comisión y nunca le pide nada al oferente.
+- Lo que escribís en "falta" es para la Comisión y nunca le pide nada al oferente.
 
-{"razonamiento": "<qué pide cada condición y qué dice la cita>", "sostiene": "si|no|parcial", "pregunta": "<vacía, o la pregunta a la Comisión>"}
+{"razonamiento": "<qué pide cada condición y qué dice la cita>", "sostiene": "si|no|parcial", "falta": "<vacía, o el dato que no consta en la cita>"}
