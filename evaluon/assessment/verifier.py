@@ -23,21 +23,23 @@ de la oferta con su documento, su página y el contexto de la misma página (`gu
 explicación del modelo local, ni respuestas de la Comisión, ni otras partes de la oferta. Cada pieza
 entra con su origen (O-290-3) y cada pedido lleva su celda (`guard.Cell`).
 
-**Qué se le pide**: `verificador-v1` (`EXTERNAL_PROMPT_VERSIONS["verificador"]`), un objeto JSON con
-`razonamiento`, `sostiene` (`si`, `no`, `parcial`) y `pregunta`; esfuerzo y pensamiento de la etapa
+**Qué se le pide**: `verificador-v3` (`EXTERNAL_PROMPT_VERSIONS["verificador"]`), un objeto JSON con
+`razonamiento`, `sostiene` (`si`, `no`, `parcial`) y `falta`; esfuerzo y pensamiento de la etapa
 (`EXTERNAL_EFFORT`, `EXTERNAL_THINKING`: `low` y `between_tools`). Un pedido por celda, todos los de
-una oferta en un lote (`ledger.send`, que registra cada pedido, hace cumplir el tope y guarda el
-lote apenas existe: O-290-6).
+una oferta en un lote: `verify_many` crea con `ledger.begin` los lotes de todas las ofertas (cada
+uno registra sus pedidos, hace cumplir el tope y guarda el lote apenas existe: O-290-6) y recién
+después espera cada uno con `ledger.finish` (T-302, D-301-5; O-302-6).
 
 **Qué hace con la respuesta** (`decide`): `si`, la celda queda; `no` o `parcial`, «no determinado»
-`sin_corroborar` con las mismas citas; la pregunta del verificador queda como la de la celda solo si
-no se dirige al oferente y tiene la forma de REQ-105 (`evaluation.question_form`); si no, queda la
-que la celda ya traía y, sin ninguna, la arma el código (`combine.compose_question`). Una respuesta
+`sin_corroborar` con las mismas citas; la pregunta la arma siempre el código
+(`combine.compose_question`: requisito, conclusión y texto de la oferta, una sola vez) y cierra con
+lo que el verificador dijo que falta (`falta`) o, si no sirve, con su razonamiento (T-302, D-301-3 y
+D-301-4); el verificador ya no escribe la pregunta. Una respuesta
 inválida, un pedido vencido o con error, un bloqueo de la puerta o del tope dejan la celda como
 estaba, con la anomalía `verificador_sin_respuesta`.
 
 **Registro** (P6): `facts["verificador"]` en cada celda mandada (`antes`, `despues`, `respuesta`,
-`razonamiento`, `pregunta`, `hecho`), el hecho `external_request` de cada pedido y la clave `externo`
+`razonamiento`, `falta`, `falta_usada`, `hecho`), el hecho `external_request` de cada pedido y la clave `externo`
 de la corrida (`Verification.record`, con la entrada propia `verificador`, como la matriz de T-291).
 
 `verify` sirve a los dos caminos: la evaluación (`services/evaluate.py`) y la pasada sobre una
@@ -72,11 +74,12 @@ RUN_KIND = "evaluacion"
 INSTRUCTION_NAME = "verificador"
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
-# Salida: razonamiento (hasta 400 caracteres), el veredicto y una pregunta. El tope deja lugar al
+# Salida: razonamiento (hasta 400 caracteres), el veredicto y qué falta. El tope deja lugar al
 # pensamiento previo de `between_tools`; una salida cortada no es JSON y deja la celda como estaba.
 MAX_TOKENS = 1500
 CACHE_TTL = "1h"
 REASONING_MAX_CHARS = 400
+MISSING_MAX_CHARS = 300
 ANSWERS = ("si", "no", "parcial")
 
 # El esquema que se manda con el pedido (`output_config.format`): sin largos (los valida el código).
@@ -84,8 +87,8 @@ OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {"razonamiento": {"type": "string"},
                    "sostiene": {"type": "string", "enum": list(ANSWERS)},
-                   "pregunta": {"type": "string"}},
-    "required": ["razonamiento", "sostiene", "pregunta"],
+                   "falta": {"type": "string"}},
+    "required": ["razonamiento", "sostiene", "falta"],
     "additionalProperties": False,
 }
 
@@ -148,8 +151,8 @@ class Cell:
 class Checked:
     """Lo que pasó con una celda: el resultado después del verificador (`combined`), por qué no se
     mandó (`skipped`) o la respuesta (`answer`: `si`, `no`, `parcial`, o `None` si no hubo una
-    válida), el razonamiento, la pregunta que propuso, si se usó, el hecho del registro y la
-    anomalía, si la hubo."""
+    válida), el razonamiento, lo que dijo que falta, si esa frase entró en la pregunta, el hecho del
+    registro y la anomalía, si la hubo."""
 
     cell: Cell
     combined: object
@@ -157,8 +160,8 @@ class Checked:
     custom_id: str | None = None
     answer: str | None = None
     reasoning: str = ""
-    question: str = ""
-    question_used: bool = False
+    missing: str = ""
+    missing_used: bool = False
     event_id: int | None = None
     anomaly: dict | None = None
 
@@ -240,7 +243,7 @@ def _message(cell, finder):
             pieces.append(guard.portal(f"\n- {datum['text']}", ref=datum.get("item")))
     pieces.append(guard.instruction(
         "\n\nDevolvé el objeto JSON pedido: primero el razonamiento, después si el texto citado "
-        "sostiene la conclusión y, si no la sostiene, la pregunta a la Comisión."))
+        "sostiene la conclusión y, si no la sostiene, qué falta."))
     return pieces
 
 
@@ -252,63 +255,75 @@ class InvalidAnswer(ValueError):
 
 
 def parse(text):
-    """`(sostiene, razonamiento, pregunta)` de la respuesta del verificador. Lanza `InvalidAnswer`
-    si no tiene la forma pedida. El razonamiento se recorta a 400 caracteres, contado el «…» del
-    recorte (O-299-4; la respuesta completa queda en el hecho del registro)."""
+    """`(sostiene, razonamiento, falta)` de la respuesta del verificador. Lanza `InvalidAnswer` si
+    no tiene la forma pedida. El razonamiento se recorta a 400 caracteres y lo que falta a 300,
+    contado el «…» del recorte (O-299-4; la respuesta completa queda en el hecho del registro)."""
     try:
         data = json.loads(text)
     except (TypeError, ValueError) as error:
         raise InvalidAnswer("la respuesta no es JSON") from error
     if (not isinstance(data, dict) or not set(data) <= set(OUTPUT_SCHEMA["properties"])
             or data.get("sostiene") not in ANSWERS
-            or not all(isinstance(data.get(k, ""), str) for k in ("razonamiento", "pregunta"))):
+            or not all(isinstance(data.get(k, ""), str) for k in ("razonamiento", "falta"))):
         raise InvalidAnswer("la respuesta no tiene los campos pedidos")
     reasoning = combine.clip(data.get("razonamiento", ""), REASONING_MAX_CHARS)
     if len(reasoning) > REASONING_MAX_CHARS:
         reasoning = combine.clip(reasoning, REASONING_MAX_CHARS - 1)
-    return data["sostiene"], reasoning, " ".join(data.get("pregunta", "").split())
+    missing = combine.clip(data.get("falta", ""), MISSING_MAX_CHARS)
+    if len(missing) > MISSING_MAX_CHARS:
+        missing = combine.clip(missing, MISSING_MAX_CHARS - 1)
+    return data["sostiene"], reasoning, missing
 
 
-def question_acceptable(question, cell):
-    """Si la pregunta del verificador puede quedar como la de la celda (REQ-105): no se dirige al
-    oferente y tiene la forma mecánica de `evaluation.question_form` (requisito, conclusión, texto
-    de la oferta y dirigida a la Comisión), con el resultado que va a tener la celda."""
-    from evaluon.assessment import evaluation
-
-    if not question or combine.asks_the_offeror(question):
-        return False
-    combined = cell.combined
-    first = cell.text.quotes[0].text if cell.text.quotes else ""
-    form = evaluation.question_form(
-        question, requirement_text=first, requirement_number=cell.requirement.number,
-        outcome_label=am.Outcome(am.Outcome.NO_DETERMINADO).label,
-        doubt_label=am.Doubt(am.Doubt.SIN_CORROBORAR).label,
-        offer_texts=[c.text for c in combined.citations] + [d["text"] for d in combined.portal])
-    return bool(form["conforme"])
+MISSING_LABEL = "Lo que no consta en el texto citado"
+REASONED_LABEL = "Lo que observó el verificador"
 
 
-def decide(cell, answer, *, reasoning="", question="", event_id=None, anomaly=None,
+def missing_closing(missing, outcome, *, label=MISSING_LABEL):
+    """La línea de cierre de la pregunta a la Comisión cuando el verificador no corroboró la
+    conclusión `outcome`: dice qué no consta en el texto citado, con lo que dio el verificador,
+    completo (T-302, D-301-3 y D-301-4). El requisito, la conclusión y el texto de la oferta los
+    pone `combine.compose_question` en las líneas de arriba: acá no se repiten. `""` si no hay nada
+    que decir o si, dicho así, se dirigiría al oferente (`combine.asks_the_offeror`): entonces la
+    pregunta sigue con otra fuente (ver `decide`)."""
+    missing = " ".join((missing or "").split()).rstrip(" .")
+    if not missing or outcome not in CONCLUSIONS:
+        return ""
+    closing = (f"¿La Comisión confirma, corrige o rechaza la conclusión «{CONCLUSIONS[outcome]}»? "
+               f"{label}: {missing}.")
+    return "" if combine.asks_the_offeror(closing) else closing
+
+
+def decide(cell, answer, *, reasoning="", missing="", event_id=None, anomaly=None,
            version=""):
     """El resultado de la celda después del verificador y su registro `facts["verificador"]`.
     `si` (o sin respuesta válida): la celda queda. `no` o `parcial`: «no determinado»
     `sin_corroborar`, con las mismas citas y la pregunta. Nunca cambia otra cosa que una
-    conclusión: un «no determinado» queda como está."""
+    conclusión: un «no determinado» queda como está.
+
+    La pregunta la arma siempre el código (`combine.compose_question`: requisito, conclusión y
+    texto de la oferta, una sola vez); acá se fija su cierre, que dice qué falta: lo que dijo el
+    verificador (`missing`) y, si no sirve (vacío o dirigido al oferente), su razonamiento
+    completo (D-301-3); sin ninguno de los dos queda la pregunta que la celda ya traía. Devuelve
+    también si el cierre es el `missing` del verificador."""
     combined = cell.combined
     used = False
     after = combined
     if answer in ("no", "parcial") and combined.outcome in CONCLUSIONS:
-        used = question_acceptable(question, cell)
+        ask = missing_closing(missing, combined.outcome)
+        used = bool(ask)
+        ask = (ask or missing_closing(reasoning, combined.outcome, label=REASONED_LABEL)
+               or combined.question)
         note = f"El verificador externo no corroboró la conclusión ({answer})"
         note = f"{note}: {reasoning}" if reasoning else f"{note}."
         after = replace(
             combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.UNCORROBORATED,
             explanation=f"{combined.explanation} {note}".strip(),
-            question=question if used else combined.question, ask=True,
-            proposed=combined.outcome)
+            question=ask, ask=True, proposed=combined.outcome)
     record = {"antes": {"resultado": combined.outcome, "motivo": combined.doubt},
               "despues": {"resultado": after.outcome, "motivo": after.doubt},
-              "respuesta": answer, "razonamiento": reasoning, "pregunta": question,
-              "pregunta_usada": used, "hecho": event_id, "instruccion": version}
+              "respuesta": answer, "razonamiento": reasoning, "falta": missing,
+              "falta_usada": used, "hecho": event_id, "instruccion": version}
     if anomaly:
         record["anomalia"] = anomaly
     return replace(after, facts={**(after.facts or {}), "verificador": record}), used
@@ -376,8 +391,8 @@ class Verification:
                 "sostiene": answers,
                 "sin_respuesta": sum(1 for item in sent if item.answer is None),
                 "a_no_determinado": sum(1 for item in self.checked if item.changed),
-                "preguntas_del_verificador": sum(1 for item in self.checked
-                                                 if item.question_used)}},
+                "faltas_del_verificador": sum(1 for item in self.checked
+                                              if item.missing_used)}},
         }
 
 
@@ -385,6 +400,17 @@ def _stage_anomalies(sent):
     return [{"type": entry.get("anomalia", ledger.ANOMALY_UNAVAILABLE), "etapa": STAGE,
              **{k: v for k, v in entry.items() if k not in ("anomalia", "etapa")}}
             for entry in sent.anomalies]
+
+
+@dataclass
+class Job:
+    """Las celdas de una oferta que se verifican: la oferta, la identificación de la corrida en el
+    registro (`run_id`) y el `PageFinder` de su evaluación, si lo hay."""
+
+    cells: list
+    offer: object
+    run_id: object
+    finder: object = None
 
 
 def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, user=None,
@@ -396,17 +422,23 @@ def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, us
 
     `run_id` identifica la corrida en el registro (`corrida`: tipo `evaluacion`); sin medición,
     el freno de la etapa se cuenta por esa corrida. `measurement` delimita el reuso por huella y
-    el freno de la etapa (`ledger.send`). `finder`: el `PageFinder` de la evaluación."""
-    started = clock()
-    instruction = load_instruction()
-    mode = mode or settings.EXTERNAL_MODE
-    finder = finder or citing.PageFinder()
+    el freno de la etapa (`ledger.begin`). `finder`: el `PageFinder` de la evaluación. Es
+    `verify_many` con una sola oferta."""
+    return verify_many([Job(cells, offer, run_id, finder)], measurement=measurement, mode=mode,
+                       user=user, channel=channel, clock=clock)[0]
+
+
+def _prepare(job, instruction, *, mode, measurement, user, channel):
+    """Arma los pedidos de una oferta: la `Verification` con una `Checked` por celda, los pedidos
+    que la puerta admitió y los que bloqueó."""
+    offer = job.offer
+    finder = job.finder or citing.PageFinder()
     reserved = reserved_documents(offer)
     done = Verification(checked=[], instruction=instruction, mode=mode,
                         model=settings.EXTERNAL_MODELS[STAGE], measurement=measurement,
-                        run_id=run_id)
+                        run_id=job.run_id)
     admitted, refused = {}, {}
-    for cell in cells:
+    for cell in job.cells:
         reason = skip_reason(cell, reserved)
         if reason:
             done.checked.append(Checked(cell, cell.combined, skipped=reason))
@@ -420,7 +452,7 @@ def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, us
             system=guard.instruction(instruction.text),
             messages=[("user", _message(cell, finder))], max_tokens=MAX_TOKENS,
             output_schema=OUTPUT_SCHEMA, cache_system_ttl=CACHE_TTL, run_kind=RUN_KIND,
-            run_id=run_id, instruction_name=INSTRUCTION_NAME,
+            run_id=job.run_id, instruction_name=INSTRUCTION_NAME,
             instruction_version=instruction.version, instruction_sha256=instruction.sha256,
             measurement=measurement, channel=channel, user=user)
         if decision.blocked:
@@ -429,19 +461,11 @@ def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, us
             admitted[custom_id] = decision
         done.checked.append(Checked(cell, cell.combined, custom_id=custom_id))
     done.blocked = len(refused)
+    return done, admitted, refused
 
-    answers = {}
-    if admitted:
-        try:
-            done.sent = ledger.send(list(admitted.values()), measurement=measurement, mode=mode,
-                                    channel=channel, user=user)
-            answers = done.sent.answers
-            done.anomalies.extend(_stage_anomalies(done.sent))
-        except ImproperlyConfigured as error:
-            # Un tope o un precio mal configurado: no sale nada y la evaluación local sigue.
-            done.anomalies.append({"type": ANOMALY, "etapa": STAGE, "motivo": "configuracion",
-                                   "mensaje": str(error)})
 
+def _apply(done, answers, refused, instruction):
+    """Aplica a cada celda mandada la respuesta de su pedido (`decide`)."""
     for item in done.checked:
         if item.skipped:
             continue
@@ -458,15 +482,52 @@ def verify(cells, *, offer, run_id, finder=None, measurement=None, mode=None, us
                                 or "configuracion", "detalle": getattr(answer, "reason", None)}
             else:
                 try:
-                    item.answer, item.reasoning, item.question = parse(answer.text)
+                    item.answer, item.reasoning, item.missing = parse(answer.text)
                 except InvalidAnswer as error:
                     item.anomaly = {"type": ANOMALY, "motivo": "respuesta_invalida",
                                     "detalle": str(error)}
-        item.combined, item.question_used = decide(
-            item.cell, item.answer, reasoning=item.reasoning, question=item.question,
+        item.combined, item.missing_used = decide(
+            item.cell, item.answer, reasoning=item.reasoning, missing=item.missing,
             event_id=item.event_id, anomaly=item.anomaly, version=instruction.version)
-    done.seconds = clock() - started
-    return done
+
+
+def verify_many(jobs, *, measurement=None, mode=None, user=None, channel=None,
+                clock=time.monotonic):
+    """Verifica las celdas de varias ofertas (`jobs`: una `Job` por oferta, del mismo
+    procedimiento) con un lote por oferta, **todos creados antes de esperar el primero**: el
+    proveedor los procesa a la vez y la espera total es la de un lote, no la suma de las de cada
+    uno (T-302, D-301-5; T-301: 5,6 a 6,6 minutos por lote). Cada oferta conserva su envío del
+    libro (su lote, sus pedidos y su gasto); el freno de la etapa y el tope del caso valen por
+    lote, y el tope cuenta el estimado de los lotes ya creados. Devuelve una `Verification` por
+    `Job`, en el mismo orden; nunca lanza por una falla del proveedor, un bloqueo o el tope."""
+    started = clock()
+    instruction = load_instruction()
+    mode = mode or settings.EXTERNAL_MODE
+    prepared = [_prepare(job, instruction, mode=mode, measurement=measurement, user=user,
+                         channel=channel) for job in jobs]
+
+    # Primero se crean todos los lotes; recién después se espera cada uno.
+    begun = []
+    for done, admitted, _ in prepared:
+        try:
+            begun.append(ledger.begin(list(admitted.values()), measurement=measurement,
+                                      mode=mode, channel=channel, user=user)
+                         if admitted else None)
+        except ImproperlyConfigured as error:
+            # Un tope o un precio mal configurado: no sale nada y la evaluación local sigue.
+            done.anomalies.append({"type": ANOMALY, "etapa": STAGE, "motivo": "configuracion",
+                                   "mensaje": str(error)})
+            begun.append(None)
+
+    for (done, admitted, refused), start in zip(prepared, begun):
+        answers = {}
+        if start is not None:
+            done.sent = ledger.finish(start)
+            answers = done.sent.answers
+            done.anomalies.extend(_stage_anomalies(done.sent))
+        _apply(done, answers, refused, instruction)
+        done.seconds = clock() - started
+    return [done for done, _, _ in prepared]
 
 
 # --- Pasada sobre una evaluación guardada (medición, plan 016, «Medición del paso 4») ---------
@@ -536,21 +597,38 @@ def _outcome_counts(combineds):
 
 
 def verify_saved(run, user, *, measurement=None, mode=None, channel=Channel.COMMAND):
-    """Aplica el verificador a la evaluación guardada `run` con la misma función que la
-    evaluación (`verify`), sin GPU, y guarda una **evaluación nueva derivada** (la base es de solo
-    inserción): los mismos resultados y citas, con las conclusiones que el verificador no corroboró
-    en «no determinado», `facts["verificador"]` en cada celda mandada, la clave `externo` y
-    `parameters["derivada_de"]`. Cada resultado nuevo apunta al de `run` como anterior. La celda
-    que el verificador pasó a «no determinado» lleva siempre su pregunta, ligada a la derivada
-    (H-299-1); las demás copian la del origen si no hay una abierta del par. Devuelve
-    `(evaluación derivada, Verification)`."""
-    results = list(run.results.select_related("requirement").order_by("requirement__number", "pk"))
-    citations = {r.pk: list(r.citations.select_related("document", "reading").order_by("order"))
-                 for r in results}
-    cells = _saved_cells(run, results, citations)
+    """Aplica el verificador a la evaluación guardada `run`: `verify_saved_many` con una sola.
+    Devuelve `(evaluación derivada, Verification)`."""
+    return verify_saved_many([run], user, measurement=measurement, mode=mode, channel=channel)[0]
+
+
+def verify_saved_many(runs, user, *, measurement=None, mode=None, channel=Channel.COMMAND):
+    """Aplica el verificador a las evaluaciones guardadas `runs` (las ofertas de una corrida) con la
+    misma función que la evaluación (`verify_many`), sin GPU: los lotes de todas las ofertas se
+    crean antes de esperar el primero (T-302, D-301-5). Por cada una guarda una **evaluación nueva
+    derivada** (la base es de solo inserción): los mismos resultados y citas, con las conclusiones
+    que el verificador no corroboró en «no determinado», `facts["verificador"]` en cada celda
+    mandada, la clave `externo` y `parameters["derivada_de"]`. Cada resultado nuevo apunta al de la
+    evaluación de origen como anterior. La celda que el verificador pasó a «no determinado» lleva
+    siempre su pregunta, ligada a la derivada (H-299-1); las demás copian la del origen si no hay
+    una abierta del par. Devuelve `[(evaluación derivada, Verification)]`, en el orden de `runs`."""
+    loaded = []
+    for run in runs:
+        results = list(run.results.select_related("requirement")
+                       .order_by("requirement__number", "pk"))
+        citations = {r.pk: list(r.citations.select_related("document", "reading")
+                                .order_by("order")) for r in results}
+        loaded.append((run, results, citations, _saved_cells(run, results, citations)))
+    dones = verify_many(
+        [Job(cells, run.offer, f"sobre-evaluacion-{run.pk}") for run, _, _, cells in loaded],
+        measurement=measurement, mode=mode, user=user, channel=channel)
+    return [(_save_derived(run, results, citations, done, user, channel), done)
+            for (run, results, citations, _), done in zip(loaded, dones)]
+
+
+def _save_derived(run, results, citations, done, user, channel):
+    """Guarda la evaluación derivada de `run` con lo que decidió el verificador (`done`)."""
     offer = run.offer
-    done = verify(cells, offer=offer, run_id=f"sobre-evaluacion-{run.pk}",
-                  measurement=measurement, mode=mode, user=user, channel=channel)
     titles, unread = _documents_read(run)
     record = done.record()
     cell_anomalies = [{**item.anomaly, "requirement": item.cell.requirement.number}
@@ -604,7 +682,7 @@ def verify_saved(run, user, *, measurement=None, mode=None, channel=Channel.COMM
                     "derivada_de": {"evaluacion": run.pk, "numero": run.number},
                     "externo": record, "questions_created": questions,
                     "anomalies": derived.anomalies})
-    return derived, done
+    return derived
 
 
 def spent(verifications):

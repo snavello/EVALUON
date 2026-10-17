@@ -290,6 +290,8 @@ class Command(BaseCommand):
             lines.append(f"{name} (016): {measured} · {'cumple' if ok else 'no cumple'}")
         lines += [line.lstrip("- ") for line in evaluation.verifier_lines(
             total.get(evaluation.VERIFIER_KEY), total.get("verifier_run"))]
+        if report.verification is not None:
+            lines += [line for line in report.verification.lines if line.startswith("AVISO")]
         failed = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(failed) if failed else "nada"))
         self.stdout.write("\n".join(lines))

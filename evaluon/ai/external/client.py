@@ -590,22 +590,35 @@ def fetch_results(batch):
     return parse_batch_results(batch, raw)
 
 
-def run_batch(payloads, *, on_created=None):
-    """Crea el lote, lo consulta hasta que termine y baja sus resultados.
-
-    Consulta cada `EXTERNAL_BATCH_POLL_SECONDS` y, pasados `EXTERNAL_BATCH_MAX_WAIT_SECONDS`
-    sin que termine, pide cancelar el lote (si la cancelación falla, igual sigue) y lanza
-    `ExternalTimeoutError` con el `batch_id` y `canceled` según haya salido la cancelación.
-    Si una consulta de estado o de resultados falla después de que el lote existe, también
-    pide cancelarlo (lo mejor que pueda) y relanza el error con su `batch_id` y `canceled`:
-    un lote que nadie espera no queda gastando. `on_created(batch)`, si se pasa, se llama
-    apenas el lote existe, antes de esperar: sirve para registrar su identificador. Devuelve
-    un `BatchRun`.
-    """
+def start_batch(payloads, *, on_created=None):
+    """Crea el lote y no lo espera (T-302, D-301-5): devuelve `(lote, instante de inicio)` para
+    pasárselos a `finish_batch`. Varios lotes pueden crearse antes de esperar el primero: el
+    proveedor los procesa a la vez. `on_created(batch)`, si se pasa, se llama apenas el lote
+    existe: sirve para registrar su identificador."""
     started = _now()
     batch = create_batch(payloads)
     if on_created is not None:
         on_created(batch)
+    return batch, started
+
+
+def run_batch(payloads, *, on_created=None):
+    """Crea el lote, lo consulta hasta que termine y baja sus resultados (`start_batch` y
+    `finish_batch`). Devuelve un `BatchRun`."""
+    batch, started = start_batch(payloads, on_created=on_created)
+    return finish_batch(batch, started)
+
+
+def finish_batch(batch, started):
+    """Espera un lote ya creado por `start_batch` y baja sus resultados.
+
+    Consulta cada `EXTERNAL_BATCH_POLL_SECONDS` y, pasados `EXTERNAL_BATCH_MAX_WAIT_SECONDS`
+    desde `started` sin que termine, pide cancelar el lote (si la cancelación falla, igual
+    sigue) y lanza `ExternalTimeoutError` con el `batch_id` y `canceled` según haya salido la
+    cancelación. Si una consulta de estado o de resultados falla después de que el lote existe,
+    también pide cancelarlo (lo mejor que pueda) y relanza el error con su `batch_id` y
+    `canceled`: un lote que nadie espera no queda gastando. Devuelve un `BatchRun`.
+    """
     try:
         return _wait_for(batch, started)
     except ExternalError as error:
