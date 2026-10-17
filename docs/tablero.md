@@ -75,7 +75,7 @@ flowchart LR
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
-| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 25/38 | ███████░░░ 66% |
+| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 26/38 | ███████░░░ 68% |
 
 <a id="001"></a>
 
@@ -1523,8 +1523,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 13 tareas sin terminar.
-- ▶ T-302 · Ajuste único del verificador (`verificador-v2` y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si cumple todo (en curso)
+- **Próximo paso:** Desarrollar: 12 tareas sin terminar.
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
@@ -1566,6 +1565,7 @@ flowchart LR
 - ✓ T-298 · Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del paso y pull request `016-integracion` → `main`
 - ✓ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (`da3d49d7` 2026-10-16, `aa2f3090` 2026-10-16, `9ee42ad2` 2026-10-16, `ab2637f7` 2026-10-16)
 - ✓ T-301 · Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre las evaluaciones guardadas de T-286 del caso-00 y del caso de ajuste con verdad. Umbral 17 como puerta: 0 «cumple» sin fundamento, preguntas conformes 100 %, exactas no bajan, erradas no suben, todo «no determinado» nuevo viene de una celda errada; gasto ≈ 0,60 USD
+- ✓ T-302 · Ajuste único del verificador (`verificador-v2` y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si cumple todo
 
 ### Mapa de tareas
 
@@ -1603,7 +1603,7 @@ flowchart TD
   T299["✓ T-299 · Verificador externo de citas: verifier.py,…"]:::done
   T300["◐ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::review
   T301["✓ T-301 · Medición del paso 4, ronda 1 (ajuste, sin G…"]:::done
-  T302["▶ T-302 · Ajuste único del verificador (verificador-v…"]:::active
+  T302["✓ T-302 · Ajuste único del verificador (verificador-v…"]:::done
   T303["○ T-303 · Re-medición del paso 4, ronda 2 (ajuste, si…"]:::todo
   T304["○ T-304 · Medición final del paso 4 (aceptación, una…"]:::todo
   T305["○ T-305 · Segunda comparación del verificador con cla…"]:::todo
