@@ -364,7 +364,7 @@ Qué significa cada prefijo:
 | **T-295** | 016 | Re-medición del paso 3, ronda 2 (ajuste): lo que cambió T-294. Mismo umbral 16; si no lo pasa, el externo no pasa a… | terminada |
 | **T-296** | 016 | Medición final del paso 3 (aceptación, una sola corrida): matriz local simplificada y externa de 03, 04 y 05, mismo… | terminada |
 | **T-297** | 016 | Segunda comparación con claude-opus-5-5, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma… | terminada |
-| **T-298** | 016 | Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del… | en verificación |
+| **T-298** | 016 | Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del… | terminada |
 | **T-299** | 016 | Verificador externo de citas: verifier.py, verificador-v1, enchufe en evaluate_offer después del contraste y de las… | terminada |
 | **T-300** | 016 | Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave externo de la… | en verificación |
 | **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | en curso |
@@ -496,7 +496,7 @@ Qué significa cada prefijo:
 | **REQ-124** | 016 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma… |  |
 | **REQ-125** | 016 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral… |  |
 
-## Decisiones (ADR) (71)
+## Decisiones (ADR) (72)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -571,6 +571,7 @@ Qué significa cada prefijo:
 | **ADR-0069** |  | Verdad ampliada celda por celda: armada a ciegas del sistema, revisada y firmada por el responsable | aceptado |
 | **ADR-0070** |  | Instrucciones y reglas simples: largo máximo, sin ejemplos de casos, desempate a la corta y tres salidas por… | aceptado |
 | **ADR-0071** |  | Cierre del paso 2: las instrucciones cortas y las reglas a tres salidas quedan en el modelo local | aceptado |
+| **ADR-0072** |  | Matriz de requisitos: queda en el modelo local; la etapa externa no pasa a aceptación | aceptado |
 
 ## Decisiones y definiciones de las instrucciones (D-NN) (67)
 
