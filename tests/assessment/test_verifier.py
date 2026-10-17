@@ -231,9 +231,39 @@ def test_si_keeps_the_cell_and_no_or_parcial_turn_it_undetermined_with_its_quest
     assert registry.facts["verificador"]["pregunta_usada"] is False
     question = am.Question.objects.get(result=registry).text
     assert TO_OFFEROR not in question and "¿La Comisión confirma, corrige o rechaza" in question
+    assert "Lo que no consta en el texto citado: Lo que dice la cita." in question
 
     guarantee = results[numbers["garantia"].number]
     assert guarantee.outcome == "no_determinado" and "verificador" not in guarantee.facts
+
+
+def test_a_question_out_of_form_is_replaced_by_one_that_says_what_is_missing(
+        offer, operator_user, procedure, model, fake_external, numbers):
+    """REQ-105, REQ-124 (T-302, D-301-3; T-301: O3 R62 y O1 R124): si la pregunta del verificador
+    no tiene la forma (le pide algo al oferente o no nombra el requisito, la conclusión y el
+    texto), la que arma el código lleva lo que falta, tal como lo dijo el verificador, completo, y
+    sigue en forma con el requisito, la conclusión y el texto."""
+    missing = {
+        "moneda": ("La cita muestra el total de la oferta en pesos, que es el dato de la cotización, "
+                   "pero el requisito pide además el precio unitario de cada renglón y ese dato no "
+                   "figura en el texto citado ni en su contexto de la página."),
+        "registro": ("La constancia citada muestra el número de inscripción en el registro, pero "
+                     "el requisito pide también que esté vigente y el texto citado no trae la fecha "
+                     "de vigencia de la inscripción ni de su última renovación.")}
+    run = evaluate_with_verifier(operator_user, procedure, model, fake_external, {
+        verifier.custom_id_of(offer, numbers["moneda"]):
+            answer("parcial", TO_OFFEROR, reasoning=missing["moneda"]),
+        verifier.custom_id_of(offer, numbers["registro"]):
+            answer("parcial", "¿Falta algo más?", reasoning=missing["registro"])})
+    forms = {q["fila"]: q for q in ev.question_records(run)}
+    for name, text in missing.items():
+        number = numbers[name].number
+        result = results_of(run)[number]
+        assert result.facts["verificador"]["pregunta_usada"] is False
+        question = am.Question.objects.get(result=result).text
+        assert text in question
+        assert TO_OFFEROR not in question and "¿Falta algo más?" not in question
+        assert forms[number]["conforme"] is True
 
 
 def test_what_is_sent_is_what_the_contrast_sees_and_nothing_of_the_local_reasoning(

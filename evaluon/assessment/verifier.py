@@ -287,6 +287,20 @@ def question_acceptable(question, cell):
     return bool(form["conforme"])
 
 
+def missing_closing(missing, outcome):
+    """La línea de cierre de la pregunta a la Comisión cuando el verificador no corroboró la
+    conclusión `outcome`: dice qué no consta en el texto citado, con lo que dio el verificador,
+    completo (T-302, D-301-3). `""` si no hay nada que decir o si, dicho así, se dirigiría al
+    oferente (`combine.asks_the_offeror`): entonces la pregunta sigue con la que ya traía la celda
+    o con la que arma el código por el motivo."""
+    missing = " ".join((missing or "").split()).rstrip(" .")
+    if not missing or outcome not in CONCLUSIONS:
+        return ""
+    closing = (f"¿La Comisión confirma, corrige o rechaza la conclusión «{CONCLUSIONS[outcome]}»? "
+               f"Lo que no consta en el texto citado: {missing}.")
+    return "" if combine.asks_the_offeror(closing) else closing
+
+
 def decide(cell, answer, *, reasoning="", question="", event_id=None, anomaly=None,
            version=""):
     """El resultado de la celda después del verificador y su registro `facts["verificador"]`.
@@ -298,13 +312,15 @@ def decide(cell, answer, *, reasoning="", question="", event_id=None, anomaly=No
     after = combined
     if answer in ("no", "parcial") and combined.outcome in CONCLUSIONS:
         used = question_acceptable(question, cell)
+        # D-301-3: si la del verificador no sirve, la pregunta del código lleva lo que falta.
+        ask = (question if used
+               else missing_closing(reasoning, combined.outcome) or combined.question)
         note = f"El verificador externo no corroboró la conclusión ({answer})"
         note = f"{note}: {reasoning}" if reasoning else f"{note}."
         after = replace(
             combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.UNCORROBORATED,
             explanation=f"{combined.explanation} {note}".strip(),
-            question=question if used else combined.question, ask=True,
-            proposed=combined.outcome)
+            question=ask, ask=True, proposed=combined.outcome)
     record = {"antes": {"resultado": combined.outcome, "motivo": combined.doubt},
               "despues": {"resultado": after.outcome, "motivo": after.doubt},
               "respuesta": answer, "razonamiento": reasoning, "pregunta": question,
