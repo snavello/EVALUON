@@ -221,6 +221,8 @@ Precios de lista consultados el 2026-10-15 en la página del proveedor (fuentes 
 | Verificador de citas (B) | hasta 50 celdas con 3.000 de entrada y unos 600 de salida (la spec supone 50; con el alcance de arriba suelen ser 20 a 25) | 0,15 a 0,30 USD, 0,30 como estimado | 0,60 USD |
 | Caso completo, una ronda | A más B | 0,35 a 0,75 USD | 1,20 USD |
 
+**Estimador del libro (enmienda del 2026-10-17, ADR-0068):** 1,9 caracteres por token y salida esperada de 10.000 tokens por pedido (antes 2,5 y `max_tokens` reservado), escritura de caché en el primer pedido de cada sistema del lote y lectura en los demás; con las cifras de T-293 el estimado da 1,2 a 1,4 veces el costo real. El tope por caso y por mes lo hace cumplir la puerta sobre ese estimado y lo acotan el freno de etapa y el límite de la consola. Para un pliego fuera del tamaño de la tabla (el caso-01, unos 250 mil tokens) el responsable fija un estimado de etapa propio por corrida (0,75 USD, freno 1,50; decisión del 2026-10-16).
+
 **Mediciones previstas y su gasto** (todo en lotes, salvo la prueba de humo):
 
 | Fase | Corridas | Gasto previsto |
