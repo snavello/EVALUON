@@ -367,8 +367,8 @@ Qué significa cada prefijo:
 | **T-298** | 016 | Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del… | terminada |
 | **T-299** | 016 | Verificador externo de citas: verifier.py, verificador-v1, enchufe en evaluate_offer después del contraste y de las… | terminada |
 | **T-300** | 016 | Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave externo de la… | en verificación |
-| **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | en curso |
-| **T-302** | 016 | Ajuste único del verificador (verificador-v2 y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si… | pendiente |
+| **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | terminada |
+| **T-302** | 016 | Ajuste único del verificador (verificador-v2 y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si… | en curso |
 | **T-303** | 016 | Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta | pendiente |
 | **T-304** | 016 | Medición final del paso 4 (aceptación, una sola corrida): evaluación local de los casos de aceptación con verdad y… | pendiente |
 | **T-305** | 016 | Segunda comparación del verificador con claude-opus-5-5, solo si Sonnet no pasó el umbral 17 y la etapa pasó la puerta… | pendiente |
@@ -645,7 +645,7 @@ Qué significa cada prefijo:
 | **D-66** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-66: en un documento de identidad… | derivada, confirmada |
 | **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-67: una condición numérica compara… | derivada, confirmada |
 
-## Hallazgos de verificación (160)
+## Hallazgos de verificación (166)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -727,6 +727,12 @@ Qué significa cada prefijo:
 | **D-295-4** | 016 | en el caso-01 el externo pierde filas de circular y marca P3 | T-295 |
 | **D-295-5** | 016 | el estimador de salida se queda corto en el caso-01 | T-295 |
 | **D-295-6** | 016 | el estimado de etapa por omisión no cubre un pliego grande (D-293-6, sin cambio) | T-295 |
+| **D-301-1** | 016 | (alta, P3/REQ-124) · Seis exactas pasan a pregunta; no se cumple el umbral 17 | T-301 |
+| **D-301-1 a D-301-5, O-301-1 a O-301-7** | 016 | D-301-1 (alta): 6 exactas pasan a pregunta: 3 capturas fundadas (O1 R34, O1 R62, O3 R24: la cita no demuestra el «cumple»), 1… | T-301 (medición del paso 4, ronda 1… |
+| **D-301-2** | 016 | (media) · El verificador pide más de lo que el requisito pide | T-301 |
+| **D-301-3** | 016 | (media, REQ-105) · Cuando la pregunta del verificador no cumple question_form, la del código pierde el porqué | T-301 |
+| **D-301-4** | 016 | (baja) · Las preguntas del verificador repiten lo que el código ya puso (requisito, conclusión, texto): misma redundancia que… | T-301 |
+| **D-301-5** | 016 | (baja, tiempo) · Un lote por oferta, en serie, tarda de 5,6 a 6,6 minutos aunque lleve 3 a 7 pedidos (336, 397 y 397 s en el… | T-301 |
 | **H-241-1** | 015 | (medida, del Coordinador) | T-241 |
 | **H-241-2** | 015 | (código) | T-241 |
 | **H-241-3** | 015 | (código, deliberado) | T-241 |
@@ -810,7 +816,7 @@ Qué significa cada prefijo:
 | **H-299-1, H-299-2, O-299-1 a O-299-9** | 016 | Corregidos: la segunda pasada de --verificador-sobre mide la pregunta de la celda cambiada (H-299-1), 17 controles con prueba… | T-299 (verificación: no pasa… |
 | **H-299-2** | 016 | (pruebas) | T-299 |
 
-## Observaciones de verificación (270)
+## Observaciones de verificación (278)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -1084,6 +1090,14 @@ Qué significa cada prefijo:
 | **O-299-9** | 016 | EXTERNAL_ENABLED encendido y la etapa en externo con todas las celdas saltadas deja la etapa como local en etapas y escribe igual… | T-299 |
 | **O-300-1** | 016 | cerrado: proveedor, modelo o modo con una lista se leen «sin dato» y no rompen… | T-291 |
 | **O-300-1 y contrato de la clave `externo`** | 016 | O-300-1: external_stages.line falla si proveedor o modo llegan como lista (arreglo de una línea). Contrato… | T-300 (verificación liviana, cumple… |
+| **O-301-1** | 016 | --verificador-sobre rechaza una corrida si una relectura posterior quitó una página de las «no legibles» de la lista | T-301 |
+| **O-301-2** | 016 | Las líneas «sin» y «con» del verificador dicen «sin resultado 3; excluidas 0» (en lugar de «sin resultado 0; excluidas 3» del… | T-301 |
+| **O-301-3** | 016 | medir_evaluacion --verificar-verdad no sirve para la verdad del caso-00 (su archivo es el formato anterior, por fila y no por… | T-301 |
+| **O-301-4** | 016 | El estimador del libro da 3,4 veces el costo real del verificador (reserva 10.000 tokens de salida por pedido con max_tokens de… | T-301 |
+| **O-301-5** | 016 | La pasada deja derivadas vigentes en la base | T-301 |
+| **O-301-6** | 016 | Los pedidos del humo usan la hoja inventada solo en la oferta A , así que el humo prueba que esa oferta no manda celdas (O-299-5)… | T-301 |
+| **O-301-7** | 016 | El umbral 17 no puede premiar una captura fundada cuando la verdad de la Comisión es «cumple» | T-301 |
+| **O-301-8** | 016 | --verificar-filtro del caso-00 revisa contra 0 hojas (la base no tiene hojas cargadas): el control de la hoja lo hace el humo… | T-301 |
 
 ## Casos de evals (56)
 
