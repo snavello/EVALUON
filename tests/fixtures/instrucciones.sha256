@@ -128,5 +128,6 @@ ef4bce79b56ec507a0460abd31f6d11e3c9a189f2f0d261bf3ed884b88e27362  evaluon/tender
 020162e8f6fc2b5dae2d20db659260c2317652e0a8a080286069c3806beac4cf  evaluon/queries/prompts/consulta-v6.txt
 60a416a64b39024368b580db46c417f71c51145cee78a3a802c4cc1ccd75ade8  evaluon/assessment/prompts/vision-v6.md
 cf9b7f7c9810af82a11b7d20b0fd2da776ce65fee69a3a6ddb1dfdf87ed35658  evaluon/tenders/prompts/matriz-externa-v1.md
+6964ad11f54ee47933f2d23289a6c47820b7b2cd14e9119ea8b4c85387b03b24  evaluon/tenders/prompts/matriz-externa-v2.md
 # T-299 (spec 016, REQ-124): la instrucción del verificador externo de citas
 3f0a21844b5945d74cae9e85296c07f4ff34162c69ec3b955d1420908222e817  evaluon/assessment/prompts/verificador-v1.md

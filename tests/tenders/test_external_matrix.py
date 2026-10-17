@@ -102,9 +102,11 @@ class ExternalScript:
         blocks = parse_blocks(payload.system)
         if payload.stage == external.STAGE_EXTRACTION:
             answer = {"tramos": [self._segment(alias, blocks[alias]["text"])
-                                 for alias in _ASKED.search(user).group(1).split(", ")]}
+                                 for alias in _ASKED.search(user).group(1).split(", ")],
+                      "faltantes": [], "filas": []}
         else:
-            answer = {"faltantes": self._missing(_OPEN.search(user).group(1).split(", "),
+            answer = {"tramos": [],
+                      "faltantes": self._missing(_OPEN.search(user).group(1).split(", "),
                                                  blocks),
                       "filas": [self._row(alias, quote) for alias, _, quote in _ROW.findall(user)]}
         return {**reply, "text": json.dumps(answer, ensure_ascii=False)}
@@ -231,7 +233,7 @@ def test_the_external_proposal_makes_rows_with_literal_located_quotes(
         assert detail["resultado"] == "ok" and detail["modo"] == "lotes"
         assert detail["texto_enviado"]["sistema"].startswith(instruction.text.rstrip())
         assert "PLIEGO COMPLETO" in detail["texto_enviado"]["sistema"]
-        assert detail["instruccion"]["version"] == "matriz-externa-v1"
+        assert detail["instruccion"]["version"] == "matriz-externa-v2"
         assert detail["definiciones"]["version"] == "matriz-definiciones-v10"
         assert detail["parametros"]["max_tokens"] == 32000
         assert detail["parametros"]["effort"] == "medium"
@@ -268,7 +270,7 @@ def test_the_proposal_keeps_the_external_key_in_its_record(
     assert key["modelo"] == "claude-sonnet-5-5"
     assert run.parameters["externo"]["modo"] == "lotes"
     assert run.parameters["externo"]["matriz"]["reemplaza"] == list(external.REPLACED_PASSES)
-    assert run.prompt_versions["externo"]["matriz"] == "matriz-externa-v1"
+    assert run.prompt_versions["externo"]["matriz"] == "matriz-externa-v2"
     assert run.prompt_versions["externo"]["huellas"]["matriz"] == (
         external.load_instruction().sha256)
     counts = run.counts["externo"]["matriz"]
@@ -542,10 +544,10 @@ def test_the_segments_are_split_in_up_to_four_requests(count, sizes):
 def test_the_schemas_carry_no_length_limits():
     """REQ-123 (plan 016): los esquemas de salida no traen límites de largo (los largos se validan
     en el cliente) y piden la lista cerrada de motivos."""
-    text = json.dumps([external.extraction_schema([1, 2]), external.completion_schema()])
+    text = json.dumps(external.output_schema([1, 2]))
     for limit in ("minLength", "maxLength", "maxItems", "minItems"):
         assert limit not in text
-    descarte = external.extraction_schema([1])["properties"]["tramos"]["items"]["properties"][
+    descarte = external.output_schema([1])["properties"]["tramos"]["items"]["properties"][
         "descarte"]
     assert set(descarte["enum"]) == {"", *m.DiscardReason.values}
 
