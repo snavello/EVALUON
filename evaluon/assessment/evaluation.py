@@ -554,12 +554,17 @@ def build_case(user, expected, folder=None):
 # --- Comprobación de la lista contra las lecturas -------------------------------------------------
 
 
-def verify_expected(expected, offers, folder=None):
+def verify_expected(expected, offers, folder=None, *, accept_cleared_pages=False):
     """Comprueba la lista contra las lecturas, sin usar el modelo: la huella de cada documento,
     que cada ancla de cada cita esté en su página y que cada página no legible lo sea. Con la
-    lista del dictamen comprueba la huella del dictamen si el archivo está."""
+    lista del dictamen comprueba la huella del dictamen si el archivo está.
+
+    `accept_cleared_pages` (T-302, O-301-1; solo la pasada `--verificador-sobre`): una página que la
+    lista da por no legible y que ya no figura en las listas de no leídas del último `Reading`
+    (la evaluación la releyó con visión, ADR-0041) no es una falla sino un aviso: la relectura
+    mejora la lectura y no invalida una corrida ya hecha."""
     result = Verification()
-    anchors = pages = documents = 0
+    anchors = pages = documents = cleared = 0
     for entry in expected.offers:
         offer = offers.get(entry.bidder)
         if offer is None:
@@ -600,10 +605,19 @@ def verify_expected(expected, offers, folder=None):
                 p["page"] == unreadable["pagina"]
                 for p in reading.report.get("unread", []) + reading.report.get(
                     "low_confidence", []) + reading.report.get("handwritten", []))
-            if not listed:
-                result.fail(f"{unreadable['documento']} página {unreadable['pagina']}: no "
-                            "está en las listas de no leídas ni de baja confianza")
+            if listed:
+                continue
+            where = f"{unreadable['documento']} página {unreadable['pagina']}"
+            if accept_cleared_pages and reading is not None:
+                cleared += 1
+                result.lines.append(
+                    f"AVISO: {where}: ya no está en las listas de no leídas ni de baja confianza "
+                    "(una relectura con visión la leyó); se sigue con la corrida guardada")
+            else:
+                result.fail(f"{where}: no está en las listas de no leídas ni de baja confianza")
     result.counts = {"documents": documents, "anchors": anchors, "unreadable_pages": pages}
+    if accept_cleared_pages:
+        result.counts["unreadable_pages_cleared"] = cleared
     result.lines.insert(0, f"Documentos {documents}, anclas {anchors}, páginas no legibles "
                            f"{pages}: " + ("sin fallas" if result.ok else "con fallas"))
     return result
@@ -2442,7 +2456,8 @@ def run_evaluation(user, procedure, *, clock=time.monotonic):
     return requested.request, runs
 
 
-def _prepare(user, procedure, expected, offers, fichas, commission_cells):
+def _prepare(user, procedure, expected, offers, fichas, commission_cells, *,
+             accept_cleared_pages=False):
     """Lo que comprueba toda medición antes de empezar: el rol, el visto bueno y los campos de la
     lista, la lista contra la lectura, la matriz validada y el mapeo de `M-NNN`. Devuelve
     `(comprobación, versión, mapeo, celdas de la Comisión resueltas)`."""
@@ -2454,7 +2469,7 @@ def _prepare(user, procedure, expected, offers, fichas, commission_cells):
     if missing:
         raise MeasurementRefused("La lista no trae los campos de la regla nueva:\n"
                                  + "\n".join(missing))
-    verification = verify_expected(expected, offers)
+    verification = verify_expected(expected, offers, accept_cleared_pages=accept_cleared_pages)
     if not verification.ok:
         raise MeasurementRefused("La lista no se puede usar:\n" + "\n".join(verification.lines))
     version = latest_validated(procedure)
@@ -2573,7 +2588,7 @@ def measure_verifier(user, procedure, expected, offers, runs_dir, source, *, mea
     from evaluon.assessment import verifier
 
     verification, version, mapping, commission_cells = _prepare(
-        user, procedure, expected, offers, fichas, commission_cells)
+        user, procedure, expected, offers, fichas, commission_cells, accept_cleared_pages=True)
     if not verifier.enabled():
         raise MeasurementRefused("El verificador externo no está encendido (EXTERNAL_ENABLED=true "
                                  "y EXTERNAL_STAGE_VERIFICADOR=externo).")

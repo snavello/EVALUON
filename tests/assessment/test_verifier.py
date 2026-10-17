@@ -649,6 +649,59 @@ def test_the_pass_over_a_saved_run_creates_the_batches_of_all_the_offers_before_
     assert len(lots) == created
 
 
+def _vision_reread_clears_the_unreadable_page(offers):
+    """Lo que hace la evaluación local con visión (ADR-0041): una lectura nueva del documento
+    mixto de la oferta B, sin la página 2 en las listas de no leídas (la releyó por visión)."""
+    document = om.Document.objects.get(file_name__endswith="documento-firmado-mixto.pdf")
+    reading = document.readings.order_by("-sequence").first()
+    report = {key: ([entry for entry in value if entry.get("page") != 2]
+                    if isinstance(value, list) else value)
+              for key, value in reading.report.items()}
+    assert report != reading.report, "la página 2 tenía que estar en las listas"
+    reading.pk = None
+    reading.sequence += 1
+    reading.report = report
+    reading.save()
+    return document
+
+
+def test_a_vision_reread_that_cleared_an_unreadable_page_only_warns_in_the_verifier_pass(
+        db, operator_user, fake_ai, model, fake_external, tmp_path, monkeypatch):
+    """REQ-124 (T-302, O-301-1): si la evaluación releyó con visión una página que la lista da por
+    no legible y esa página ya no figura en las listas de no leídas, la pasada
+    `--verificador-sobre` sigue con un aviso (la relectura mejora la lectura, no invalida la
+    corrida); la comprobación de la lista y la medición normal siguen rechazándola."""
+    from tests.tenders.conftest import TEST_PASSWORD
+
+    monkeypatch.setattr(permissions, "read_password", lambda prompt: TEST_PASSWORD)
+    source, procedure, offers = _measured_small_case(operator_user, model, tmp_path)
+    _vision_reread_clears_the_unreadable_page(offers)
+    expected = ev.load_expected(LIST)
+    strict = ev.verify_expected(expected, offers)
+    assert not strict.ok and any("página 2" in line for line in strict.lines)
+
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+    report = ev.measure_verifier(
+        operator_user, procedure, expected, offers, tmp_path / "con", source.folder,
+        commit="abc1234", commission_cells=ev.load_commission_cells(TRUTH))
+    assert report.verification.ok
+    warnings = [line for line in report.verification.lines if line.startswith("AVISO")]
+    assert len(warnings) == 1 and "página 2" in warnings[0] and "mixto.pdf" in warnings[0]
+    assert report.verification.counts["unreadable_pages_cleared"] == 1
+    parameters = json.loads((report.folder / "parametros.json").read_text(encoding="utf-8"))
+    assert parameters["comprobacion"]["unreadable_pages_cleared"] == 1
+
+    out = StringIO()
+    call_command("medir_evaluacion", "--usuario", operator_user.username, "--caso-chico",
+                 "--corridas", str(tmp_path / "con2"), "--commit", "abc1234",
+                 "--celdas-comision", str(TRUTH), "--verificador-sobre", str(source.folder),
+                 stdout=out)
+    assert "AVISO" in out.getvalue() and "página 2" in out.getvalue()
+    with pytest.raises(ev.MeasurementRefused, match="página 2"):
+        ev.measure(operator_user, procedure, expected, offers, tmp_path / "local")
+
+
 def test_the_verifier_over_a_saved_run_needs_the_stage_on(
         db, operator_user, fake_ai, model, fake_external, tmp_path):
     """REQ-122: sin el uso externo encendido y la etapa en `externo`, la pasada no corre y no
