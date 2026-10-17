@@ -82,6 +82,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | 2026-10-15 22:54 | 2: T-277, T-279, T-280, T-281, T-282 | e489985f | 6418 pasaron, 1 omitida, 0 fallaron (25 min 21 s, `-n 2`, con `corpus/casos` montado) |
 | 2026-10-16 07:08 | 3: T-285, T-288, T-289, T-290, T-300 | c93b33bd | 6760 pasaron, 1 omitida, 0 fallaron (25 min 31 s, `-n 2`, con `corpus/casos` y los compose del clon montados) |
 | 2026-10-16 16:06 | 4 (cierre del paso 2, T-287): T-291, T-299, T-286, T-292 combinados con `main` 595c503d | 202f473c | 6843 pasaron, 1 omitida, 0 fallaron (27 min 0 s, `-n 2`, con `corpus/casos`, los compose del clon y `tools/` montados) |
+| 2026-10-16 21:05 | 5: T-293, T-294 combinados con `main` 3c382a43 | 2f679c68 | 6871 pasaron, 1 omitida, 0 fallaron (27 min 0 s, `-n 2`, con `corpus/casos`, los compose del clon y `tools/` montados) |
 
 ## Lista de revisión (hallazgos que no impiden integrar; se corrigen en una sola tarea por lote, ADR-0025)
 
