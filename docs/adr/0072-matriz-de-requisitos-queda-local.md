@@ -1,6 +1,6 @@
 # ADR-0072 · Matriz de requisitos: queda en el modelo local; la etapa externa no pasa a aceptación
 
-Estado: propuesto · Fecha: 2026-10-17 · Propuso: Coordinador (T-298, plan 016) · Decide: responsable del proyecto
+Estado: aceptado · Fecha: 2026-10-17 · Propuso: Coordinador (T-298, plan 016) · Decidió: responsable del proyecto (2026-10-17, «Apruebo el ADR-0072: la matriz queda en el modelo local y la plataforma externa sigue para el verificador. Integrá el PR 418.»)
 
 ## Contexto
 
@@ -43,7 +43,7 @@ El plan lo preveía solo si Sonnet pasaba la puerta 16 y fallaba el umbral 13 o 
 
 ## Decisión
 
-Se propone **A**.
+Se elige **A** (decisión del responsable, 2026-10-17).
 
 1. **La matriz de requisitos la propone el modelo local** con las instrucciones cortas y `reglas-v15` (ADR-0071). `EXTERNAL_STAGE_MATRIZ` queda en `local` por omisión; la etapa externa (`tenders/proposal/external.py`, `matriz-externa-v2`) queda en el código, cubierta por sus tests con el doble, para una ronda futura.
 2. **La plataforma externa sigue vigente** (ADR-0066 a 0068, enmendado) para el verificador de citas del paso 4 y para cualquier etapa futura que una medición justifique (P4 1.6, ADR-0065).
