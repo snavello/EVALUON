@@ -233,6 +233,10 @@ def test_si_keeps_the_cell_and_no_or_parcial_turn_it_undetermined_with_its_quest
     guarantee = results[numbers["garantia"].number]
     assert guarantee.outcome == "no_determinado" and "verificador" not in guarantee.facts
 
+    # O-302-1 (P6): el registro de la corrida cuenta las preguntas que cierran con la `falta` del
+    # verificador: la de la moneda sí, la del registro (dirigida al oferente) no.
+    assert run.counts["externo"]["verificador"]["faltas_del_verificador"] == 1
+
 
 def test_a_question_out_of_form_is_replaced_by_one_that_says_what_is_missing(
         offer, operator_user, procedure, model, fake_external, numbers):
@@ -288,7 +292,7 @@ def test_what_is_sent_is_what_the_contrast_sees_and_nothing_of_the_local_reasoni
         offer, operator_user, procedure, model, fake_external, numbers):
     """REQ-121, REQ-124 (plan, «Qué se manda»): el pedido lleva el requisito con su punto, la
     conclusión, la oración citada con su documento y su página, con la instrucción
-    `verificador-v2`, esfuerzo `low`, pensamiento `between_tools` y el esquema de la salida; no
+    `verificador-v3`, esfuerzo `low`, pensamiento `between_tools` y el esquema de la salida; no
     lleva el razonamiento ni la explicación del modelo local. Cada pieza entra con su origen."""
     evaluate_with_verifier(operator_user, procedure, model, fake_external)
     payload = next(p for p in fake_external.batches[0]
@@ -305,7 +309,7 @@ def test_what_is_sent_is_what_the_contrast_sees_and_nothing_of_the_local_reasoni
     assert params["max_tokens"] == verifier.MAX_TOKENS
     assert params["output_config"]["format"]["schema"] == verifier.OUTPUT_SCHEMA
     event = next(e for e in external_requests() if e.detail["custom_id"] == payload.custom_id)
-    assert event.detail["instruccion"]["version"] == "verificador-v2"
+    assert event.detail["instruccion"]["version"] == "verificador-v3"
     assert event.detail["filtro"]["piezas"]["requisito"] == 1
     assert event.detail["filtro"]["piezas"]["oferta"] >= 1
     assert "respuesta_comision" not in event.detail["filtro"]["piezas"]
@@ -323,7 +327,7 @@ def test_the_run_records_the_external_key_and_the_screen_line(
     assert externo["verificador"] == {"proveedor": "anthropic", "modelo": "claude-sonnet-5-5"}
     own = run.parameters["externo"]["verificador"]
     assert own["modo"] == "lotes" and own["effort"] == "low" and own["lote_id"]
-    assert run.prompt_versions["externo"]["verificador"] == "verificador-v2"
+    assert run.prompt_versions["externo"]["verificador"] == "verificador-v3"
     counts = run.counts["externo"]["verificador"]
     assert counts["pedidos"] == 3 and counts["enviadas"] == 3
     assert counts["sostiene"] == {"si": 2, "no": 1, "parcial": 0}
@@ -715,29 +719,37 @@ def test_the_verifier_over_a_saved_run_needs_the_stage_on(
 
 
 def test_the_instruction_is_registered_and_within_its_limit():
-    """REQ-119, REQ-122: `verificador-v2` es la instrucción de la etapa (la v1 sigue publicada, sin
-    editar), existe y cumple el tope de las instrucciones no decisoras (50 líneas, 5.000
-    caracteres)."""
+    """REQ-119, REQ-122: `verificador-v3` es la instrucción de la etapa (la v1 y la v2 siguen
+    publicadas, sin editar), existe y cumple el tope de las instrucciones no decisoras (50 líneas,
+    5.000 caracteres)."""
     from django.conf import settings
 
     instruction = verifier.load_instruction()
-    assert settings.EXTERNAL_PROMPT_VERSIONS["verificador"] == instruction.version == "verificador-v2"
+    assert settings.EXTERNAL_PROMPT_VERSIONS["verificador"] == instruction.version == "verificador-v3"
     assert len(instruction.text.splitlines()) <= 50 and len(instruction.text) <= 5000
     assert '"sostiene"' in instruction.text and '"falta"' in instruction.text
     assert '"pregunta"' not in instruction.text
     assert (verifier.PROMPTS_DIR / "verificador-v1.md").is_file()
+    assert (verifier.PROMPTS_DIR / "verificador-v2.md").is_file()
 
 
 def test_the_instruction_judges_only_what_the_requirement_asks_in_400_characters():
-    """REQ-124 (T-302, D-301-2): la instrucción manda juzgar solo la condición que el requisito
-    nombra, sin agregar condiciones ni pedir datos que no exige, y deja `no` y `parcial` para cuando
-    la cita no dice lo que la conclusión afirma; el razonamiento, de hasta 400 caracteres en
-    total."""
+    """REQ-124 (T-302, D-301-2 y D-68 confirmada por el responsable el 2026-10-17): la instrucción
+    manda juzgar solo la condición que el requisito nombra, sin agregar condiciones ni pedir datos
+    que no exige, y deja `no` y `parcial` para cuando la cita no dice lo que la conclusión afirma;
+    una condición que se mide contra un dato del procedimiento ausente de lo citado no se da por
+    cumplida: «parcial» y el dato que falta (O-302-4: la cláusula «un dato del proceso que no está
+    en la cita no es una falta» ya no está); el razonamiento, de hasta 400 caracteres en total."""
     text = " ".join(verifier.load_instruction().text.split())
+    assert "un dato del proceso que no está en la cita" not in text
+    assert "dato del proceso" not in text
     for rule in ("Juzgá solo contra lo que el requisito pide, sin agregarle condiciones ni pedir "
                  "datos que no nombra",
-                 "Lo que exige otro requisito del pliego, o un dato del proceso que no está en la "
-                 "cita, no es una falta de la oferta",
+                 "Lo que exige otro requisito del pliego, o un dato que el requisito no pide, no "
+                 "es una falta de la oferta",
+                 "Si la condición se mide contra un dato del procedimiento (una fecha o un "
+                 "importe) que no está en lo citado, no la des por cumplida: respondé "
+                 '"parcial" y decí en "falta" qué dato falta',
                  '"no" o "parcial" solo cuando el texto no dice lo que la conclusión afirma para '
                  "una condición que el requisito nombra",
                  "de hasta 400 caracteres en total",
@@ -767,6 +779,20 @@ def test_a_reasoning_over_400_characters_is_cut_with_a_mark_and_the_answer_stays
     assert mark["razonamiento"].endswith("…") and "anomalia" not in mark
     event = AuditEvent.objects.get(pk=mark["hecho"])
     assert long in json.dumps(event.detail["respuesta"], ensure_ascii=False)
+
+
+def test_a_missing_over_300_characters_is_cut_with_a_mark():
+    """REQ-124 (T-302, O-302-1): lo que falta según el verificador se recorta a 300 caracteres,
+    contada la marca «…» del recorte, y la respuesta sigue valiendo; una `falta` corta queda
+    entera."""
+    long = ("el número de inscripción vigente en el registro de proveedores del organismo " * 6
+            )[:380].strip()
+    assert len(long) > verifier.MISSING_MAX_CHARS
+    sostiene, _, missing = verifier.parse(answer("parcial", long))
+    assert sostiene == "parcial"
+    assert len(missing) <= verifier.MISSING_MAX_CHARS == 300 and missing.endswith("…")
+    assert missing.rstrip("…").strip() in long
+    assert verifier.parse(answer("parcial", MISSING_PRICE))[2] == MISSING_PRICE
 
 
 # --- Los lotes de las ofertas, juntos (T-302, D-301-5) ---------------------------------------------
