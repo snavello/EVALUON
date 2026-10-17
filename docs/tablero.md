@@ -1524,6 +1524,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 12 tareas sin terminar.
+- ▶ T-303 · Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta (en curso)
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
@@ -1531,7 +1532,6 @@ flowchart LR
 - ○ T-275 · Verdad celda por celda del segundo caso de aceptación, con el mismo método y el mismo umbral (pendiente)
 - ○ T-276 · Cierre del paso 1: documento de revisión por caso, revisión y firma celda por celda del responsable (quién y cuándo en cada celda), congelado de los casos de aceptación y verificación de REQ-118. Umbral 1 a 4: al menos 3 casos (2 de aceptación), 40 celdas decididas por caso y 150 en total, 100 % con quién y cuándo, 0 corridas de evaluación en aceptación (pendiente)
 - ○ T-284 · Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de arranque (B0) y con el candidato, celda por celda. Umbrales 7, 9 y 10: 0 «cumple» sin fundamento, 0 contradicciones, tres salidas, exactitud por celda sin llegar a 6 filas en contra con 0 a favor ni a 8 contra 1 (pendiente)
-- ○ T-303 · Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta (pendiente)
 - ○ T-304 · Medición final del paso 4 (aceptación, una sola corrida): evaluación local de los casos de aceptación con verdad y verificador una vez; el «sin» sale de `antes` y el «con» de `después`. Umbrales 17 a 21: 0 «cumple» sin fundamento, preguntas conformes 100 %, exactas no bajan, «no determinado» nuevo solo de erradas, 0 pedidos con texto de la hoja, gasto ≤ 2 USD por caso y ≤ 10 USD por mes; si empata, queda sin verificador (pendiente)
 - ○ T-305 · Segunda comparación del verificador con `claude-opus-5-5`, solo si Sonnet no pasó el umbral 17 y la etapa pasó la puerta de ajuste: misma instrucción, una vez, sobre las mismas evaluaciones guardadas; se cierra sin correr si no corresponde (pendiente)
 - ○ T-306 · Cierre del paso 4: ADR-0073 (verificador: con o sin, y por qué) con las cifras, gasto real por etapa, registro del paso y pull request `016-integracion` → `main` (pendiente)
@@ -1604,7 +1604,7 @@ flowchart TD
   T300["◐ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::review
   T301["✓ T-301 · Medición del paso 4, ronda 1 (ajuste, sin G…"]:::done
   T302["✓ T-302 · Ajuste único del verificador (verificador-v…"]:::done
-  T303["○ T-303 · Re-medición del paso 4, ronda 2 (ajuste, si…"]:::todo
+  T303["▶ T-303 · Re-medición del paso 4, ronda 2 (ajuste, si…"]:::active
   T304["○ T-304 · Medición final del paso 4 (aceptación, una…"]:::todo
   T305["○ T-305 · Segunda comparación del verificador con cla…"]:::todo
   T306["○ T-306 · Cierre del paso 4: ADR-0073 (verificador: c…"]:::todo
