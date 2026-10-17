@@ -369,7 +369,7 @@ Qué significa cada prefijo:
 | **T-300** | 016 | Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave externo de la… | en verificación |
 | **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | terminada |
 | **T-302** | 016 | Ajuste único del verificador (verificador-v2 y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si… | terminada |
-| **T-303** | 016 | Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta | pendiente |
+| **T-303** | 016 | Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta | en curso |
 | **T-304** | 016 | Medición final del paso 4 (aceptación, una sola corrida): evaluación local de los casos de aceptación con verdad y… | pendiente |
 | **T-305** | 016 | Segunda comparación del verificador con claude-opus-5-5, solo si Sonnet no pasó el umbral 17 y la etapa pasó la puerta… | pendiente |
 | **T-306** | 016 | Cierre del paso 4: ADR-0073 (verificador: con o sin, y por qué) con las cifras, gasto real por etapa, registro del paso… | pendiente |
@@ -644,7 +644,7 @@ Qué significa cada prefijo:
 | **D-65** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-65: la conversión a la moneda de… | derivada, confirmada |
 | **D-66** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-66: en un documento de identidad… | derivada, confirmada |
 | **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-67: una condición numérica compara… | derivada, confirmada |
-| **D-68** | 016 | Definición derivada (desarrollador, T-302, 2026-10-17), pendiente de confirmación del responsable: en el verificador de citas, «no» o «parcial» vale… | derivada, pendiente de confirmación |
+| **D-68** | 016 | Definición derivada (desarrollador, T-302, 2026-10-17), confirmada por el responsable el 2026-10-17: «Confirmo la regla reescrita»: «El verificador… | derivada, confirmada |
 
 ## Hallazgos de verificación (166)
 
