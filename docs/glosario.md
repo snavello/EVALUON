@@ -369,7 +369,7 @@ Qué significa cada prefijo:
 | **T-300** | 016 | Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave externo de la… | en verificación |
 | **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | terminada |
 | **T-302** | 016 | Ajuste único del verificador (verificador-v2 y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si… | terminada |
-| **T-303** | 016 | Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta | en curso |
+| **T-303** | 016 | Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta | terminada |
 | **T-304** | 016 | Medición final del paso 4 (aceptación, una sola corrida): evaluación local de los casos de aceptación con verdad y… | pendiente |
 | **T-305** | 016 | Segunda comparación del verificador con claude-opus-5-5, solo si Sonnet no pasó el umbral 17 y la etapa pasó la puerta… | pendiente |
 | **T-306** | 016 | Cierre del paso 4: ADR-0073 (verificador: con o sin, y por qué) con las cifras, gasto real por etapa, registro del paso… | pendiente |
@@ -646,7 +646,7 @@ Qué significa cada prefijo:
 | **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-67: una condición numérica compara… | derivada, confirmada |
 | **D-68** | 016 | Definición derivada (desarrollador, T-302, 2026-10-17), confirmada por el responsable el 2026-10-17: «Confirmo la regla reescrita»: «El verificador… | derivada, confirmada |
 
-## Hallazgos de verificación (166)
+## Hallazgos de verificación (171)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -734,6 +734,11 @@ Qué significa cada prefijo:
 | **D-301-3** | 016 | (media, REQ-105) · Cuando la pregunta del verificador no cumple question_form, la del código pierde el porqué | T-301 |
 | **D-301-4** | 016 | (baja) · Las preguntas del verificador repiten lo que el código ya puso (requisito, conclusión, texto): misma redundancia que… | T-301 |
 | **D-301-5** | 016 | (baja, tiempo) · Un lote por oferta, en serie, tarda de 5,6 a 6,6 minutos aunque lleve 3 a 7 pedidos (336, 397 y 397 s en el… | T-301 |
+| **D-303-1** | 016 | (alta, P3/REQ-124; decide la puerta) · La captura excesiva O1 R36 sigue con la v3 | T-303 |
+| **D-303-1 a D-303-4, O-303-1 a O-303-6** | 016 | D-303-1 (alta): O1 R36 sigue como objeción excesiva (pide el tope de R34 y datos que R36 no nombra) aunque la v3 lleva D-68; es… | T-303 (re-medición del paso 4, ronda 2… |
+| **D-303-2** | 016 | (media) · En 2 de las 4 capturas aceptadas, la falta agrega datos que el requisito no pide | T-303 |
+| **D-303-3** | 016 | (baja) · si con una falta no vacía | T-303 |
+| **D-303-4** | 016 | (baja) · Razonamientos de más de 400 caracteres: 2 de 18 (412 y 454) | T-303 |
 | **H-241-1** | 015 | (medida, del Coordinador) | T-241 |
 | **H-241-2** | 015 | (código) | T-241 |
 | **H-241-3** | 015 | (código, deliberado) | T-241 |
@@ -817,7 +822,7 @@ Qué significa cada prefijo:
 | **H-299-1, H-299-2, O-299-1 a O-299-9** | 016 | Corregidos: la segunda pasada de --verificador-sobre mide la pregunta de la celda cambiada (H-299-1), 17 controles con prueba… | T-299 (verificación: no pasa… |
 | **H-299-2** | 016 | (pruebas) | T-299 |
 
-## Observaciones de verificación (287)
+## Observaciones de verificación (293)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -1108,6 +1113,12 @@ Qué significa cada prefijo:
 | **O-302-6** | 016 | Frases del plan que quedaron desactualizadas (plan.md en ed5fb545; el plan no se tocó, como corresponde) | T-302 |
 | **O-302-7** | 016 | Rama preexistente sin prueba (5.3) | T-302 |
 | **O-302-8** | 016 | Archivos fuera de la lista de la tarea | T-302 |
+| **O-303-1** | 016 | La línea «Conclusión del sistema» de la pregunta trae recortado el comienzo del razonamiento del verificador («… no corroboró la… | T-303 |
+| **O-303-2** | 016 | medir_evaluacion sigue contando el umbral 17 sin la enmienda | T-303 |
+| **O-303-3** | 016 | Variación entre rondas en 3 de 18 celdas (O2 R32, O2 R39, O3 R123) | T-303 |
+| **O-303-4** | 016 | El estimador del libro da 4,4 veces el costo real (3,4 en T-301, O-301-4) | T-303 |
+| **O-303-5** | 016 | La espera la marca el lote más lento | T-303 |
+| **O-303-6** | 016 | Base nueva en el clon | T-303 |
 
 ## Casos de evals (56)
 
