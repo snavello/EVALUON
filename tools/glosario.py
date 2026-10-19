@@ -306,11 +306,27 @@ body{{ margin: 0; background: #F3EFE4; }}
 """
 
 
+SECCION_ENTREGABLE = re.compile(
+    r'(<section id="codigos"[^>]*><div class="papel"><div id="inf-codigos" class="inf">\n)(.*?)(</div></div></section>)',
+    re.S)
+
+
+def update_deliverable(path: Path, rows: list[dict]) -> None:
+    """Reemplaza la solapa Códigos dentro del índice de entregables (EVALUON-entregables.html)."""
+    text = read(path)
+    nuevo, n = SECCION_ENTREGABLE.subn(lambda m: m.group(1) + build_html(rows) + m.group(3), text)
+    if n != 1:
+        raise SystemExit(f"{path}: no encontré la sección <section id=\"codigos\"> (hallazgos: {n})")
+    path.write_text(nuevo, encoding="utf-8")
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=str(Path(__file__).resolve().parent.parent))
     ap.add_argument("--html", default=None, help="escribe además el fragmento HTML de la solapa")
     ap.add_argument("--pagina", default=None, help="escribe además una página HTML autocontenida")
+    ap.add_argument("--entregable", default=None,
+                    help="índice de entregables (HTML) cuya solapa Códigos se reemplaza; después se republica el artifact")
     ap.add_argument("--tambien", action="append", default=[],
                     help="otra copia de trabajo de la que tomar informes de revisión y verificaciones que main no tiene todavía")
     args = ap.parse_args(argv)
@@ -322,6 +338,9 @@ def main(argv: list[str]) -> int:
     if args.html:
         Path(args.html).write_text(build_html(rows), encoding="utf-8")
         print(f"Escrito {args.html}")
+    if args.entregable:
+        update_deliverable(Path(args.entregable), rows)
+        print(f"Actualizada la solapa Códigos de {args.entregable}")
     if args.pagina:
         from datetime import date
         Path(args.pagina).write_text(build_page(rows, date.today().strftime("%d/%m/%Y")), encoding="utf-8")
