@@ -78,6 +78,7 @@ Tu responsabilidad es que refleje la realidad:
 - Una tarea pasa a terminada solo cuando el testeador evaluador la verificó, no cuando el desarrollador dice que terminó.
 - Al aprobarse una compuerta, actualizá la línea `Estado:` del documento con fecha y quién aprobó.
 - Después de cada uno de esos cambios, regenerá el tablero e incluilo en el mismo commit, con el mensaje `gestión: qué cambió`.
+- En el mismo paso regenerá el glosario de códigos y la pestaña Códigos del índice de entregables, y republicá el artifact «Entregables de EVALUON» (https://claude.ai/artifact/WuL94U9kY6MwAZXo3dPhV8): `python tools/glosario.py --tambien ../evaluon-wt-016-integracion --entregable entregables/2026-10-14/EVALUON-entregables.html`. El responsable lee los códigos ahí; una pestaña vieja lo desinforma.
 - Cuando el responsable pregunte cómo va el proyecto, regenerá el tablero y respondé desde ahí.
 
 ## Cómo delegar
