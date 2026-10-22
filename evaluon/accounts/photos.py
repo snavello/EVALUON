@@ -43,7 +43,9 @@ MAX_PIXELS = 50_000_000
 MAX_SIDE = 1600
 ALLOWED_FORMATS = ("JPEG", "PNG", "WEBP")
 QUALITIES = range(90, 29, -5)
-SMOOTHING_RADIUS = 4
+SMOOTHING_RADIUS = 4  # a cuántos niveles de entrada, como máximo, se mira a cada lado
+SMOOTHING_WINDOW = 2  # y solo se promedian los que caen a 2 niveles de salida o menos
+SLOT_CONSTRAINT = "accounts_photo_user_slot_unique"
 
 
 class PhotoRejected(ValueError):
@@ -202,8 +204,14 @@ def tone_table(source, reference):
     """Tabla de 256 niveles que lleva el histograma `source` al de `reference`.
 
     Cada nivel va al nivel de la referencia que tiene la misma posición acumulada (en Python
-    puro, con interpolación dentro del nivel); la tabla se suaviza con un promedio móvil para
-    que no queden escalones ni huecos, y sigue siendo creciente.
+    puro, con interpolación dentro del nivel). La tabla se suaviza con un promedio móvil que solo
+    junta niveles de entrada cercanos Y que terminan a `SMOOTHING_WINDOW` niveles de salida o
+    menos: así se alisan los escalones de redondeo sin achatar las partes empinadas, que son las
+    de las fotos oscuras o saturadas que ocupan pocos niveles. Al final se fuerza que sea creciente.
+
+    Límite conocido: una imagen casi lisa (desvío de entrada menor a 3 de 255, por ejemplo una
+    foto en blanco o una niebla total) casi no tiene niveles que repartir y no alcanza el tono de
+    la casa; no es una foto real y no se corrige.
     """
     total_source, total_reference = sum(source), sum(reference)
     if not total_source or not total_reference:
@@ -225,16 +233,11 @@ def tone_table(source, reference):
         span = reference_cdf[level] - floor
         fraction = (quantile - floor) / span if span > 0 else 0.5
         raw.append(min(255.0, max(0.0, level - 0.5 + min(1.0, max(0.0, fraction)))))
-    smooth = []
-    for index in range(256):
-        window = [
-            raw[min(255, max(0, index + shift))]
-            for shift in range(-SMOOTHING_RADIUS, SMOOTHING_RADIUS + 1)
-        ]
-        smooth.append(sum(window) / len(window))
     table = []
-    for value in smooth:
-        rounded = int(round(value))
+    for index in range(256):
+        near = raw[max(0, index - SMOOTHING_RADIUS) : index + SMOOTHING_RADIUS + 1]
+        close = [value for value in near if abs(value - raw[index]) <= SMOOTHING_WINDOW]
+        rounded = int(round(sum(close) / len(close)))
         table.append(max(rounded, table[-1]) if table else rounded)
     return table
 
@@ -253,9 +256,12 @@ def _normalize(data):
         raise _damaged() from None
     gray.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)  # no amplía
     gray = gray.point(tone_table(gray.histogram(), reference_histogram()))
+    # Una imagen nueva, solo con los píxeles: ninguna información de la original (comentario,
+    # perfil de color, EXIF, texto) pasa al JPEG guardado (P4).
+    gray = Image.frombytes("L", gray.size, gray.tobytes())
     for quality in QUALITIES:
         buffer = io.BytesIO()
-        gray.save(buffer, "JPEG", quality=quality, optimize=True)  # sin EXIF ni otros metadatos
+        gray.save(buffer, "JPEG", quality=quality, optimize=True)
         if buffer.tell() < PHOTO_MAX_BYTES:
             return buffer.getvalue(), gray.width, gray.height
     raise PhotoRejected(
@@ -267,7 +273,8 @@ def _store(user, content, width, height):
     """Guarda en la primera ranura libre. Si otra subida ganó esa ranura (restricción única de la
     base), reintenta con la siguiente libre; si ya no queda ninguna, pide quitar una."""
     for _ in range(PHOTO_SLOTS + 1):
-        free = [slot for slot in range(PHOTO_SLOTS) if slot not in used_slots(user)]
+        taken = used_slots(user)
+        free = [slot for slot in range(PHOTO_SLOTS) if slot not in taken]
         if not free:
             raise _full()
         try:
@@ -281,8 +288,15 @@ def _store(user, content, width, height):
                     height=height,
                     size=len(content),
                 )
-        except IntegrityError:
-            continue
+        except IntegrityError as error:
+            if not _is_slot_conflict(error):
+                raise  # otra restricción (por ejemplo el tope de tamaño): no es una carrera
     raise PhotoRejected(
         "No se pudo guardar la foto porque hubo otras subidas a la vez. Probá de nuevo."
     )
+
+
+def _is_slot_conflict(error):
+    """Si el error de la base es el de la ranura única (otra subida ganó esa ranura)."""
+    diag = getattr(error.__cause__, "diag", None)
+    return getattr(diag, "constraint_name", None) == SLOT_CONSTRAINT
