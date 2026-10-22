@@ -183,13 +183,16 @@ def test_opens_reconoce_el_historial_aunque_venga_solo():
     assert s3_ofertas.opens(SimpleNamespace(GET={})) is None
 
 
-def test_los_parciales_de_los_temas_sin_mosaico_siguen_accesibles(client, procedure, matrix, tres,
-                                                                  operator_user):
-    """T-315: circulares, anexos y ficha (aún sin mosaico) se ven como hoy, debajo del tablero."""
+def test_los_parciales_de_circulares_anexos_y_ficha_son_detalles_del_tablero(
+        client, procedure, matrix, tres, operator_user):
+    """T-326: con sus mosaicos, circulares, anexos y ficha ya no van sueltos debajo del tablero:
+    cada parcial es el detalle de su mosaico y el ancla `#s3-circulares` está dentro."""
     html = pedir(client, procedure, operator_user)
-    assert 'id="seccion-detalle"' in html and 'id="s3-circulares"' in html
-    assert html.index('id="seccion-detalle"') > html.index('class="detalles"')
-    assert {t.KEY for t in temas.TEMAS if t.SECTION == "ofertas"} >= {"s3_circulares"}
+    pagina = Pagina(html)
+    assert 'id="seccion-detalle"' not in html
+    for detalle in ("d-s3-circulares", "d-s3-anexos", "d-s3-ficha"):
+        assert detalle in pagina.details
+    assert "s3-circulares" in pagina.details["d-s3-circulares"]["ids"]
 
 
 # --- Tiempo -----------------------------------------------------------------------------------------

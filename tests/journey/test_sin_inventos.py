@@ -109,6 +109,10 @@ def instalar_mosaicos_que_cuentan(monkeypatch):
                 Tile(key="orden", title="Orden económico", detail="d-s3-ofertas", big=None)]
 
     monkeypatch.setattr(tema, "tiles", tiles, raising=False)
+    # Desde T-326 los otros temas de Ofertas declaran sus mosaicos; acá se apagan para probar el
+    # tema de prueba solo (los reales los cubre `test_con_un_procedimiento_vacio_...`).
+    for clave in ("s3_ficha", "s3_anexos", "s3_circulares"):
+        monkeypatch.setattr(temas.by_key(clave), "tiles", lambda user, proc, ctx: [], raising=False)
 
 
 def test_la_pagina_de_un_procedimiento_vacio_no_muestra_cifras(client, vacio, operator_user,
