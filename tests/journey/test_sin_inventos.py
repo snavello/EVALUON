@@ -23,7 +23,10 @@ RAZON_NORMAS = ("Normas cargadas cuenta las normas de toda la base, comunes a to
                 "tests/journey/temas/test_s5_tiles.py)")
 # Se declara con la clave del mosaico y con su id en la página (`m-…`): el primer test mira el id y
 # el segundo, la clave.
-DATO_DE_LA_INSTALACION: dict[str, str] = {"cargadas": RAZON_NORMAS, "m-cargadas": RAZON_NORMAS}
+RAZON_AVANCE = ("«N de 5 secciones listas» cuenta el estado real de las cinco secciones (ADR-0077, "
+                "avance A): con el procedimiento vacío, «0 de 5» es un dato, no una cifra inventada")
+DATO_DE_LA_INSTALACION: dict[str, str] = {"cargadas": RAZON_NORMAS, "m-cargadas": RAZON_NORMAS,
+                                          "avance": RAZON_AVANCE, "m-avance": RAZON_AVANCE}
 
 
 @pytest.fixture
