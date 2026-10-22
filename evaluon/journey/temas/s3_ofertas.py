@@ -44,6 +44,8 @@ from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.journey import external, memo
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
+from evaluon.journey.tablero import charts, economico
+from evaluon.journey.tablero.tiles import Detail, Tile
 from evaluon.journey.temas import s3_anexos
 from evaluon.journey.window import plain_reason
 from evaluon.norms.models import ProposalState
@@ -597,6 +599,110 @@ def context(user, procedure, request):
         "with_sheet": sum(1 for r in rows if r.block.has_sheet),
         "stale_count": sum(1 for r in rows if r.stale),
     }
+
+
+# --- Tablero (REQ-126, REQ-127, REQ-130, REQ-141; plan 017, T-315) ------------------------------------
+
+DETAIL_ORDER = "d-s3-orden"
+MODE_PARAMS = ("oferta", "ficha", "historial", "borrador", "alta", PARAM, s3_anexos.PARAM)
+MILLION = Decimal("1000000")
+
+
+def _economic(procedure):
+    """El orden económico, calculado una sola vez por pedido y compartido por los mosaicos y el
+    detalle (aviso de T-314)."""
+    return memo.once(("s3_ofertas", "economico", procedure.pk),
+                     lambda: economico.economic_view(procedure, uid="orden"))
+
+
+def _short(amount):
+    """Un monto para la cifra grande o la columna: en millones desde un millón, entero si no. El
+    monto completo va siempre en la línea de apoyo (no se redondea lo que se afirma)."""
+    if amount >= MILLION:
+        return f"{amount / MILLION:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."), "M"
+    return f"{amount:,.0f}".replace(",", "."), ""
+
+
+def _acta_chart(view):
+    if view.state != economico.STATE_ORDERED or view.warning:
+        return None
+    items = [charts.ColumnItem(f"Of. {r.number}", r.amount, "".join(_short(r.amount)),
+                               highlight=r.is_low, note=r.amount_text)
+             for r in sorted(view.rows, key=lambda r: r.number) if r.amount is not None]
+    chart = charts.Columns(uid="acta", title="Total de cada oferta", items=items)
+    return chart if chart.has_data else None
+
+
+def _tile_acta(view):
+    total = view.count or None
+    if total is None:
+        return Tile(key="acta", title="Ofertas del acta", detail="d-s3-ofertas", width=2,
+                    missing="Falta cargar las ofertas")
+    priced = sum(1 for r in view.rows if r.amount is not None)
+    return Tile(key="acta", title="Ofertas del acta", detail="d-s3-ofertas", width=2, big=total,
+                unit="oferta" if total == 1 else "ofertas",
+                sub=("Con su total" if priced == total
+                     else f"{priced} de {total} con su total"),
+                chart=_acta_chart(view))
+
+
+def _extreme(view, row, key, title, tone, other):
+    """«La más baja» o «La más alta»: la cifra si existe, o lo que falta."""
+    if row is not None:
+        number, unit = _short(row.amount)
+        symbol = row.amount_text.rsplit(" ", 1)[0] if " " in row.amount_text else ""
+        sub = f"{row.name} · {row.offer.bidder} · {row.amount_text}"
+        if other is not None:
+            sub += f" · la {'más alta' if key == 'baja' else 'más baja'} es {other.name}"
+        return Tile(key=key, title=title, detail=DETAIL_ORDER, tone=tone,
+                    big=f"{symbol} {number}".strip(), unit=unit, sub=sub)
+    if view.state != economico.STATE_ORDERED:
+        missing = view.missing
+    elif view.warning:
+        missing = "No se comparan: monedas distintas"
+    else:
+        missing = "Falta otra oferta con un total distinto"
+    return Tile(key=key, title=title, detail=DETAIL_ORDER, tone=tone, missing=missing)
+
+
+def _tile_orden(view):
+    if view.state != economico.STATE_ORDERED:
+        sub = (f"Apertura de ofertas: {view.opening_day}"
+               if view.state == economico.STATE_PENDING and view.opening_day else "")
+        return Tile(key="orden", title="Orden económico", detail=DETAIL_ORDER, width=2,
+                    missing=view.missing, sub=sub)
+    if view.warning:
+        sub = view.warning
+    elif view.high is not None:
+        sub = (f"Entre la más baja, {view.low.name}, y la más alta, {view.high.name}, hay "
+               f"{view.high.diff_text.lstrip('+')} de diferencia.")
+    else:
+        sub = "Todos los totales cargados son iguales."
+    return Tile(key="orden", title="Orden económico", detail=DETAIL_ORDER, width=2,
+                big=view.count, unit="ofertas ordenadas", sub=sub,
+                chart=view.chart if view.chart.has_data else None)
+
+
+def tiles(user, procedure, ctx):
+    """Los mosaicos de la sección Ofertas: «Ofertas del acta», «La más baja», «La más alta» y
+    «Orden económico». Lo que el sistema no tiene se dice (REQ-141)."""
+    view = _economic(procedure)
+    return [_tile_acta(view),
+            _extreme(view, view.low, "baja", "La más baja", "dark", view.high),
+            _extreme(view, view.high, "alta", "La más alta", "", view.low),
+            _tile_orden(view)]
+
+
+def details(user, procedure, ctx):
+    """El detalle del orden económico, con su cuadro (`_economico.html`)."""
+    return [Detail(DETAIL_ORDER, "Orden económico", "journey/_economico.html",
+                   {"orden": _economic(procedure)})]
+
+
+def opens(request):
+    """Cualquier modo de la pestaña (la oferta, su ficha, su historial, una propuesta, el alta o el
+    resultado de una acción) abre «Ofertas del acta»."""
+    return "d-s3-ofertas" if any(request.GET.get(name) for name in MODE_PARAMS) else None
 
 
 # --- Acciones -------------------------------------------------------------------------------------
