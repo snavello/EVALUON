@@ -425,6 +425,8 @@ def test_unvalidated_norms_and_waiting_uploads_are_pending_and_amendments_are_mi
     assert section.pending == 2
     texts = " ".join(item.text for item in section.pending_items)
     assert "espera la validación" in texts and "esperando.htm" in texts
+    assert all(item.why.strip() for item in section.pending_items)  # T-335: dice por qué importa
+    assert len({item.why for item in section.pending_items}) == 2   # cada clase con su motivo
     missing = [m for m in section.tema_missing if "Modificatoria sin cargar" in m.text]
     assert len(missing) == 1 and "Decreto 77/2020" in missing[0].text
     assert missing[0].action == "Subir norma" and missing[0].url.endswith("#s5-subir")

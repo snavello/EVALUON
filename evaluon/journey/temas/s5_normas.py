@@ -204,6 +204,11 @@ def _pending_readings():
             .filter(~Exists(later)).select_related("document__norm").order_by("pk"))
 
 
+# Por qué importa cada pendiente (REQ-129): lo sabe este tema, no la lista.
+WHY_READING = "Hasta que se valide, la norma no aparece en las citas de las consultas."
+WHY_UPLOAD = "Hasta que se confirmen sus datos, la norma subida no queda cargada."
+
+
 def status(user, procedure):
     """Cuentas del tema: lecturas por validar y subidas que esperan confirmación (pendientes) y
     modificatorias registradas sin cargar (faltantes, cada una con «Subir norma»)."""
@@ -212,12 +217,13 @@ def status(user, procedure):
                   "su lectura espera la validación del evaluador",
                   f"{url}?lectura={reading.pk}#s5-lectura", 1, "Ver el informe",
                   kind="lectura", noun="lecturas esperan la validación del evaluador",
-                  group_url=f"{url}#s5-lectura")
+                  group_url=f"{url}#s5-lectura", why=WHY_READING)
              for reading in _pending_readings()]
     waiting = NormUpload.objects.filter(state=ProposalState.PROPUESTO).order_by("pk")
     items += [Item(f"Norma subida «{one.file_name}»: faltan confirmar sus datos",
                    f"{url}#s5-subida-{one.pk}", 1, "Revisar", kind="subida",
-                   noun="normas subidas con datos por confirmar", group_url=f"{url}#s5-subir") for one in waiting]
+                   noun="normas subidas con datos por confirmar", group_url=f"{url}#s5-subir",
+                   why=WHY_UPLOAD) for one in waiting]
     if procedure is None:  # la biblioteca es común: sin procedimiento no hay régimen que descartar
         needed = (PendingAmendment.objects.filter(loaded_norm__isnull=True)
                   .select_related("target_norm").order_by("pk"))
