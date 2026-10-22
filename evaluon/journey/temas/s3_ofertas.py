@@ -701,12 +701,16 @@ def _tile_docs(procedure):
     lacking = [r.offer.number for r in s3_anexos.sheet_rows(procedure) if r.sheet is None]
     sub = (f"Falta la hoja de compliance de {s3_anexos.numbers_text(lacking)}" if lacking
            else "Todas las ofertas tienen su hoja de compliance")
+    # La línea «Hay» de la sección cuenta todos los documentos de las ofertas, con anexos y hojas;
+    # este mosaico, solo los propios. Se dice qué cuenta para que no se vean dos números distintos
+    # sin explicación (T-336). Sin contar el total: sería otra consulta por carga (REQ-100).
+    sub = f"Sin anexos técnicos ni hojas, que van aparte · {sub}"
     chart = charts.Bars(uid="docs", title="Documentos de cada oferta", rows=[
         charts.BarRow(label=f"Oferta {o.number}", value=count, text=str(count))
         for o, count in found])
     return Tile(key="docs", title="Documentación de las ofertas", detail="d-s3-ofertas", width=2,
-                big=total, unit="documento" if total == 1 else "documentos", sub=sub,
-                chart=chart if total and chart.has_data else None)
+                big=total, unit="documento propio" if total == 1 else "documentos propios",
+                sub=sub, chart=chart if total and chart.has_data else None)
 
 
 def tiles(user, procedure, ctx):

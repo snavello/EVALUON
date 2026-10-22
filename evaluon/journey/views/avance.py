@@ -26,7 +26,8 @@ def avance_of(procedure):
     """Lo que dibuja el indicador, o `None` si no hay un pedido en espera ni en curso.
     `percent` es `None` mientras no se sabe (en espera, o un pedido sin total): no se inventa
     (REQ-141); el anillo gira en ese caso."""
-    window = window_for(procedure)
+    # Una vez por pedido: el primer panel pide la misma ventana (T-336).
+    window = memo.once(("window", procedure.pk), lambda: window_for(procedure))
     if not window or not window.get("active"):
         return None
     percent = window["overall_percent"] if window["state"] == "running" else None

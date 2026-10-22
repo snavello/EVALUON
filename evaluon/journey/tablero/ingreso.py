@@ -525,7 +525,7 @@ def context(section, user, procedure, request=None, overview=None):
         "numeros": numbers(offers_of(user, procedure), overview, avance,
                            extra_before=economic_numbers(economic(user, procedure)),
                            extra_after=[vence_number(maintenance(procedure))]),
-        "window": window_for(procedure),
+        "window": memo.once(("window", procedure.pk), lambda: window_for(procedure)),
         "window_url": reverse("expedientes:ventana", args=[procedure.pk]),
     }
     if overview is not None:
