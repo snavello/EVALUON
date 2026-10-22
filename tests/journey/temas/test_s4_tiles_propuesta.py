@@ -209,9 +209,19 @@ def test_un_requisito_que_no_aplica_no_cuenta_como_cumple(procedure, matrix, thr
     entra en el total; el mosaico lo dice."""
     declaracion = requirement(procedure, "declaración jurada")
     registro = requirement(procedure, "constancia de inscripción")
-    guardado = add_run(operator_user, procedure, three[0],
-                       {declaracion: "cumple", registro: "cumple"})
-    am.Result.objects.filter(pk=guardado[registro.pk].pk).update(
+    add_run(operator_user, procedure, three[0], {declaracion: "cumple"})
+    # Una segunda evaluación guarda el requisito que no aplica (los resultados no se modifican).
+    version = procedure.matrix_versions.get(number=1)
+    pedido_ = am.Request.objects.create(
+        procedure=procedure, matrix_version=version, offers=[three[0].pk], requirements=None,
+        cause=am.Cause.MATRIZ, requested_by=operator_user)
+    corrida = am.Run.objects.create(
+        request=pedido_, offer=three[0], matrix_version=version, number=2,
+        channel=am.Channel.SCREEN, documents=[], norms={}, models_used={}, parameters={},
+        prompt_versions={})
+    am.Result.objects.create(
+        run=corrida, offer=three[0], requirement=registro, outcome="cumple",
+        exigence=am.Exigence.CONDICION, explanation="No aplica a esta oferta.",
         facts={"aplica": False, "regla": "opcion_no_usada"})
     cuenta, total = esperado(three[0], procedure)
     mosaico = tableros()["resultado"]
@@ -383,12 +393,26 @@ def test_la_seccion_se_arma_en_dos_segundos_con_el_caso_chico(client, evaluated,
 
 
 def test_los_pendientes_de_la_propuesta_dicen_por_que_importan(evaluated, procedure,
-                                                               operator_user):
-    """REQ-129 (T-318 agrega `Item.why`): cada par por decidir y cada pregunta abierta trae el
-    texto que escribe el tema. Mientras `Item` no tiene el campo, no hay dónde escribirlo."""
-    if "why" not in {f.name for f in dataclasses.fields(Item)}:
-        pytest.skip("`Item.why` llega con T-318; este tema lo escribe cuando exista.")
+                                                               operator_user, monkeypatch):
+    """REQ-129: cada par por decidir y cada pregunta abierta trae el texto `why` que escribe el
+    tema. `Item.why` lo suma T-318: acá se prueba con un `Item` que ya lo tiene."""
+    from evaluon.journey.temas import s4_propuesta
+
+    @dataclasses.dataclass(frozen=True)
+    class ItemConPorQue(Item):
+        why: str = ""
+
+    monkeypatch.setattr(s4_propuesta, "Item", ItemConPorQue)
     estado = tema().status(operator_user, procedure)
     assert estado.pending_items
     for item in estado.pending_items:
         assert item.why.strip(), item.text
+    assert {i.why for i in estado.pending_items} <= {s4_propuesta.WHY_PAIR,
+                                                      s4_propuesta.WHY_QUESTION}
+
+
+def test_sin_el_campo_why_el_tema_sigue_listando_sus_pendientes(evaluated, procedure,
+                                                                operator_user):
+    """El tema no depende de que `Item.why` exista: con el `Item` de hoy lista lo mismo."""
+    estado = tema().status(operator_user, procedure)
+    assert estado.pending_items
