@@ -8,6 +8,9 @@
 {% block section_css %}{% endblock %}
 <script src="{% static 'journey/recorrido.js' %}" defer></script>
 <script src="{% static 'journey/secciones.js' %}" defer></script>
+{% comment %}`base.html` enlaza `tablero.css` desde T-311; si ya lo hace, esta línea sobra y se quita al integrar.{% endcomment %}
+<link rel="stylesheet" href="{% static 'journey/tablero.css' %}">
+<script src="{% static 'journey/tablero.js' %}" defer></script>
 {% endblock %}
 
 {% block site_header %}{% include "journey/_sprite.html" %}{% include "journey/_encabezado.html" %}{% endblock %}
