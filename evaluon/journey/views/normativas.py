@@ -10,6 +10,7 @@ acciones son las de `s5_normas` (P3).
 """
 
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_GET
 
@@ -20,6 +21,7 @@ from evaluon.journey import memo
 from evaluon.journey.sections import SECTIONS
 from evaluon.journey.sections import s5
 from evaluon.journey.temas import s5_normas
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.journey.views.portada import DROPDOWN_LIMIT, ROLE_LABELS
 from evaluon.tenders.models import Procedure
 
@@ -32,6 +34,7 @@ def general(request):
     require_commission_role(request.user, CommissionRole.OPERATOR, operation=OPERATION,
                             channel=Channel.SCREEN)
     status = s5_normas.status(request.user, None)
+    normas = s5_normas.context(request.user, None, request)
     tabs = [{"label": module.LABEL, "key": module.KEY, "current": module.KEY == s5.KEY,
              "enabled": module.KEY in ("procedimiento", s5.KEY)} for module in SECTIONS]
     context = {
@@ -42,11 +45,23 @@ def general(request):
         "login_url": reverse("accounts:login"),
         "normativas_url": reverse("expedientes:normativas_general"),
         "summary": s5.summary(request.user, None, ()),
-        "t": s5_normas.context(request.user, None, request),
+        "t": normas,
         "partial": s5_normas.PARTIAL,
         "pending_total": status.pending,
         "pending_rows": [(None, item) for item in status.pending_items],
         "missing": status.missing,
         "query_url": reverse("queries:screen"),
     }
+    # Tablero de la página general (plan 017, T-329): las normas cargadas abren su detalle (subir,
+    # informe de lectura, validar y lista) y la consulta general lleva a su pantalla.
+    context.update({
+        "section": {"label": "Normativas"},
+        "board": [*s5_normas.tiles(request.user, None, normas),
+                  Tile(key="consulta", title="Consulta de normativa", href=context["query_url"],
+                       width=2, missing="Abrir la consulta",
+                       sub="Pide la fecha de autorización para saber qué régimen aplica")],
+        "abre": s5_normas.opens(request),
+    })
+    context["details"] = [{"id": "d-s5-normas", "title": "Normas cargadas", "html": render_to_string(
+        s5_normas.PARTIAL, {**context, "t": normas}, request=request)}]
     return render(request, "journey/normativas.html", context)

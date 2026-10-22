@@ -27,6 +27,7 @@ from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit import services as audit
 from evaluon.audit.models import AuditEvent, Channel, EventType, Outcome
 from evaluon.journey.sections.base import TemaStatus
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.queries import services
 from evaluon.queries import views as query_views
 from evaluon.queries.models import Query, Reason, Status
@@ -198,6 +199,42 @@ def context(user, procedure, request):
         query = Query.objects.filter(pk=int(wanted)).first()
         base["answer"] = _answer(query) if query is not None else None
     return base
+
+
+# --- Mosaico del tablero (plan 017, T-329) -------------------------------------------------------
+
+
+def _short(text, limit=70):
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
+
+
+def tiles(user, procedure, ctx):
+    """«Consulta de normativa»: cuántas consultas hizo la Comisión sobre este procedimiento y la
+    última. Sin consultas no hay cifra (REQ-141); con la consulta apagada o sin motor lo dice."""
+    if procedure is None or ctx is None:
+        return []
+    history = ctx["history"]
+    if history:
+        sub = f"Última: {_short(history[0]['question'])}"
+        if ctx["unavailable"]:
+            sub += " · la consulta no está disponible ahora"
+        return [Tile(key="consulta", title="Consulta de normativa", detail="d-s5-consulta",
+                     width=2, big=str(len(history)),
+                     unit="consulta" if len(history) == 1 else "consultas", sub=sub)]
+    if ctx["unavailable"]:
+        return [Tile(key="consulta", title="Consulta de normativa", detail="d-s5-consulta",
+                     width=2, missing="Consulta no disponible ahora", sub=ctx["unavailable"])]
+    return [Tile(key="consulta", title="Consulta de normativa", detail="d-s5-consulta", width=2,
+                 missing="Sin consultas hechas", sub="Cada respuesta cita norma, artículo y versión")]
+
+
+def opens(request):
+    """`?consulta=` (una respuesta del historial) o el aviso firmado de la consulta abren el
+    detalle de la consulta."""
+    if request.GET.get("consulta") or unpack(request.GET.get("aviso")):
+        return "d-s5-consulta"
+    return None
 
 
 # --- Acción --------------------------------------------------------------------------------------

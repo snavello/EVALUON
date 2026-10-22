@@ -20,6 +20,8 @@ from django.utils import timezone
 
 from evaluon.journey import memo
 from evaluon.journey.sections.base import Missing, TemaStatus
+from evaluon.journey.tablero import charts
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.norms.models import (
     BODY_PART,
     Category,
@@ -339,11 +341,18 @@ class Cited:
     text: str       # cómo se muestra: «Decreto 1023/2001»
 
 
+def _legal_text(procedure):
+    """El encuadre legal que el Portal da para el pliego, o texto vacío si no lo hay."""
+    def compute():
+        data = PortalProcedureData.objects.filter(procedure=procedure).first()
+        return data.legal_framework if data else ""
+    return memo.once((KEY, "legal", procedure.pk), compute)
+
+
 def _cited(procedure):
     """Las normas que cita el encuadre legal del pliego. Solo lo que se reconoce: número y año
     (dos o cuatro cifras); sin año, solo las leyes."""
-    data = PortalProcedureData.objects.filter(procedure=procedure).first()
-    text = data.legal_framework if data else ""
+    text = _legal_text(procedure)
     found, seen = [], set()
     for match in _CITED.finditer(text):
         raw = match.group(1).lower()
@@ -386,10 +395,16 @@ def rows(procedure):
     return memo.once((KEY, procedure.pk), lambda: _build_rows(procedure))
 
 
+def _regimes(procedure):
+    """Los regímenes que rigen a la fecha de autorización (`applicable_regimes`, de la 001)."""
+    return memo.once((KEY, "regimes", procedure.pk),
+                     lambda: applicable_regimes(procedure.authorization_date))
+
+
 def _build_rows(procedure):
     shown, governs = set(), set()
     cited = _cited(procedure)
-    applicable = [r["norm"] for r in applicable_regimes(procedure.authorization_date)]
+    applicable = [r["norm"] for r in _regimes(procedure)]
     idx = _Index(applicable, cited)
     result = _regime_rows(procedure, shown, governs, idx, applicable)
     result += _framework_rows(procedure, shown, governs, cited, idx)
@@ -409,10 +424,26 @@ def status(user, procedure):
     return TemaStatus(missing=missing, sources=(source,))
 
 
+def citations(procedure):
+    """Las normas que cita el pliego y cuáles están cargadas: `{"text", "total", "loaded",
+    "items": [(cómo se nombra, está cargada)]}`. Cuenta normas, no menciones en el texto (plan
+    017, D). `total` es 0 si no hay encuadre legal o si no se reconoce ninguna norma en él."""
+    def compute():
+        text = _legal_text(procedure)
+        cited = _cited(procedure)
+        idx = _Index([], cited) if cited else None
+        items = [(c.text, idx.find(c.number, c.year, c.norm_type) is not None) for c in cited]
+        return {"text": bool(text.strip()), "total": len(items),
+                "loaded": sum(1 for _, there in items if there), "items": items}
+    return memo.once((KEY, "citations", procedure.pk), compute)
+
+
 def context(user, procedure, request):
     listed = rows(procedure)
     return {
         "pid": procedure.pk,
+        "citations": citations(procedure),
+        "regimes": [r["name"] for r in _regimes(procedure)],
         "not_needed": not_needed_by_norm(amendments_split(procedure)[1]),
         "date": f"{procedure.authorization_date:%d/%m/%Y}",
         "rows": [{"row": r, "icon": STATES.get(r.state, ("", ""))[0],
@@ -422,3 +453,69 @@ def context(user, procedure, request):
         "missing": sum(1 for r in listed if r.state == MISSING),
         "upload_url": upload_url(procedure),
     }
+
+
+# --- Mosaicos del tablero (plan 017, T-329) ---------------------------------------------------
+
+
+def _short_regime(name):
+    """«Disposición AFIP 247/2022» -> «247/2022» (cabe en la cifra grande); sin número, el nombre."""
+    found = re.findall(r"\d[\d.]*/\d{2,4}", name)
+    return found[-1] if found else name
+
+
+def _rigen_tile(ctx):
+    counted = [item["row"] for item in ctx["rows"] if item["row"].state != NOT_APPLICABLE]
+    validated = sum(1 for r in counted if r.state == LOADED)
+    pieces = ["validadas"]
+    if ctx["unvalidated"]:
+        pieces.append(f"{ctx['unvalidated']} sin validar")
+    if ctx["missing"]:
+        pieces.append(f"{ctx['missing']} {'falta' if ctx['missing'] == 1 else 'faltan'}")
+    return Tile(key="rigen", title="Normas que rigen", detail="d-s5-rigen",
+                big=str(validated) if ctx["loaded"] else None, unit=f"de {len(counted)}",
+                sub=" · ".join(pieces), missing="Falta cargar las normas")
+
+
+def _citas_tile(ctx):
+    cited = ctx["citations"]
+    if not cited["total"]:
+        why = ("No se reconoció ninguna norma citada" if cited["text"]
+               else "Falta el encuadre legal del pliego")
+        return Tile(key="citas", title="Citas del pliego", detail="d-s5-rigen", width=2,
+                    missing=why)
+    shown = cited["items"][:5]
+    chart = charts.Bars(uid="s5-citas", title="Normas citadas por el pliego", maximum=1, rows=[
+        charts.BarRow(label=text, value=1 if there else 0, text="Cargada" if there else "Falta",
+                      tone="ink" if there else "nd") for text, there in shown])
+    more = cited["total"] - len(shown)
+    sub = f"{cited['loaded']} {'cargada' if cited['loaded'] == 1 else 'cargadas'} en el sistema"
+    if more > 0:
+        sub += f" · se muestran {len(shown)} de {cited['total']}"
+    return Tile(key="citas", title="Citas del pliego", detail="d-s5-rigen", width=2,
+                big=str(cited["total"]), unit="citadas" if cited["total"] != 1 else "citada",
+                sub=sub, chart=chart)
+
+
+def _regimen_tile(procedure, ctx):
+    names = ctx["regimes"]
+    when = f"{procedure.authorization_date:%d/%m/%Y}"
+    if not names:
+        return Tile(key="regimen", title="Régimen que rige", detail="d-s5-rigen",
+                    missing=f"Falta cargar la {_expected_regime(procedure.authorization_date)[2]}")
+    not_applying = [item["row"].name for item in ctx["rows"]
+                    if item["row"].state == NOT_APPLICABLE and not item["row"].amendment]
+    sub = f"Por la autorización del {when}"
+    if not_applying:
+        sub += f"; la {not_applying[0]} no aplica"
+    return Tile(key="regimen", title="Régimen que rige", detail="d-s5-rigen",
+                width=2 if len(names) > 1 else 1,
+                big=" y ".join(_short_regime(n) for n in names), unit="Disp.", sub=sub)
+
+
+def tiles(user, procedure, ctx):
+    """Normas que rigen, Citas del pliego y Régimen que rige. Los tres abren el parcial del tema
+    (`d-s5-rigen`). Sin normas cargadas dicen «Falta …» y no traen cifra (REQ-141)."""
+    if procedure is None or ctx is None:
+        return []
+    return [_rigen_tile(ctx), _citas_tile(ctx), _regimen_tile(procedure, ctx)]
