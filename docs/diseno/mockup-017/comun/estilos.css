@@ -286,3 +286,20 @@ svg.i{width:1rem;height:1rem;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .mark .m-negro{display:none}
 [data-theme="negro"] .mark .m-claro{display:none}
 [data-theme="negro"] .mark .m-negro{display:block}
+/* Ingreso: la foto es un fondo muy suave, casi etéreo, detrás de los datos principales
+   del procedimiento (decisión del 2026-10-21). Ocupa a lo sumo el 60 % del ancho. */
+.hero{position:relative;isolation:isolate;overflow:hidden;border-radius:var(--r);background:var(--tile);padding:2rem 2.25rem 1.75rem;margin-bottom:.75rem;min-height:17.5rem;display:flex;align-items:flex-end}
+.hero .photo-bg{position:absolute;top:0;right:0;bottom:0;width:60%;z-index:-1;-webkit-mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.55) 30%,#000 70%);mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.55) 30%,#000 70%)}
+.hero .photo-bg img{width:100%;height:100%;object-fit:cover;display:block;opacity:.4;filter:contrast(.82) brightness(1.06);mix-blend-mode:multiply}
+.hero .photo-bg img.enter{animation:ethereal-in 1.1s var(--e-out) both}
+@keyframes ethereal-in{from{opacity:0;transform:scale(1.04);filter:contrast(.82) brightness(1.06) blur(8px)}}
+[data-theme="negro"] .hero .photo-bg img{opacity:.36;filter:contrast(.95) brightness(1);mix-blend-mode:screen}
+.hero .who-photo{position:absolute;top:.875rem;right:1rem;font-size:.6875rem;color:var(--ink-2);background:color-mix(in srgb,var(--bg) 70%,transparent);padding:.1875rem .5rem;border-radius:999px}
+.hero-in{max-width:52rem}
+.hero h1{font-size:2.75rem}
+.hero .sub{color:var(--ink-2);margin-top:.5rem}
+.hero .nums{grid-template-columns:repeat(6,auto);gap:1.75rem;margin:1.5rem 0 1.25rem}
+.hero .nums .hl{font-size:1.5rem;padding:0 .5rem;border-radius:6px;font-weight:500;color:#171A20}
+@media (prefers-reduced-motion:reduce){.hero .photo-bg img.enter{animation:photo-fade .3s ease both}}
+@media (max-width:1100px){.hero .nums{grid-template-columns:repeat(3,auto)}.hero .photo-bg{width:100%}}
+@media (max-width:640px){.hero{padding:1.25rem}.hero h1{font-size:2rem}.hero .nums{grid-template-columns:repeat(2,auto)}}

@@ -133,7 +133,7 @@
   let lastPhoto = -1;
   const pool = () => fotos.length ? fotos.map(f => f[tono]) : [HOUSE[tono]];
   function pickPhoto() { const p = pool(); let k = Math.floor(Math.random() * p.length); if (p.length > 1 && k === lastPhoto) k = (k + 1) % p.length; lastPhoto = k; return { src: p[k], mine: fotos.length > 0 }; }
-  function showPhoto() { const box = $('.page.on .photo'); if (!box) return; const { src, mine } = pickPhoto(); const old = $('img', box); const img = new Image(); img.alt = ''; img.src = src; img.className = THUMB ? '' : 'enter'; img.onload = () => { if (old) old.remove(); box.prepend(img); }; $('.who-photo', box).textContent = mine ? 'Foto de su perfil' : 'Foto de la casa'; }
+  function showPhoto() { const hero = $('.page.on .hero'); if (!hero) return; const box = $('.photo-bg', hero); const { src, mine } = pickPhoto(); const old = $('img', box); const img = new Image(); img.alt = ''; img.src = src; img.className = THUMB ? '' : 'enter'; img.onload = () => { if (old) old.remove(); box.prepend(img); }; $('.who-photo', hero).textContent = mine ? 'Foto de su perfil' : 'Foto de la casa'; }
   // Normalización: mismo brillo, contraste, saturación y tono para todas (en 8000 se hace al subir, en el servidor)
   function normalize(file) {
     return new Promise((ok, fail) => {
@@ -176,12 +176,14 @@
   ];
   const SUBS = ['', 'La matriz la propone el sistema desde el pliego y sus circulares; cada versión la valida la Comisión.', 'Del acta de apertura del Portal; los documentos los sube la Comisión.', 'El sistema propone con su fundamento; la Comisión decide.', 'Rige la Disposición 247/2022 por la fecha de autorización.'];
   function ingreso() {
-    return `<div class="lead"><div class="photo"><span class="who-photo">Foto de la casa</span><div class="over"><div><small>Vence el mantenimiento de las ofertas</small><b>31 días</b><small>el 21/11/2026 · 60 días desde la apertura</small></div><span class="tag"><span data-total>10</span> pendientes</span></div></div>
-      <div class="summary"><h1>Alimento balanceado para perros</h1><p class="sub">Contratación Directa N.º 99/2026 · EX-2026-00000099-DEMO · rige la Disp. AFIP 247/2022</p><div class="nums"><div><b>${mill(EST)}</b><span>estimado</span></div><div><b>3</b><span>ofertas</span></div><div><b>76 %</b><span>avance</span></div></div><div class="acts">${ACT[0]}</div></div></div>
+    return `<section class="hero"><div class="photo-bg" aria-hidden="true"></div><span class="who-photo">Foto de la casa</span>
+      <div class="hero-in"><h1>Alimento balanceado para perros</h1><p class="sub">Contratación Directa N.º 99/2026 · Expediente EX-2026-00000099-DEMO · autorizada el 14/08/2026</p>
+      <div class="nums"><div><b>${mill(EST)}</b><span>monto estimado</span></div><div><b>3</b><span>ofertas</span></div><div><b>${mill(low.total)}</b><span>la más baja: ${low.short}</span></div><div><b>76 %</b><span>avance</span></div><div><b>31 días</b><span>vence el mantenimiento (21/11)</span></div><div><b><span class="hl" data-total>10</span></b><span>pendientes</span></div></div>
+      <div class="acts">${ACT[0]}</div></div></section>
       ${stateLine(0)}<div style="height:1rem"></div>
       <section class="run" hidden aria-live="polite"><div class="t">Evaluando las ofertas<small class="where">oferta 2 de 3 · requisito 14 de 23</small></div><div class="pct num">0 %</div><div class="meter"><i style="--p:0%"></i></div><ol></ol></section>
       ${todoBlock()}
-      ${board([['orden', 'w2'], ['plazos', 'w2'], ['masbaja', 'dark'], ['resultado', 'w2'], ['preguntas']])}`;
+      ${board([['orden', 'w2'], ['plazos', 'w2'], ['resultado', 'w2'], ['descartes'], ['preguntas']])}`;
   }
   const page = i => i === 0 ? ingreso() : `<header class="ph"><div><h1>${SECS[i][1]}</h1><p style="color:var(--ink-2);margin-top:.5rem;max-width:62ch">${SUBS[i]}</p>${stateLine(i)}</div><div class="acts">${ACT[i]}</div></header>${todoBlock(i)}${board(BOARDS[i])}`;
   function fotosPage() {

@@ -1693,7 +1693,7 @@ flowchart TD
 
 ## 017 · Tableros de primer nivel y estética nueva
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador, 3 dudas abiertas) · [carpeta](../specs/017-tableros-y-estetica)
+**Etapa actual:** 1 de 7 · Spec (spec en borrador) · [carpeta](../specs/017-tableros-y-estetica)
 
 ```mermaid
 flowchart LR
@@ -1707,7 +1707,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Resolver 3 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+- **Próximo paso:** Aprobar la spec (compuerta del responsable).
 
 ### Qué se hizo
 
@@ -1719,14 +1719,14 @@ flowchart LR
 |---|---|---|---|
 | REQ-126 | Cada una de las cinco secciones abre con un tablero de primer nivel: mosaicos con información agregada (cifras grandes y gráficos), cada uno con un detalle. | — | — |
 | REQ-127 | Al tocar un mosaico, su detalle se despliega debajo de la fila del mosaico, en la misma pantalla; al tocarlo de nuevo se pliega. Solo un detalle abierto a la vez. | — | — |
-| REQ-128 | El primer panel (sección Procedimiento) es el ingreso a lo importante de todo el procedimiento: la foto con datos, un resumen (objeto, número, expediente, régimen, monto estimado, cantidad de ofertas, avance), el pendiente general, el orden económico de las ofertas y los plazos importantes. `[A ACLARAR: «lo importante de todos» ¿es de las cinco secciones del procedimiento, o además una portada con todos los procedimientos?]` | — | — |
+| REQ-128 | El primer panel (sección Procedimiento) es el ingreso a lo importante del procedimiento: sus datos principales (objeto, número, expediente, fecha de autorización, monto estimado, cantidad de ofertas, la más baja, avance, días hasta el vencimiento del mantenimiento y cantidad de pendientes), el pendiente general, el orden económico de las ofertas y los plazos importantes. La normativa no aparece en el primer panel: actúa como soporte estático y se consulta en su sección. Es el ingreso de un procedimiento, no una portada de todos los procedimientos. | — | — |
 | REQ-129 | Hay un pendiente general en el primer panel, con todo lo que falta hacer en las cinco secciones, y un pendiente propio en cada sección. Cada pendiente dice qué falta, por qué importa, en qué sección está y tiene su acción a mano (aprobar, tomar del Portal, subir, responder, decidir). | — | — |
 | REQ-130 | El orden económico muestra las ofertas de menor a mayor total, el monto estimado y cuánto se aparta cada una de la más baja y del estimado. | — | — |
 | REQ-131 | Los plazos importantes muestran al menos la apertura, el día de hoy, el vencimiento del mantenimiento de las ofertas y el dictamen de la Comisión, con lo que ya pasó, lo de hoy y lo que viene. | — | — |
 | REQ-132 | Siempre se sabe el camino: un recorrido arriba (Procedimientos › procedimiento › sección) y, en cada sección, una línea con qué hay y qué falta completar. Las pestañas muestran cuántos pendientes tiene cada sección. | — | — |
 | REQ-133 | La estética sigue el modelo 2 de la ronda 3: negro, grises y blanco, verde lima solo para resaltar, cifras grandes, gráficos en colores levemente desaturados y pestañas en píldora. Los estados de cumplimiento siguen siendo íconos de color con forma propia y el nombre al pasar el mouse (guía visual, decisión del 2026-10-07). | — | — |
 | REQ-134 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda guardada en el perfil del usuario y vale en cualquier equipo. El tema de inicio es gris y blanco. | — | — |
-| REQ-135 | La foto del primer panel ocupa un 40 % menos que en el modelo 2 y lleva encima un dato del procedimiento (por ejemplo, los días que faltan para el vencimiento del mantenimiento de las ofertas y la cantidad de pendientes), para que no sea solo decorativa. `[A ACLARAR: ¿la foto va solo en el primer panel o también en las otras secciones?]` | — | — |
+| REQ-135 | La foto aparece solo en el primer panel, como fondo muy suave, casi etéreo, pero que se note, detrás de los datos principales del procedimiento. Ocupa a lo sumo el 60 % del ancho que ocupaba en el modelo 2 (un 40 % menos) y se funde con el fondo del panel. | — | — |
 | REQ-136 | Cada usuario tiene en su perfil «Mis fotos»: sube, ve y quita hasta 10 fotos. Si no tiene fotos propias, se muestra la foto de la casa. Las fotos quedan en el equipo, las ve solo su dueño y nunca van al repositorio ni a un servicio externo. | — | — |
 | REQ-137 | Al subir una foto, el sistema la ajusta para que todas tengan el mismo tono, saturación, temperatura, brillo y contraste: todas quedan en blanco y negro, con el mismo brillo medio y el mismo contraste que la foto de la casa. | — | — |
 | REQ-138 | La foto se elige al azar entre las del usuario y cambia solo al cambiar de pantalla, nunca mientras se está en ella. Entra con una animación sutil. | — | — |
@@ -1734,5 +1734,3 @@ flowchart LR
 | REQ-140 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su avance con la estética nueva: porcentaje, dónde va (por ejemplo, oferta 2 de 3, requisito 14 de 23) y los últimos pasos en lenguaje llano, en el primer panel y como indicador chico en el encabezado de todas las secciones. | — | — |
 | REQ-141 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente», nunca con un valor inventado. Toda propuesta del sistema sigue mostrando su fundamento (P3). | — | — |
 | REQ-142 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el efecto vidrio y el halo, recoloreados a la estética nueva: en el tema gris y blanco, la placa EVALU en negro y la de ON en verde lima; en el tema negro, la placa EVALU en gris y la de ON en verde lima. El encabezado muestra la versión del tema elegido y la pestaña del navegador lleva el isotipo. Archivos: `docs/diseno/marca/017/`. | — | — |
-| REQ-128 | ¿«Lo importante de todos» es de las cinco secciones, o además una portada con todos los procedimientos? | — | — |
-| REQ-135 | ¿La foto va solo en el primer panel o también en las otras secciones? | — | — |

@@ -3,7 +3,7 @@
 Estado: borrador · Fecha: 2026-10-21 · Aprobó: —
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
-> Cada duda se marca `[A ACLARAR: ...]`. Una spec con marcas pendientes no pasa la compuerta.
+> Las dudas se marcan como «a aclarar» hasta que el responsable las responde. Una spec con dudas pendientes no pasa la compuerta.
 
 ## Problema
 
@@ -23,6 +23,7 @@ Sin esto, la Comisión tiene que recorrer cada sección para saber qué hacer, y
 | 2026-10-21 | Elección y alcance | «El detalle Se despliega debajo del mosaico, Vamos a elegir default grafico del modelo la que tiene foto es decir el numero , pero la foto quisera que este mas chica 40 por ciento menos y que tenga algun dato arriba para que no quede solo decorativo. Quiero un pendiente de hacer general y despues uno en cada etapa. Un orden economico de las ofertas y plazos importantes. El primer panel sera como un ingreso a lo importante de todos. En el resto se pueden repetir o mostrar datos de la etapa. Elegido ya el formato de las pantallas, tendremos un pequeño selector en pantalla para pasar a Negro como el modelo 3 y a gris blanco como el modelo 1 . En todos los casos procura siempre que se sepa el camino, que hay y que falta hacer o completar. Cuando haya foto ingresaran con una sutil animacion y tendremos un pequeño crud para subir fotos que tomara al azar y solo cambian al cambiar de pantalla. todas las que subamos las transformaras para que tengan la misma tonalidad, saturacion, temperatura, brillo contraste etc para que no quede desfasada la imagen. podemos ponerlo como una opcion del perfil para tener un gesto amable con los usuarios que por ejemplo puedan usar el sistema con una foto de un ser querido. limite 10 cada uno . Cuando haya procesos ejecutando tareas largas tenes que dejar algo que marque avance acorde con la estetica . Vamos al desarrollo ! Alguna duda ?» |
 | 2026-10-21 | Marca | «Marca: mantenemos el logotipo aprobado el 13/10 (EVALU ON vidrio), recoloreado a negro, gris y lima.» |
 | 2026-10-21 | Tono de las fotos | «acepto recomendacion», sobre la recomendación del Coordinador: blanco y negro para todas las fotos. |
+| 2026-10-21 | Foto y primer panel | «si solo en la primer panel . la foto tiene que ser un fondo muy suave casi etereo pero que se note. si hay lugar principales datos de procedimiento. No de normativa esa actua como soporte estatico». Lectura del Coordinador, a confirmar al aprobar: el primer panel es el ingreso de un procedimiento (no una portada de todos), con sus datos principales sobre la foto y sin datos de normativa. |
 
 Referencias: maquetas de la exploración en `docs/diseno/exploracion-ui/` (ronda 3: modelos 1, 2 y 3) y maqueta de esta feature en `docs/diseno/mockup-017/index.html`, que reúne lo elegido.
 
@@ -44,14 +45,14 @@ Referencias: maquetas de la exploración en `docs/diseno/exploracion-ui/` (ronda
 |---|---|---|
 | REQ-126 | Cada una de las cinco secciones abre con un tablero de primer nivel: mosaicos con información agregada (cifras grandes y gráficos), cada uno con un detalle. | — |
 | REQ-127 | Al tocar un mosaico, su detalle se despliega debajo de la fila del mosaico, en la misma pantalla; al tocarlo de nuevo se pliega. Solo un detalle abierto a la vez. | — |
-| REQ-128 | El primer panel (sección Procedimiento) es el ingreso a lo importante de todo el procedimiento: la foto con datos, un resumen (objeto, número, expediente, régimen, monto estimado, cantidad de ofertas, avance), el pendiente general, el orden económico de las ofertas y los plazos importantes. `[A ACLARAR: «lo importante de todos» ¿es de las cinco secciones del procedimiento, o además una portada con todos los procedimientos?]` | — |
+| REQ-128 | El primer panel (sección Procedimiento) es el ingreso a lo importante del procedimiento: sus datos principales (objeto, número, expediente, fecha de autorización, monto estimado, cantidad de ofertas, la más baja, avance, días hasta el vencimiento del mantenimiento y cantidad de pendientes), el pendiente general, el orden económico de las ofertas y los plazos importantes. La normativa no aparece en el primer panel: actúa como soporte estático y se consulta en su sección. Es el ingreso de un procedimiento, no una portada de todos los procedimientos. | — |
 | REQ-129 | Hay un pendiente general en el primer panel, con todo lo que falta hacer en las cinco secciones, y un pendiente propio en cada sección. Cada pendiente dice qué falta, por qué importa, en qué sección está y tiene su acción a mano (aprobar, tomar del Portal, subir, responder, decidir). | — |
 | REQ-130 | El orden económico muestra las ofertas de menor a mayor total, el monto estimado y cuánto se aparta cada una de la más baja y del estimado. | Pliego del procedimiento |
 | REQ-131 | Los plazos importantes muestran al menos la apertura, el día de hoy, el vencimiento del mantenimiento de las ofertas y el dictamen de la Comisión, con lo que ya pasó, lo de hoy y lo que viene. | Pliego del procedimiento (plazo de mantenimiento) |
 | REQ-132 | Siempre se sabe el camino: un recorrido arriba (Procedimientos › procedimiento › sección) y, en cada sección, una línea con qué hay y qué falta completar. Las pestañas muestran cuántos pendientes tiene cada sección. | — |
 | REQ-133 | La estética sigue el modelo 2 de la ronda 3: negro, grises y blanco, verde lima solo para resaltar, cifras grandes, gráficos en colores levemente desaturados y pestañas en píldora. Los estados de cumplimiento siguen siendo íconos de color con forma propia y el nombre al pasar el mouse (guía visual, decisión del 2026-10-07). | — |
 | REQ-134 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda guardada en el perfil del usuario y vale en cualquier equipo. El tema de inicio es gris y blanco. | — |
-| REQ-135 | La foto del primer panel ocupa un 40 % menos que en el modelo 2 y lleva encima un dato del procedimiento (por ejemplo, los días que faltan para el vencimiento del mantenimiento de las ofertas y la cantidad de pendientes), para que no sea solo decorativa. `[A ACLARAR: ¿la foto va solo en el primer panel o también en las otras secciones?]` | — |
+| REQ-135 | La foto aparece solo en el primer panel, como fondo muy suave, casi etéreo, pero que se note, detrás de los datos principales del procedimiento. Ocupa a lo sumo el 60 % del ancho que ocupaba en el modelo 2 (un 40 % menos) y se funde con el fondo del panel. | — |
 | REQ-136 | Cada usuario tiene en su perfil «Mis fotos»: sube, ve y quita hasta 10 fotos. Si no tiene fotos propias, se muestra la foto de la casa. Las fotos quedan en el equipo, las ve solo su dueño y nunca van al repositorio ni a un servicio externo. | P4, P5 (constitución) |
 | REQ-137 | Al subir una foto, el sistema la ajusta para que todas tengan el mismo tono, saturación, temperatura, brillo y contraste: todas quedan en blanco y negro, con el mismo brillo medio y el mismo contraste que la foto de la casa. | — |
 | REQ-138 | La foto se elige al azar entre las del usuario y cambia solo al cambiar de pantalla, nunca mientras se está en ella. Entra con una animación sutil. | — |
@@ -68,14 +69,14 @@ Criterio numérico de la feature (ADR-0025): en los dos temas, el 100 % de los p
 
 - **REQ-126.** Dado un procedimiento con sus cinco secciones cargadas, cuando entro a cualquier sección, entonces lo primero que veo es su tablero de mosaicos, y cada mosaico abre un detalle.
 - **REQ-127.** Dado el tablero de Ofertas, cuando toco «Ofertas del acta», entonces la comparación de las tres ofertas se despliega debajo de esa fila en 0,4 segundos o menos; cuando toco otro mosaico, el primero se pliega.
-- **REQ-128.** Dado el caso de muestra, cuando abro el procedimiento, entonces veo en el primer panel la foto con datos, el resumen, el pendiente general, el orden económico y los plazos, sin desplazarme más de dos pantallas en un monitor de 1440 × 900.
+- **REQ-128.** Dado el caso de muestra, cuando abro el procedimiento, entonces veo en el primer panel los datos principales sobre la foto, el pendiente general, el orden económico y los plazos, sin desplazarme más de dos pantallas en un monitor de 1440 × 900, y ningún dato de normativa.
 - **REQ-129.** Dado un pendiente «Aprobar el dictamen publicado en el Portal», cuando lo apruebo desde el pendiente general, entonces desaparece del pendiente general y del de Evaluación, el contador de la pestaña baja en uno y queda registrado quién lo aprobó y cuándo.
 - **REQ-130.** Dadas tres ofertas, cuando miro el orden económico, entonces están de menor a mayor, la más baja resaltada, y cada una muestra su diferencia porcentual con el estimado y con la más baja.
 - **REQ-131.** Dada una apertura del 22/09/2026 y un mantenimiento de 60 días, cuando miro los plazos el 21/10/2026, entonces veo «21/11 · vence el mantenimiento de las ofertas» y «faltan 31 días».
 - **REQ-132.** Dada cualquier pantalla, cuando la miro, entonces veo el recorrido (Procedimientos › procedimiento › sección) y la línea «Hay: … · Falta: …» de esa sección.
 - **REQ-133.** Dada la guía visual nueva, cuando reviso las cinco secciones en los dos temas, entonces el verde lima solo aparece en resaltados (pestaña activa, contadores, avance, lo más bajo, acción principal en negro) y los íconos de estado conservan su forma y su nombre al pasar el mouse.
 - **REQ-134.** Dado que elegí negro en un equipo, cuando entro desde otro equipo con mi usuario, entonces la pantalla abre en negro.
-- **REQ-135.** Dado el primer panel, cuando lo miro, entonces la foto ocupa como máximo el 60 % del ancho que ocupaba en el modelo 2 y muestra encima al menos un dato del procedimiento.
+- **REQ-135.** Dado el primer panel, cuando lo miro, entonces la foto se ve detrás de los datos principales, ocupa como máximo el 60 % del ancho del panel, y todos los datos encima de ella se leen con contraste de 4,5:1 o más en los dos temas; en las otras secciones no hay foto.
 - **REQ-136.** Dado un usuario con 10 fotos, cuando intenta subir otra, entonces el sistema le pide quitar una antes; y ningún otro usuario ve sus fotos.
 - **REQ-137.** Dadas dos fotos muy distintas (una oscura y saturada, otra clara y fría), cuando las subo, entonces las dos quedan en blanco y negro y su brillo medio y contraste difieren en 10 % o menos.
 - **REQ-138.** Dado un usuario con 3 fotos, cuando paso de una sección a otra y vuelvo al primer panel, entonces la foto puede cambiar; si me quedo en la misma pantalla, no cambia.
@@ -107,7 +108,4 @@ Criterio numérico de la feature (ADR-0025): en los dos temas, el 100 % de los p
 
 ## Preguntas abiertas
 
-| Marca | Pregunta | Responde |
-|---|---|---|
-| REQ-128 | ¿«Lo importante de todos» es de las cinco secciones, o además una portada con todos los procedimientos? | Responsable |
-| REQ-135 | ¿La foto va solo en el primer panel o también en las otras secciones? | Responsable |
+Ninguna. Las cuatro dudas se respondieron el 2026-10-21 (ver «Decisiones del responsable»).
