@@ -646,14 +646,13 @@ def _tile_acta(view):
                 chart=_acta_chart(view))
 
 
-def _extreme(view, row, key, title, tone, other):
+def _extreme(view, row, key, title, tone):
     """«La más baja» o «La más alta»: la cifra si existe, o lo que falta."""
     if row is not None:
         number, unit = _short(row.amount)
         symbol = row.amount_text.rsplit(" ", 1)[0] if " " in row.amount_text else ""
-        sub = f"{row.name} · {row.offer.bidder} · {row.amount_text}"
-        if other is not None:
-            sub += f" · la {'más alta' if key == 'baja' else 'más baja'} es {other.name}"
+        # Espacio fijo en el monto: «$» y la cifra no se separan al cortar la línea.
+        sub = f"{row.name} · {row.offer.bidder} · {row.amount_text.replace(' ', chr(160))}"
         return Tile(key=key, title=title, detail=DETAIL_ORDER, tone=tone,
                     big=f"{symbol} {number}".strip(), unit=unit, sub=sub)
     if view.state != economico.STATE_ORDERED:
@@ -688,8 +687,8 @@ def tiles(user, procedure, ctx):
     «Orden económico». Lo que el sistema no tiene se dice (REQ-141)."""
     view = _economic(procedure)
     return [_tile_acta(view),
-            _extreme(view, view.low, "baja", "La más baja", "dark", view.high),
-            _extreme(view, view.high, "alta", "La más alta", "", view.low),
+            _extreme(view, view.low, "baja", "La más baja", "dark"),
+            _extreme(view, view.high, "alta", "La más alta", ""),
             _tile_orden(view)]
 
 
