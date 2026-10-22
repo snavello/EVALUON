@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from evaluon.journey.progress import format_elapsed, progress_of
-from evaluon.tenders.models import Job, JobStatus
+from evaluon.tenders.models import Job, JobKind, JobStatus
 
 ACTIVE = (JobStatus.QUEUED, JobStatus.RUNNING)
 
@@ -23,6 +23,17 @@ STATES = {
     "failed": "Falló",
 }
 
+
+# Cuántos pasos recientes muestra el panel (el avance trae hasta 8).
+PANEL_STEPS = 3
+
+# Los pedidos que informan un total y por eso muestran porcentaje (REQ-140, D-10): evaluar ofertas
+# (ofertas y, dentro de la oferta en curso, requisitos) y armar una ficha (requisitos). Matriz,
+# lectura de documentos y Portal no saben cuánto falta: muestran paso, tiempo y barra sin valor.
+WITH_PERCENT = (JobKind.EVALUATE_OFFERS, JobKind.BUILD_SHEET)
+
+# Cuenta de ofertas que la evaluación anota al empezar cada una; no es el avance de requisitos.
+OFFER_START = "Empezando la oferta"
 
 # Un pedido terminado o fallido se muestra completo este tiempo; después, una sola línea.
 FULL_FOR = timedelta(hours=24)
@@ -89,6 +100,36 @@ def _count(label_done, label_total, done, total):
             "text": f"{label_done} {done} de {total}", "left_text": f"{label_total}: {left}"}
 
 
+def overall_percent(kind, state, main, detail):
+    """El porcentaje global del pedido, o `None` si no se sabe (REQ-140; plan 017, D-10).
+
+    Evaluar ofertas: `(ofertas hechas + requisitos hechos / requisitos de la oferta en curso) /
+    ofertas`. Armar una ficha: requisitos hechos sobre requisitos. Con otros tipos de pedido, o en
+    espera, no hay porcentaje: no se inventa (REQ-141). Mientras corre (o si falló) el tope es 99:
+    el 100 es solo de un pedido terminado con todo hecho."""
+    if kind not in WITH_PERCENT or state == "waiting" or not main or not main.get("total"):
+        return None
+    done, total = main["done"], main["total"]
+    if state == "done":
+        return 100 if done >= total else None
+    fraction = 0.0
+    if kind == JobKind.EVALUATE_OFFERS and detail and detail.get("total"):
+        fraction = min(1.0, detail["done"] / detail["total"])
+    return min(99, round(100 * (done + fraction) / total))
+
+
+def _where(kind, state, main, detail):
+    """«oferta 2 de 3 · requisito 14 de 23»: dónde va un pedido que informa un total."""
+    if kind not in WITH_PERCENT or state not in ("running", "failed") or not main:
+        return ""
+    if kind == JobKind.BUILD_SHEET:
+        return f"requisito {main['done']} de {main['total']}"
+    where = f"oferta {min(main['done'] + 1, main['total'])} de {main['total']}"
+    if detail:
+        where += f" · requisito {detail['done']} de {detail['total']}"
+    return where
+
+
 def window_for(procedure, now=None):
     """Los datos del panel o `None` si el procedimiento nunca tuvo un pedido."""
     job = _job_of(procedure)
@@ -127,6 +168,12 @@ def window_for(procedure, now=None):
         main["text"] = f"{data['done']} de {data['total']}"
         main["left_text"] = f"Falta: {main['left']}"
 
+    # Al empezar una oferta, la evaluación anota la cuenta de ofertas como «detalle»: no es el
+    # avance de requisitos de esa oferta y no se muestra ni se suma como tal.
+    if detail and OFFER_START in data["step"]:
+        detail = None
+    percent = overall_percent(job.kind, state, main, detail)
+
     if state == "done":
         summary = f"Terminó en {elapsed}."
         if main:
@@ -139,6 +186,9 @@ def window_for(procedure, now=None):
     return {
         "state": state, "state_label": STATES[state], "task": data["task"],
         "step": data["step"], "elapsed": elapsed, "main": main, "detail": detail,
-        "steps": _steps(data["recent"], now), "summary": summary,
+        "steps": _steps(data["recent"], now)[:PANEL_STEPS], "summary": summary,
+        "kind": job.kind, "overall_percent": percent,
+        "indeterminate": state in ("waiting", "running") and percent is None,
+        "where": _where(job.kind, state, main, detail),
         "job_id": job.pk, "active": state in ("waiting", "running"),
     }

@@ -18,6 +18,7 @@ conviene que la Comisión la vuelva a chequear y el enlace a la imagen, como en 
 Las citas de todas las celdas se traen juntas, sin una consulta por celda (T-223).
 """
 
+import dataclasses
 from dataclasses import dataclass, field
 
 from django.http import Http404
@@ -28,7 +29,7 @@ from django.views.decorators.http import require_GET
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.assessment import not_applicable
-from evaluon.assessment.models import Decision, Outcome, Result
+from evaluon.assessment.models import Decision, Doubt, Outcome, Result
 from evaluon.assessment.services import evaluate, external_stages, review
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
@@ -37,6 +38,8 @@ from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import evaluacion as evaluation_stage
 from evaluon.journey.stages import stage_of
+from evaluon.journey.tablero import charts
+from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.window import plain_reason
 from evaluon.tenders.models import RequirementClass
@@ -194,6 +197,21 @@ def _technical_cells(page):
 # --- Estado y lista de pendientes ----------------------------------------------------------------
 
 
+# Por qué importa cada pendiente (REQ-129; T-318 suma `Item.why`). Lo escribe el tema y no inventa
+# nada del caso: dice qué es el renglón y qué pasa si se lo deja.
+WHY_PAIR = ("Es una propuesta del sistema: no vale como resultado hasta que un evaluador la "
+            "confirme, la corrija o la rechace.")
+WHY_QUESTION = ("El sistema no pudo concluir este requisito y pide una respuesta de la Comisión; "
+                "mientras no se responda, el par sigue abierto.")
+
+
+def _with_why(why, **fields):
+    """Un `Item` con su `why`, si `Item` ya tiene el campo (lo suma T-318); si no, sin él."""
+    if "why" in {f.name for f in dataclasses.fields(Item)}:
+        fields["why"] = why
+    return Item(**fields)
+
+
 def _items(page, procedure):
     """Cada cosa que la Comisión debe decidir en esta pestaña, con su ancla (y ninguna sugerencia:
     el descarte propuesto es decisión de la Comisión y lo lista `s4_descartes`, T-210). Los oks
@@ -208,17 +226,21 @@ def _items(page, procedure):
             cell = page.cells[(offer.pk, requirement.pk)]
             if (cell.state == matrix_service.PENDING
                     and (offer.pk, requirement.pk) not in technical):
-                pending.append(Item(
-                    f"Oferta {offer.number} · requisito {requirement.number}: "
-                    f"{cell.effective_label.lower()} propuesto, sin decidir",
-                    f"{base}#ev-{requirement.number}", 1, "Resolver", kind="par",
-                    noun="pares por decidir", group_url=f"{base}?ver=sin-decidir#s4-propuesta",
+                pending.append(_with_why(
+                    WHY_PAIR,
+                    text=(f"Oferta {offer.number} · requisito {requirement.number}: "
+                          f"{cell.effective_label.lower()} propuesto, sin decidir"),
+                    url=f"{base}#ev-{requirement.number}", count=1, action="Resolver",
+                    kind="par", noun="pares por decidir",
+                    group_url=f"{base}?ver=sin-decidir#s4-propuesta",
                     points=tuple(point_map.get(requirement.pk, ()))))
     for status in page.statuses:
         for question in status.open_questions:
-            pending.append(Item(
-                f"Oferta {status.offer.number} · requisito {question.requirement.number}: "
-                "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver",
+            pending.append(_with_why(
+                WHY_QUESTION,
+                text=(f"Oferta {status.offer.number} · requisito "
+                      f"{question.requirement.number}: pregunta abierta"),
+                url=f"{base}#preg-{question.pk}", count=1, action="Resolver",
                 kind="pregunta", noun="preguntas abiertas",
                 group_url=f"{base}?preg=abiertas#s4-preguntas", group_action="Responder",
                 points=tuple(point_map.get(question.requirement_id, ()))))
@@ -438,6 +460,8 @@ def context(user, procedure, request):
         "ofertas_url": reverse("expedientes:ofertas", args=[procedure.pk]),
         "is_evaluator": getattr(user, "commission_role", "") == CommissionRole.EVALUATOR,
         "groups": [], "shown": 0, "total": 0, "kind": "", "show": "",
+        # Las cifras del tablero salen de la misma matriz, una sola vez por pedido (T-327).
+        "tablero": figures_of(page) if evaluated else None,
         **_externals(page),
     }
     if not evaluated or not page.requirements:
@@ -451,6 +475,180 @@ def context(user, procedure, request):
         "undetermined": sum(1 for row in rows for c in row.cells
                             if c.cell.effective_outcome == Outcome.NO_DETERMINADO),
     }
+
+
+# --- El tablero: cifras y mosaicos (REQ-126, REQ-141; T-327) ---------------------------------------
+
+DETAIL = detail_id(KEY)
+MISSING = "Pendiente"
+CLASS_LABELS = {RequirementClass.FORMAL: "Formales", RequirementClass.ECONOMICO: "Económicos",
+                RequirementClass.TECNICO: "Técnicos"}
+
+
+@dataclass(frozen=True)
+class OfferFigures:
+    """Cuántos requisitos de la oferta están en cada estado. `ok + no + nd + pe + na` es la
+    cantidad de requisitos de la matriz; `na` (no aplica) no entra en ningún total."""
+
+    number: int
+    ok: int = 0
+    no: int = 0
+    nd: int = 0
+    pe: int = 0
+    na: int = 0
+
+    @property
+    def label(self):
+        return f"Of. {self.number}"
+
+
+@dataclass(frozen=True)
+class Figures:
+    """Las cifras del tablero de la propuesta. Solo de las celdas guardadas (P3): las ofertas con
+    evaluación, su cuenta por estado y el cumplimiento por clase de requisito."""
+
+    offers: tuple  # OfferFigures de las ofertas con evaluación, en el orden de la matriz
+    unevaluated: tuple  # números de las ofertas sin evaluación
+    total_offers: int
+    requirements: int
+    version: int
+    heat: tuple  # (clase, (cumplen, total) o None por cada oferta evaluada)
+
+    @property
+    def no(self):
+        return sum(o.no for o in self.offers)
+
+    @property
+    def nd(self):
+        return sum(o.nd for o in self.offers)
+
+    @property
+    def na(self):
+        return sum(o.na for o in self.offers)
+
+
+def _bucket(cell):
+    """En qué estado cuenta una celda: `ok`, `no`, `nd`, `pe` o `na`. Es la misma lectura que hace
+    la tabla de la propuesta (`_cell_views`): sin resultado, rechazada o a la espera del informe
+    técnico es pendiente; un requisito que no aplica nunca es «cumple» (T-240)."""
+    if cell.result is None or cell.effective_outcome is None:
+        return "pe"
+    if cell.effective_key == not_applicable.KEY:
+        return "na"
+    if cell.reason == Doubt.PENDIENTE_INFORME_TECNICO:
+        return "pe"
+    if cell.effective_outcome == Outcome.CUMPLE:
+        return "ok"
+    if cell.effective_outcome in (Outcome.NO_CUMPLE, Outcome.SIN_DOCUMENTO):
+        return "no"
+    return "nd"
+
+
+def _offer_figures(status, requirements):
+    """La cuenta de una oferta desde `by_outcome` y `by_reason` de la matriz (ADR-0039): lo que no
+    tiene resultado vigente, o espera el informe técnico, es pendiente."""
+    by = status.by_outcome
+    waiting = status.by_reason.get(Doubt.PENDIENTE_INFORME_TECNICO, 0)
+    return OfferFigures(
+        number=status.offer.number, ok=by.get(Outcome.CUMPLE, 0),
+        no=by.get(Outcome.NO_CUMPLE, 0) + by.get(Outcome.SIN_DOCUMENTO, 0),
+        nd=by.get(Outcome.NO_DETERMINADO, 0) - waiting,
+        pe=requirements - sum(by.values()) + waiting, na=by.get(not_applicable.KEY, 0))
+
+
+def figures_of(page):
+    """Las cifras del tablero desde la matriz del pedido, o `None` si no hay evaluación (o no hay
+    requisitos): entonces cada mosaico dice «Pendiente» y no muestra valor (REQ-141)."""
+    evaluated = [s for s in page.statuses if s.evaluated]
+    if not evaluated or not page.requirements:
+        return None
+    heat = []
+    for category in TYPE_ORDER:
+        mine = [r for r in page.requirements if r.category == category]
+        if not mine:
+            continue
+        row = []
+        for status in evaluated:
+            buckets = [_bucket(page.cells[(status.offer.pk, r.pk)]) for r in mine]
+            applicable = [b for b in buckets if b != "na"]
+            row.append((applicable.count("ok"), len(applicable)) if applicable else None)
+        heat.append((category, tuple(row)))
+    return Figures(
+        offers=tuple(_offer_figures(s, len(page.requirements)) for s in evaluated),
+        unevaluated=tuple(s.offer.number for s in page.statuses if not s.evaluated),
+        total_offers=len(page.offers), requirements=len(page.requirements),
+        version=page.version.number if page.version else 0, heat=tuple(heat))
+
+
+def _plural(n, one, many):
+    return f"{n} {one if n == 1 else many}"
+
+
+def tiles(user, procedure, ctx):
+    """Resultado por oferta, No cumple, No determinado y Cumplimiento por tipo; los cuatro abren
+    el detalle de la propuesta (con su fundamento y su cita). Sin evaluación cada uno dice
+    «Pendiente» y no dibuja cifra ni gráfico. Reusa las cifras que calculó `context()`; solo si no
+    vienen (otro llamador) las arma de la matriz."""
+    if ctx is not None and "tablero" in ctx:
+        fig = ctx["tablero"]
+    else:
+        fig = figures_of(memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN))
+    if fig is None:
+        return [Tile(key=key, title=title, detail=DETAIL, width=width, missing=MISSING)
+                for key, title, width in (
+                    ("resultado", "Resultado por oferta", 2), ("nocumple", "No cumple", 1),
+                    ("nodeterminado", "No determinado", 1),
+                    ("tipo", "Cumplimiento por tipo y oferta", 2))]
+    evaluated = len(fig.offers)
+    sub = ("Requisitos que cumple cada una, según el resultado vigente. «Sin resultado»: "
+           "requisitos sin resultado vigente o a la espera del informe técnico.")
+    if fig.unevaluated:
+        word = "oferta" if len(fig.unevaluated) == 1 else "ofertas"
+        sub += f" Sin evaluar: {word} {', '.join(str(n) for n in fig.unevaluated)}."
+    if fig.na:
+        sub += (f" {fig.na} no aplica y no se cuenta." if fig.na == 1
+                else f" {fig.na} no aplican y no se cuentan.")
+    scope = f"en {_plural(evaluated, 'oferta evaluada', 'ofertas evaluadas')}"
+    donuts = charts.Donuts(
+        uid="s4-resultado", title="Resultado por oferta",
+        items=[charts.DonutItem(o.label, ok=o.ok, no=o.no, nd=o.nd, pe=o.pe) for o in fig.offers])
+    heat = charts.Heat(
+        uid="s4-tipo", title="Cumplimiento por tipo y oferta",
+        columns=[o.label for o in fig.offers],
+        rows=[charts.HeatRow(CLASS_LABELS[category], [
+            None if cell is None else charts.HeatCell(cell[0], cell[1]) for cell in cells])
+            for category, cells in fig.heat])
+    unit = ("de 1 oferta evaluada" if fig.total_offers == 1
+            else f"de {fig.total_offers} ofertas evaluadas")
+    return [
+        Tile(key="resultado", title="Resultado por oferta", detail=DETAIL, width=2,
+             big=evaluated, unit=unit, sub=sub, chart=donuts, missing=MISSING),
+        Tile(key="nocumple", title="No cumple", detail=DETAIL, big=fig.no,
+             unit=requirements_word(fig.no),
+             sub=f"Pares requisito-oferta que no cumplen {scope}", missing=MISSING),
+        Tile(key="nodeterminado", title="No determinado", detail=DETAIL, big=fig.nd,
+             unit=requirements_word(fig.nd),
+             sub=f"Pares que el sistema no pudo concluir {scope}; los resuelve la Comisión",
+             missing=MISSING),
+        Tile(key="tipo", title="Cumplimiento por tipo y oferta", detail=DETAIL, width=2,
+             big=fig.requirements, unit=requirements_word(fig.requirements),
+             sub=f"Cumplen / total, por tipo y oferta · matriz versión {fig.version}",
+             chart=heat, missing=MISSING),
+    ]
+
+
+def requirements_word(count):
+    """«requisito» con la cifra 1 y «requisitos» con cualquier otra."""
+    return "requisito" if count == 1 else "requisitos"
+
+
+def opens(request):
+    """Los filtros de la tabla de la propuesta (`?ver=`, `?tipo=`) abren su detalle. Un valor
+    desconocido se ignora, igual que en la tabla (`_select`)."""
+    show, kind = request.GET.get("ver", ""), request.GET.get("tipo", "")
+    if (show and show in dict(SHOW_OPTIONS)) or (kind and kind in dict(TYPE_OPTIONS)):
+        return DETAIL
+    return None
 
 
 # --- Detalle de un par, dentro de la pestaña ------------------------------------------------------

@@ -1,6 +1,3 @@
-{% comment %}Encabezado y fila de las cinco pestañas (maqueta aprobada de la 014).{% endcomment %}{% include "journey/_cabecera.html" %}
-<nav class="tabs" aria-label="Secciones del procedimiento"><div class="wrap">
-  {% if procedure %}<div id="barra-secciones" data-poll-url="{{ bar_url }}?activa={{ active }}" data-login-url="{{ login_url }}">{% include "journey/_barra.html" %}</div>{% else %}<div id="barra-secciones">{% include "journey/_barra_nueva.html" %}</div>{% endif %}
-  <p id="journey-status" class="journey-status sr-only" role="status" aria-live="polite"></p>
-  <p id="journey-connection" class="journey-connection" role="status" hidden></p>
-</div></nav>
+{% comment %}Encabezado con las cinco pestañas (maqueta aprobada de la 017): es el encabezado único de `_cabecera.html` con la fila de pestañas en el centro. El indicador de avance (T-312) va debajo, con el sondeo de `recorrido.js`. Recibe lo que arman `shell()` (procedimiento) y las vistas de alta y de normativas generales (sin procedimiento).{% endcomment %}{% load static %}{% include "journey/_cabecera.html" with con_pestanas=True %}{% if procedure %}
+<link rel="stylesheet" href="{% static 'journey/camino.css' %}">
+<div id="avance-encabezado" class="avance-enc" data-poll-url="{% url 'expedientes:avance' procedure.pk %}" data-login-url="{% url 'accounts:login' %}">{% include "journey/_avance_encabezado.html" %}</div>{% endif %}

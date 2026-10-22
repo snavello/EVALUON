@@ -1,1 +1,59 @@
-/* Estilos propios de la sección 5 (T-192). Usa los tokens de la guía visual; sin recursos externos. */
+/* Sección 5, Normativas, con la estética nueva (plan 017, T-329; REQ-126, REQ-133). Los tres temas
+   (normas que rigen, consulta y normas cargadas) se dibujan dentro del detalle de un mosaico
+   (`.dt`, sobre `--tile`): sus bloques pierden el borde y el fondo propios para no quedar como una
+   tarjeta dentro de otra. Solo tokens de `diseno/tokens.css`, sin colores sueltos ni recursos
+   externos (P4). `--ink-3` no va sobre `--tile-h`. La página general usa las mismas reglas. */
+
+.seccion-normativas .dt .bloque {
+  background: transparent; border: 0; box-shadow: none; border-radius: 0; padding: 0; margin: 0 0 1.75rem;
+}
+.seccion-normativas .dt .bloque:last-child { margin-bottom: 0; }
+.seccion-normativas .dt .bloque-cab { margin-bottom: .5rem; }
+.seccion-normativas .dt .bloque-cab h3 {
+  font-family: var(--f); font-weight: 500; font-size: 1.125rem; letter-spacing: -.01em; line-height: 1.2; margin: 0;
+}
+.seccion-normativas .dt .bloque-cab .linea-portal, .seccion-normativas .dt .bloque-cab .num,
+.seccion-normativas .dt .bloque-cab h3 .cta {
+  font-family: var(--f); color: var(--ink-2); font-size: .8125rem; font-weight: 400; letter-spacing: 0;
+}
+.seccion-normativas .dt .resumen-linea, .seccion-normativas .dt .ayuda, .seccion-normativas .dt .suave,
+.seccion-normativas .dt .chica { color: var(--ink-2); }
+.seccion-normativas .dt .resumen-linea b { color: var(--ink); font-weight: 600; }
+.seccion-normativas .dt a { color: var(--ink); text-underline-offset: 3px; }
+.seccion-normativas .dt .bloque-pie { border-top: 1px solid var(--line); color: var(--ink-2); }
+
+/* Tablas: encabezado discreto y líneas finas, como las del tablero */
+.seccion-normativas .dt .tabla-scroll { background: transparent; border: 0; border-radius: 0; }
+.seccion-normativas .dt table.matriz { font-size: .875rem; }
+.seccion-normativas .dt .matriz th, .seccion-normativas .dt .matriz td { padding: .625rem; border-bottom: 1px solid var(--line); }
+.seccion-normativas .dt .matriz thead th {
+  position: static; background: transparent; font-family: var(--f); font-weight: 500; font-size: .75rem;
+  letter-spacing: 0; text-transform: none; color: var(--ink-2);
+}
+.seccion-normativas .dt .matriz tbody tr:nth-child(even) { background: transparent; }
+.seccion-normativas .dt .matriz tbody tr:last-child th, .seccion-normativas .dt .matriz tbody tr:last-child td { border-bottom: 0; }
+@media (hover: hover) { .seccion-normativas .dt .matriz tbody tr:hover { background: var(--tile-h); } }
+
+/* Botones: cuadrados de 4 px; la acción principal en negro (en el tema negro, lima) */
+.seccion-normativas .btn, .seccion-normativas .dt .btn {
+  font: 500 .875rem/1 var(--f); padding: .6875rem 1.125rem; border-radius: 4px; border: 0;
+  background: var(--bg); color: var(--ink);
+}
+.seccion-normativas .btn.primario, .seccion-normativas a.btn.primario { background: var(--btn); color: var(--on-btn); }
+.seccion-normativas .btn.secundario { background: var(--bg); color: var(--ink); }
+.seccion-normativas .btn:disabled { opacity: .45; cursor: not-allowed; }
+@media (hover: hover) { .seccion-normativas .btn.primario:hover { background: var(--btn-h); } }
+.seccion-normativas .encab-parte .btn { border: 1px solid var(--ink-3); background: transparent; color: var(--ink); }
+.seccion-normativas .encab-parte .btn.primario { border: 0; background: var(--btn); color: var(--on-btn); }
+
+/* Página general: los pendientes y las sugerencias pasan a superficie, sin borde ni sombra */
+.seccion-normativas-general .panel {
+  background: var(--tile); border: 0; box-shadow: none; border-radius: var(--r); padding: 1.375rem 1.5rem;
+}
+.seccion-normativas-general .panel h3 { font-family: var(--f); font-weight: 400; font-size: 1.25rem; letter-spacing: -.02em; }
+.seccion-normativas-general .panel h3 .cta {
+  font-family: var(--f); font-size: .75rem; font-weight: 600; letter-spacing: 0; color: var(--on-lime);
+  background: var(--lime); border-radius: 999px; padding: .125rem .5rem; margin-left: .5rem; font-variant-numeric: tabular-nums;
+}
+.seccion-normativas-general .panel .suave, .seccion-normativas-general .resumen-linea { color: var(--ink-2); }
+.seccion-normativas-general a { color: var(--ink); text-underline-offset: 3px; }

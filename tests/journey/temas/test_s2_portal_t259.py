@@ -60,10 +60,10 @@ def test_documents_the_portal_could_not_serve_are_missing_with_their_reason(
 
 
 def test_the_cover_shows_them_under_what_is_missing(client, procedure, explored, operator_user):
-    """REQ-104 (T-259, H7): la portada los cuenta en «Falta» de «Pliego y matriz», no
+    """REQ-104 (T-259, H7): la sección los cuenta en «Falta» de «Pliego y matriz», no
     «Nada»."""
     assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    html = client.get(reverse("expedientes:portada", args=[procedure.pk])).content.decode()
+    html = client.get(reverse("expedientes:pliego", args=[procedure.pk])).content.decode()
     assert GENERAL in html and "no se pudo bajar" in html
 
 

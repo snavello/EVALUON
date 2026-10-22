@@ -39,6 +39,7 @@ from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
 from evaluon.journey import basis, memo
 from evaluon.journey.sections.base import Item, TemaStatus
+from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.journey.temas import s1_datos
 from evaluon.journey.temas import s4_propuesta_acciones as base
 from evaluon.journey.temas.s4_propuesta import _excerpt, when
@@ -175,6 +176,11 @@ def _decided(decision):
 
 # --- Estado y pendientes --------------------------------------------------------------------------
 
+# Por qué importa cada descarte por decidir (REQ-129, T-328). Dice lo que el sistema hace y no
+# hace: no inventa nada del caso.
+WHY_DISCARD = ("El sistema lo propone con su fundamento; solo vale cuando la Comisión lo confirma "
+               "o lo rechaza, y mientras tanto la oferta sigue en el orden económico.")
+
 
 def status(user, procedure):
     """Lista cada descarte sin decidir como pendiente; la cuenta la hace la etapa
@@ -185,7 +191,7 @@ def status(user, procedure):
     items = tuple(
         Item(f"Descarte propuesto por decidir: oferta {u.offer.number} ({_scope(u)})",
              f"{base.tab_url(procedure)}#{_anchor(u)}", 1, "Resolver", kind="descarte",
-             noun="descartes propuestos por decidir",
+             noun="descartes propuestos por decidir", why=WHY_DISCARD,
              group_url=f"{base.tab_url(procedure)}#s4-descartes") for u in undecided)
     return TemaStatus(pending_items=items)
 
@@ -337,14 +343,23 @@ def _rows(found, procedure, is_evaluator):
     return rows
 
 
+AVISO = "s4-descartes-aviso"
+
+
+def _back(procedure, text, ok=True):
+    """Vuelve al detalle de los descartes, donde se dibuja el aviso (T-335)."""
+    return base.back(procedure, text, ok, anchor=f"#{AVISO}")
+
+
 def context(user, procedure, request):
+    aviso = base.unpack(request.GET.get("aviso")) if request is not None else None
     page = memo.matrix_page(user, procedure.pk, channel=CHANNEL)
     evaluated = any(s.evaluated for s in page.statuses)
     is_evaluator = getattr(user, "commission_role", "") == CommissionRole.EVALUATOR
     empty = {"pid": procedure.pk, "evaluated": evaluated, "is_evaluator": is_evaluator,
              "requirements": len(page.requirements), "results": [], "rows": [],
              "to_decide": 0, "decided": 0, "totals": [], "lines": [], "columns": (),
-             "warnings": [], "price_sources": []}
+             "warnings": [], "price_sources": [], "aviso": aviso, "aviso_id": AVISO}
     if not evaluated:
         return empty
     found = service.units(page)
@@ -352,6 +367,41 @@ def context(user, procedure, request):
     to_decide = sum(1 for r in rows if r.state == service.PROPOSED)
     return {**empty, "results": _results(page), "rows": rows, "to_decide": to_decide,
             "decided": len(rows) - to_decide, **_economic(page, found)}
+
+
+# --- Mosaico del tablero (plan 017, T-328) ---------------------------------------------------------
+
+SHOWN_TITLES = 3
+
+
+def tiles(user, procedure, ctx):
+    """El mosaico «Descartes propuestos»: los que el sistema propuso y la Comisión todavía no
+    decidió, con cuáles son y cuántos ya se decidieron. Sin evaluación dice «Pendiente»; con una
+    evaluación que no propone ninguno, el cero es un dato (REQ-141). Confirmar o rechazar se hace
+    en el detalle, nunca desde el mosaico (P6)."""
+    ctx = ctx if ctx is not None else context(user, procedure, None)
+    detail = detail_id(KEY)
+    if not ctx["evaluated"]:
+        return [Tile(key="descartes", title="Descartes propuestos", detail=detail,
+                     sub="Todavía no hay una evaluación", missing="Pendiente")]
+    rows = ctx["rows"]
+    waiting = [r for r in rows if r.state == service.PROPOSED]
+    parts = []
+    if waiting:
+        shown = [r.title for r in waiting[:SHOWN_TITLES]]
+        text = "; ".join(shown)
+        if len(waiting) > SHOWN_TITLES:
+            text += f" y {len(waiting) - SHOWN_TITLES} más"
+        parts.append(text)
+    for state, one, many in ((service.CONFIRMED, "confirmado", "confirmados"),
+                             (service.REJECTED, "rechazado", "rechazados")):
+        count = sum(1 for r in rows if r.state == state)
+        if count:
+            parts.append(f"{count} {one if count == 1 else many}")
+    if not rows:
+        parts.append("El sistema no propuso descartes")
+    return [Tile(key="descartes", title="Descartes propuestos", detail=detail,
+                 big=len(waiting), unit="por decidir", sub=" · ".join(parts))]
 
 
 # --- Acciones -------------------------------------------------------------------------------------
@@ -380,9 +430,9 @@ def decide(request, procedure_id):
                               post.get("action", ""), note=post.get("note", ""),
                               channel=CHANNEL)
     except service.DiscardRefused as error:
-        return base.back(procedure, str(error), ok=False)
+        return _back(procedure, str(error), ok=False)
     scope = "completa" if line is None else f"renglón {line}"
-    return base.back(procedure, f"{DONE[done.decision.action]} el descarte de la oferta "
+    return _back(procedure, f"{DONE[done.decision.action]} el descarte de la oferta "
                                 f"{done.decision.offer.number} ({scope}). "
                                 "Quedó registrado quién y cuándo.")
 

@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from evaluon.journey.sections.base import Missing, TemaStatus
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.portal.models import (
     ItemKind,
     ItemState,
@@ -370,3 +371,24 @@ def context(user, procedure, request):
         "data_origin": data_origin,
         "offers": _offers(procedure),
     }
+
+
+# --- Mosaico del tablero (T-323, REQ-126, REQ-141) ---------------------------------------------------
+
+
+def tiles(user, procedure, ctx):
+    """«Datos del procedimiento»: la cifra son los renglones cargados; el apoyo dice la apertura
+    y las garantías que el Portal consigna. Sin renglones no hay cifra: dice que falta."""
+    lines = ctx["lines"]
+    parts = []
+    if ctx["opening"]:
+        parts.append(f"Apertura {ctx['opening'][1]}")
+    if ctx["guarantees"]:
+        n = len(ctx["guarantees"])
+        parts.append(f"{n} {'garantía' if n == 1 else 'garantías'}")
+    sub = " · ".join(parts)
+    if lines:
+        return [Tile(key="datos", title="Datos del procedimiento", detail="d-s1-datos", width=2,
+                     big=len(lines), unit="renglones", sub=sub)]
+    return [Tile(key="datos", title="Datos del procedimiento", detail="d-s1-datos", width=2,
+                 missing="Faltan los renglones", sub=sub)]

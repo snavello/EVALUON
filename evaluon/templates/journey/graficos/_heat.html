@@ -1,0 +1,9 @@
+{% comment %}Tabla de calor por tipo (filas) y oferta (columnas); la celda sin dato queda vacía (T-314). Variable: `chart` (charts.Heat).{% endcomment %}<svg viewBox="{{ chart.view_box }}" width="100%" role="img" aria-labelledby="{{ chart.title_id }} {{ chart.desc_id }}" class="grafico grafico-heat" font-size="11">
+<title id="{{ chart.title_id }}">{{ chart.title }}</title>
+<desc id="{{ chart.desc_id }}">{{ chart.description }}</desc>
+{% for c in chart.geometry.cols %}<text x="{{ c.x }}" y="14" text-anchor="middle" fill="currentColor" class="g-ink2">{{ c.label }}</text>
+{% endfor %}{% for r in chart.geometry.rows %}<text x="0" y="{{ r.y }}" fill="currentColor" class="g-ink">{{ r.label }}</text>
+{% endfor %}{% for c in chart.geometry.cells %}<rect x="{{ c.x }}" y="{{ c.y }}" width="{{ c.w }}" height="{{ c.h }}" rx="6" fill="none" stroke="currentColor" class="g-line"/>
+{% if c.tint %}<rect x="{{ c.x }}" y="{{ c.y }}" width="{{ c.w }}" height="{{ c.h }}" rx="6" fill="currentColor" fill-opacity="{{ c.opacity }}" class="g-ok"/>
+{% endif %}<text x="{{ c.tx }}" y="{{ c.ty }}" text-anchor="middle" fill="currentColor" class="g-ink">{{ c.text }}</text>
+{% endfor %}</svg>

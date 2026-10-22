@@ -6,7 +6,8 @@ import re
 from functools import wraps
 
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_GET
 
@@ -16,6 +17,8 @@ from evaluon.audit.models import Channel
 from evaluon.journey import memo
 from evaluon.journey.sections import sections_for
 from evaluon.journey.stages import is_viewer
+from evaluon.journey.tablero.ingreso import KEY as INGRESO_KEY
+from evaluon.journey.tablero.tiles import build_board
 from evaluon.journey.views import inicio
 from evaluon.journey.window import window_for
 from evaluon.tenders.models import Procedure
@@ -49,10 +52,12 @@ def shell(request, overview, active=""):
     }
 
 
-# Un formulario de acción (POST), salvo el de salir. Las acciones del usuario de lectura no se
-# dibujan: el servicio igual lo rechazaría (403), pero un botón que no funciona confunde.
+# Un formulario de acción (POST), salvo el de salir y los de preferencias (la clase `preferencia`:
+# el selector de tema, REQ-134; ADR-0074). Las acciones del usuario de lectura no se dibujan: el
+# servicio igual lo rechazaría (403), pero un botón que no funciona confunde.
 _ACTION_FORM = re.compile(
-    r'<form(?=[\s>])(?=[^>]*method="post")(?![^>]*logout-form)[^>]*>.*?</form>', re.S | re.I)
+    r'<form(?=[\s>])(?=[^>]*method="post")(?![^>]*(?:logout-form|preferencia))[^>]*>.*?</form>',
+    re.S | re.I)
 
 
 # Los enlaces «Subir …» llevan a un formulario que el usuario de lectura no tiene (D-3 de T-227).
@@ -90,19 +95,15 @@ def lista(request):
 
 
 @require_GET
-@memo.scoped
-@reading
 def portada(request, procedure_id):
-    overview = overview_of(request, procedure_id)
-    context = shell(request, overview)
-    context.update({
-        "window": window_for(overview.procedure),
-        "window_url": reverse("expedientes:ventana", args=[procedure_id]),
-        "pending_items": [(s, i) for s in overview.sections for i in s.pending_items],
-        "suggestion_items": [(s, i) for s in overview.sections for i in s.suggestion_items],
-    })
-    return inicio.remember(render(request, "journey/portada.html", context), request.user,
-                           procedure_id)
+    """La portada del procedimiento es el primer panel (REQ-128): redirige (302) a
+    `procedimiento/` conservando la consulta, así las anclas y los enlaces de la 014 siguen
+    andando. El procedimiento que no existe da 404."""
+    if not Procedure.objects.filter(pk=procedure_id).exists():
+        raise Http404("No hay un procedimiento con ese número.")
+    target = reverse("expedientes:procedimiento", args=[procedure_id])
+    query = request.META.get("QUERY_STRING", "")
+    return redirect(f"{target}?{query}" if query else target)
 
 
 @require_GET
@@ -111,15 +112,35 @@ def portada(request, procedure_id):
 def seccion(request, procedure_id, key):
     overview = overview_of(request, procedure_id)
     section = overview.get(key)
-    blocks = [{"key": tema.KEY, "partial": tema.PARTIAL,
-               "t": tema.context(request.user, overview.procedure, request)}
-              for tema in section.temas]
+    contexts = {tema.KEY: tema.context(request.user, overview.procedure, request)
+                for tema in section.temas}
     context = shell(request, overview, active=key)
+    if section.ingreso_template:
+        # El primer panel (T-321): foto, datos principales y pendiente general. Los mosaicos
+        # propios de la sección lo leen de `contexts`.
+        ingreso = section.ingreso_context(request.user, overview.procedure, request, overview)
+        contexts[INGRESO_KEY] = ingreso
+        context.update(ingreso)
     context.update({
-        "section": section, "blocks": blocks,
+        "section": section,
         "pending_rows": [(section, item) for item in section.pending_items],
         "suggestion_rows": [(section, item) for item in section.suggestion_items],
     })
+    board = build_board(section, request.user, overview.procedure, contexts, request)
+    if board is None:
+        # Ningún tema declara mosaicos: la sección se muestra como antes, con sus parciales.
+        context["blocks"] = [{"key": tema.KEY, "partial": tema.PARTIAL, "t": contexts[tema.KEY]}
+                             for tema in section.temas]
+    else:
+        # Cada detalle se dibuja acá, con el contexto completo de la página (los parciales usan
+        # `procedure`, `section` y el pedido), y llega a la plantilla como HTML.
+        context.update({
+            "board": board.tiles, "abre": board.abre,
+            "details": [{"id": d.id, "title": d.title, "html": render_to_string(
+                d.template, {**context, **d.context}, request=request)} for d in board.details],
+            "blocks": [{"key": tema.KEY, "partial": tema.PARTIAL, "t": contexts[tema.KEY]}
+                       for tema in board.leftover],
+        })
     return inicio.remember(render(request, "journey/seccion.html", context), request.user,
                            procedure_id)
 

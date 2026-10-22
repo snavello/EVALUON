@@ -7,22 +7,31 @@
 
 {% block cuerpo %}
 <div class="seccion seccion-{{ section.key }}">
+  {% if section.ingreso_template %}
+  {# El primer panel (T-321): encabezado con la foto, Hay/Falta, ventana del proceso y pendiente general en un solo parcial. El lugar de Hay/Falta está marcado HAY_FALTA en _ingreso.html. #}
+  {% include section.ingreso_template %}
+  {% else %}
   <div class="encab-parte">
     <h2 id="seccion-titulo">{{ section.label }}</h2>
     {% include "journey/_cargas.html" %}
   </div>
-  <p class="resumen-linea" id="seccion-resumen">
-    {% if section.summary %}{% for label, detail in section.summary %}{{ detail }} {% endfor %}{% else %}Esta sección no tiene todavía datos que resumir.{% endif %}
-  </p>
-  {% if section.tema_missing %}
-  <p class="falta"><b>Falta:</b> {% for item in section.tema_missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
   {% endif %}
+  {% if board %}
+  {% if not section.ingreso_template %}
+  {# Línea Hay/Falta (T-312) y pendiente de la sección (T-318); el primer panel los trae en _ingreso.html. #}
+  {% block hay_falta %}{% include "journey/_hay_falta.html" %}{% endblock %}
+  {% block pendientes %}{% include "journey/_pendientes.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False next_url=request.path %}{% endblock %}
+  {% endif %}
+  {% include "journey/_tablero.html" %}
+  {% else %}
+  {% include "journey/_hay_falta.html" %}
 
-  {% include "journey/_paneles.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False %}
+  {% include "journey/_pendientes.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False next_url=request.path %}
 
   <div id="seccion-detalle">
     {% for block in blocks %}{% include block.partial with t=block.t %}{% endfor %}
   </div>
+  {% endif %}
 
 </div>
 {% endblock %}

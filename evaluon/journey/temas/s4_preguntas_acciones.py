@@ -25,8 +25,12 @@ CHANNEL = Channel.SCREEN
 ANCHOR = "#s4-preguntas"
 
 
+AVISO = "s4-preguntas-aviso"
+
+
 def _back(procedure, text, ok=True):
-    return redirect(f"{base.tab_url(procedure)}?aviso={base.pack(text, ok)}{ANCHOR}")
+    """Vuelve al detalle de las preguntas, donde se dibuja el aviso (T-335)."""
+    return redirect(f"{base.tab_url(procedure)}?aviso={base.pack(text, ok)}#{AVISO}")
 
 
 def _procedure(procedure_id):

@@ -1,0 +1,19 @@
+{% load static %}{% comment %}
+El primer panel de la sección Procedimiento (T-321, T-322; REQ-128, REQ-129, REQ-135, REQ-138). Foto de fondo muy suave (una `<img>` en una capa absoluta, sin estilos ni scripts en línea), datos principales del procedimiento sin normativa, acciones, ventana del proceso y pendiente general. La foto la elige `photos.pick_for` al servir la página. Variables (tablero/ingreso.py): `foto`, `expediente`, `numeros`, `window`, `window_url`, `portal_link`, `pending_items`, `suggestion_items`, además de `overview`, `procedure` y `section` de la vista.
+{% endcomment %}<link rel="stylesheet" href="{% static 'journey/ingreso.css' %}">
+<section class="hero" id="ingreso" aria-labelledby="seccion-titulo">
+  <div class="photo-bg" aria-hidden="true"><img class="enter" src="{{ foto.url }}" alt=""></div>
+  <span class="who-photo">{{ foto.label }}</span>
+  <div class="hero-in">
+    <h1 id="seccion-titulo">{{ procedure.subject }}</h1>
+    <p class="sub">{{ procedure.procedure_type }} <b class="num">N.º {{ procedure.number }}</b> · Expediente {% if expediente %}<b class="num">{{ expediente }}</b>{% else %}<span class="tag nd">Falta</span>{% endif %} · autorizada el <b class="num">{{ procedure.authorization_date|date:"d/m/Y" }}</b></p>
+    <div class="nums">
+      {% for n in numeros %}<div class="n" id="n-{{ n.key }}"><b>{% if n.value %}{% if n.highlight %}<span class="hl">{{ n.value }}</span>{% else %}{{ n.value }}{% endif %}{% else %}<span class="tag nd">{{ n.missing }}</span>{% endif %}</b><span>{{ n.label }}{% if n.tag %} <span class="tag nd">{{ n.tag }}</span>{% endif %}</span></div>
+      {% endfor %}
+    </div>
+    <div class="acts">{% include "journey/_cargas.html" %}</div>
+  </div>
+</section>
+{% include "journey/_hay_falta.html" %}
+<div id="ventana-proceso" data-poll-url="{{ window_url }}" data-login-url="{{ login_url }}">{% include "journey/_window.html" %}</div>
+{% include "journey/_pendientes.html" with pending_total=overview.pending suggestion_total=overview.suggestions pending_rows=pending_items suggestion_rows=suggestion_items show_section=True next_url=request.path %}

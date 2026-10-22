@@ -123,13 +123,14 @@ def test_the_general_page_is_reachable_from_the_new_procedure_screen_and_the_dro
     new = client.get(reverse("expedientes:nuevo")).content.decode()
     bar = new[new.index('id="barra-secciones"'):new.index('id="journey-status"')]
     assert f'href="{GENERAL}"' in bar
-    portada = client.get(reverse("expedientes:portada", args=[procedure.pk])).content.decode()
+    portada = client.get(reverse("expedientes:procedimiento", args=[procedure.pk])
+                         ).content.decode()
     menu = portada[portada.index('class="sel-proc"'):portada.index("</details>")]
     assert f'href="{GENERAL}"' in menu
     html = page(client)
     menu = html[html.index('class="sel-proc"'):html.index("</details>")]
     assert f'href="{GENERAL}"' in menu and "Normativas" in menu
-    assert reverse("expedientes:portada", args=[procedure.pk]) in menu
+    assert reverse("expedientes:procedimiento", args=[procedure.pk]) in menu
 
 
 def make_user(name, commission):

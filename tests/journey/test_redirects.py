@@ -43,6 +43,8 @@ def test_every_old_reading_page_redirects_to_its_tab(client, procedure, matrix, 
             reverse("expedientes:nuevo_enlace", args=[link.pk]),
         reverse("journey:index"): reverse("inicio"),
         reverse("journey:procedure", args=[procedure.pk]): tab("procedimiento", procedure),
+        # La portada del procedimiento es el primer panel (REQ-128; T-312).
+        reverse("expedientes:portada", args=[procedure.pk]): tab("procedimiento", procedure),
     }
     for old, new in expected.items():
         response = client.get(old)
@@ -125,7 +127,7 @@ def test_one_header_without_the_old_menu_on_every_page(client, procedure, operat
     response = client.get(reverse(url_name), follow=True)
     html = response.content.decode()
     header = html[html.index('<header class="top"'):html.index("</header>")]
-    for old in ("Recorrido", "Importar del Portal", "Procedimientos<", 'class="site-nav"'):
+    for old in (">Recorrido<", "Importar del Portal", 'class="site-nav"'):
         assert old not in header
     assert "EVALUON" in header and "Cambiar de procedimiento" in header
     assert operator_user.username in header and "Salir" in header

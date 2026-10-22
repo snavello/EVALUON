@@ -10,11 +10,14 @@ la etapa muestra, en dos frases separadas, lo que trajo el Portal y lo que se ca
 - A decidir: ítems `propuesto` de la última propuesta de cada enlace (la cuenta).
 - Lista: ya se exploró y no queda nada propuesto sin decidir.
 
+El dictamen publicado en el Portal no cuenta acá: es un pendiente de la sección 4, «Evaluación y
+dictamen» (plan 017, «Cambios de comportamiento»; REQ-129). El total del procedimiento no cambia.
+
 El Portal no trae sugerencias propias: `suggestions` es 0. `decide_url` es solo del evaluador
 aunque el operador pueda aprobar documentos en la pantalla del Portal (REQ-069).
 """
 
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.urls import reverse
 
 from evaluon.journey.progress import progress_of
@@ -30,6 +33,8 @@ from evaluon.portal.models import (
 from evaluon.tenders.models import JobKind, JobStatus
 
 KINDS = (JobKind.PORTAL_EXPLORE, JobKind.PORTAL_REVIEW)
+# Los ítems de tipo dictamen: documentos del Portal de la clase «dictamen». Los cuenta la sección 4.
+DICTAMEN = Q(kind=ItemKind.DOCUMENTO, payload__clase="dictamen")
 KEY = "portal"
 LABEL = "Datos del Portal"
 
@@ -92,7 +97,7 @@ def compute(user, procedure):
     latest = {link.pk: _latest_proposal(link) for link in links}
     open_by_link = {
         link.pk: (PortalItem.objects.filter(
-            proposal=latest[link.pk], state=ItemState.PROPUESTO).count()
+            proposal=latest[link.pk], state=ItemState.PROPUESTO).exclude(DICTAMEN).count()
             if latest[link.pk] else 0)
         for link in links}
     pending = sum(open_by_link.values())

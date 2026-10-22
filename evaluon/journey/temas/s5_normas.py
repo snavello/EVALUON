@@ -45,6 +45,8 @@ from evaluon.accounts.models import CommissionRole, Role
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
+from evaluon.journey.tablero import charts
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.journey.temas import s5_rigen
 from evaluon.norms.models import (
     Category,
@@ -202,6 +204,11 @@ def _pending_readings():
             .filter(~Exists(later)).select_related("document__norm").order_by("pk"))
 
 
+# Por qué importa cada pendiente (REQ-129): lo sabe este tema, no la lista.
+WHY_READING = "Hasta que se valide, la norma no aparece en las citas de las consultas."
+WHY_UPLOAD = "Hasta que se confirmen sus datos, la norma subida no queda cargada."
+
+
 def status(user, procedure):
     """Cuentas del tema: lecturas por validar y subidas que esperan confirmación (pendientes) y
     modificatorias registradas sin cargar (faltantes, cada una con «Subir norma»)."""
@@ -210,12 +217,13 @@ def status(user, procedure):
                   "su lectura espera la validación del evaluador",
                   f"{url}?lectura={reading.pk}#s5-lectura", 1, "Ver el informe",
                   kind="lectura", noun="lecturas esperan la validación del evaluador",
-                  group_url=f"{url}#s5-lectura")
+                  group_url=f"{url}#s5-lectura", why=WHY_READING)
              for reading in _pending_readings()]
     waiting = NormUpload.objects.filter(state=ProposalState.PROPUESTO).order_by("pk")
     items += [Item(f"Norma subida «{one.file_name}»: faltan confirmar sus datos",
                    f"{url}#s5-subida-{one.pk}", 1, "Revisar", kind="subida",
-                   noun="normas subidas con datos por confirmar", group_url=f"{url}#s5-subir") for one in waiting]
+                   noun="normas subidas con datos por confirmar", group_url=f"{url}#s5-subir",
+                   why=WHY_UPLOAD) for one in waiting]
     if procedure is None:  # la biblioteca es común: sin procedimiento no hay régimen que descartar
         needed = (PendingAmendment.objects.filter(loaded_norm__isnull=True)
                   .select_related("target_norm").order_by("pk"))
@@ -381,6 +389,38 @@ def context(user, procedure, request):
         "validate_blocked": validate_blocked, "can_validate": not validate_blocked,
         "report": _report(user, request.GET.get("lectura"), pid) if request else None,
     }
+
+
+# --- Mosaico del tablero (plan 017, T-329) -------------------------------------------------------
+
+
+def tiles(user, procedure, ctx):
+    """«Normas cargadas»: las normas del sistema, comunes a todos los procedimientos (la cifra no
+    es del procedimiento), con las que esperan validación. Sin ninguna dice «Falta cargar»."""
+    if ctx is None:
+        return []
+    count, unvalidated, waiting = ctx["norm_count"], ctx["unvalidated"], len(ctx["waiting"])
+    if not count:
+        return [Tile(key="cargadas", title="Normas cargadas", detail="d-s5-normas", width=2,
+                     missing="Falta cargar normas", sub="Se cargan subiendo su archivo")]
+    pieces = [f"{unvalidated} sin validar" if unvalidated else "Todas validadas"]
+    if waiting:
+        pieces.append(f"{waiting} {'subida espera' if waiting == 1 else 'subidas esperan'} "
+                      "confirmar sus datos")
+    chart = charts.Stack(uid="s5-cargadas", title="Estado de las normas cargadas", parts=[
+        charts.StackPart("Validadas", max(count - unvalidated, 0), "ok"),
+        charts.StackPart("Sin validar", unvalidated, "nd"),
+        charts.StackPart("Esperan confirmar sus datos", waiting, "pe")])
+    return [Tile(key="cargadas", title="Normas cargadas", detail="d-s5-normas", width=2,
+                 big=str(count), unit="norma" if count == 1 else "normas",
+                 sub=" · ".join(pieces), chart=chart)]
+
+
+def opens(request):
+    """`?lectura=` (el informe de lectura) o el aviso firmado de la carga abren el detalle."""
+    if request.GET.get("lectura") or unpack(request.GET.get("aviso")):
+        return "d-s5-normas"
+    return None
 
 
 # --- Acciones ------------------------------------------------------------------------------------

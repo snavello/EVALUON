@@ -5,6 +5,7 @@
   <div class="bloque-cab">
     <h3>Informe técnico del área requirente{% if t.total %} <span class="cta">propuesta en {{ t.proposed }} de {{ t.total }} renglones</span>{% endif %}</h3>
   </div>
+  {% include "journey/temas/_s4_aviso.html" with aviso=t.aviso ident=t.aviso_id %}
 
   {% if not t.blocks %}
   <p class="suave">Ninguna oferta tiene filas técnicas por renglón evaluadas: el informe del área se sube cuando haya ofertas con renglones técnicos.</p>
