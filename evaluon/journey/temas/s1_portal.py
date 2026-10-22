@@ -27,12 +27,14 @@ from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.audit.models import Channel
 from evaluon.journey.sections import SECTIONS
 from evaluon.journey.sections.base import Item, TemaStatus
+from evaluon.journey.stages import portal as stage_portal
 from evaluon.journey.temas import s1_datos
 from evaluon.journey.window import plain_reason
 from evaluon.portal.importers import discover
@@ -253,8 +255,10 @@ def procedure_links(procedure):
 def _counts(procedure):
     """`(propuesta, novedades, ya contadas por la etapa)`: los ítems sin decidir de los enlaces del
     procedimiento, separados por el origen de su propuesta."""
+    # El dictamen publicado se cuenta en la sección 4 (`s4_dictamen.status`), no acá (REQ-129).
     items = list(PortalItem.objects.filter(
         proposal__link__procedure=procedure, state=ItemState.PROPUESTO)
+        .exclude(stage_portal.DICTAMEN)
         .values_list("proposal__origin", "proposal_id", "proposal__link_id"))
     news = sum(1 for origin, _, _ in items if origin == Origin.REVISION)
     latest = {}
@@ -460,10 +464,27 @@ def _link(procedure_id, link_id):
         raise Http404("No hay un proceso del Portal con ese número en este procedimiento.")
 
 
+def safe_next(request):
+    """La dirección a la que vuelve una decisión pedida desde un pendiente (`next`): solo una de
+    EVALUON (`/expedientes/…`) y del mismo sitio; cualquier otra se ignora."""
+    target = request.POST.get("next", "")
+    if (target.startswith("/expedientes/")
+            and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()},
+                                                require_https=request.is_secure())):
+        return target
+    return ""
+
+
 @require_POST
 def decide(request, procedure_id, link_id):
     procedure, link = _link(procedure_id, link_id)
-    return back(procedure, decide_from_post(request.user, link, request.POST))
+    entries = decide_from_post(request.user, link, request.POST)
+    # Desde un pendiente (REQ-129) vuelve a la misma pantalla; si algo no se pudo, a la pestaña del
+    # Portal, que dice por qué. Quién y cuándo ya lo registra `approval.decide`.
+    target = safe_next(request)
+    if target and all(e["ok"] for e in entries):
+        return redirect(target)
+    return back(procedure, entries)
 
 
 @require_POST

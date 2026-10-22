@@ -6,7 +6,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.template.loader import render_to_string
+from django.test import RequestFactory
 from django.urls import reverse
 
 from evaluon.audit.models import AuditEvent, EventType
@@ -64,12 +66,14 @@ def test_item_suma_why_open_y_post_opcionales():
 
 
 def _dibujar(filas, sugerencias=None, show_section=True, total=None):
+    pedido = RequestFactory().get("/expedientes/7/")
+    pedido.user = AnonymousUser()
     return render_to_string("journey/_pendientes.html", {
         "pending_total": len(filas) if total is None else total,
         "suggestion_total": len(sugerencias or []),
         "pending_rows": filas, "suggestion_rows": sugerencias, "show_section": show_section,
         "next_url": "/expedientes/7/",
-    })
+    }, request=pedido)
 
 
 SECCION = SimpleNamespace(label="Evaluación y dictamen", url="/expedientes/7/evaluacion/")
@@ -139,6 +143,7 @@ def test_la_hoja_de_estilos_no_usa_opacidad_ni_ink3_ni_estilos_en_linea():
     """ADR-0076 y guía visual: sin opacidad en el texto, sin --ink-3 (no tiene par con
     --tile-h) y la política de contenido no admite `style=`."""
     css = (RAIZ / "evaluon/static/journey/pendientes.css").read_text(encoding="utf-8")
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)  # los comentarios pueden nombrarlos
     assert "opacity" not in css and "--ink-3" not in css
     assert not re.search(r"#[0-9a-fA-F]{3,8}\b", css), "todo color sale de var(--…)"
     plantilla = (RAIZ / "evaluon/templates/journey/_pendientes.html").read_text(encoding="utf-8")
