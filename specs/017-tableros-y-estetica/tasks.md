@@ -65,18 +65,18 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
-| T-308 | Esquema y perfil: `User.theme`, tabla `Photo` con sus restricciones, migración reversible, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa con sus créditos y `.gitignore` | REQ-134, REQ-136, REQ-138 | — | en curso |
-| T-309 | Tokens de los dos temas con alias de los viejos, estilos de `evaluon.css`, `recorrido.css` y `punto.css` en los dos temas, guía visual, test de contraste y test de direcciones externas | REQ-133 | — | en curso |
-| T-310 | Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en `static/marca/` | REQ-133, REQ-142 | — | en curso |
-| T-311 | Tema en `base.html`, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de usuario), vista del tema, pase de hoja, ingreso con el logotipo nuevo y retiro de los SVG viejos | REQ-132, REQ-133, REQ-134, REQ-139, REQ-142 | T-308, T-309, T-310 | pendiente |
+| T-308 | Esquema y perfil: `User.theme`, tabla `Photo` con sus restricciones, migración reversible, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa con sus créditos y `.gitignore` | REQ-134, REQ-136, REQ-138 | — | terminada |
+| T-309 | Tokens de los dos temas con alias de los viejos, estilos de `evaluon.css`, `recorrido.css` y `punto.css` en los dos temas, guía visual, test de contraste y test de direcciones externas | REQ-133 | — | terminada |
+| T-310 | Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en `static/marca/` | REQ-133, REQ-142 | — | terminada |
+| T-311 | Tema en `base.html`, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de usuario), vista del tema, pase de hoja, ingreso con el logotipo nuevo y retiro de los SVG viejos | REQ-132, REQ-133, REQ-134, REQ-139, REQ-142 | T-308, T-309, T-310 | en curso |
 | T-312 | Línea «Hay · Falta», portada que redirige al primer panel y vista mínima del indicador de avance | REQ-128, REQ-132, REQ-140 | T-311 | pendiente |
 | T-313 | Componente de tablero: contrato `Tile`, mosaico, cuadrícula, detalle desplegable (`tablero.js` y `tablero.css`) y cuerpo común de las secciones | REQ-126, REQ-127, REQ-141 | T-312 | pendiente |
-| T-314 | Siete gráficos SVG y orden económico (`charts.py`, `economico.py`, plantillas de gráficos) | REQ-126, REQ-130, REQ-141 | T-309 | pendiente |
+| T-314 | Siete gráficos SVG y orden económico (`charts.py`, `economico.py`, plantillas de gráficos) | REQ-126, REQ-130, REQ-141 | T-309 | en verificación |
 | T-315 | Tablero de Ofertas con el detalle «Ofertas del acta» y el orden económico (corte vertical) | REQ-126, REQ-127, REQ-130, REQ-141 | T-313, T-314 | pendiente |
 | T-316 | Medición del corte vertical: contraste, 2 s, 0,4 s y revisión visual en Edge, sin código | REQ-126, REQ-127, REQ-133, REQ-139 | T-315 | pendiente |
 | T-317 | Correcciones de la medición del corte vertical, en una sola tarea y con re-medición de lo que cambió (se cierra sin cambios si no hay hallazgos) | REQ-126, REQ-127, REQ-133 | T-316 | pendiente |
 | T-318 | Pendientes con acción a mano: `Item.why/open/post`, `_pendientes.html` y dictamen del Portal en Evaluación | REQ-129, REQ-141 | T-317 | pendiente |
-| T-319 | Fotos: normalización por histograma, subida con sus límites y elección al azar sin repetir | REQ-136, REQ-137, REQ-138 | T-308 | pendiente |
+| T-319 | Fotos: normalización por histograma, subida con sus límites y elección al azar sin repetir | REQ-136, REQ-137, REQ-138 | T-308 | en verificación |
 | T-320 | Mis fotos: página del perfil, quitar, servido privado y enlace en el menú de usuario | REQ-136 | T-311, T-319 | pendiente |
 | T-321 | Primer panel: foto de fondo, datos principales, pendiente general, avance y mosaicos que enlazan a Evaluación | REQ-128, REQ-129, REQ-132, REQ-135, REQ-138 | T-317, T-318, T-320 | pendiente |
 | T-322 | Primer panel: orden económico, plazos importantes y vencimiento del mantenimiento | REQ-128, REQ-130, REQ-131, REQ-141 | T-321 | pendiente |
@@ -143,6 +143,7 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 - **Requisitos:** REQ-132, REQ-133, REQ-134, REQ-139, REQ-142
 - **Nivel de verificación:** plena (preferencia del usuario guardada, redirección con `next`, rol de lectura).
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** (oleada 1) Retirar los SVG viejos de static/marca; el encabezado nuevo no usa blanco fijo. El selector de tema valida el valor y guarda con update_fields=["theme"]. Toda imagen nueva va en casa/, marca/ o docs/ (test de T-308).
   1. `accounts:tema` (POST, `perfil/tema/`) en `evaluon/accounts/views_perfil.py` y `urls.py`: valida el valor (`claro` o `negro`), guarda en `User.theme`, exige CSRF y redirige a `next` validado con `url_has_allowed_host_and_scheme` (ADR-0074). Vale para el usuario de lectura.
   2. `base.html`: `<html data-theme="negro">` si corresponde; enlaza las hojas de la definición compartida 5 y crea `tablero.css` y `avance.css` con un comentario; `<link rel="icon">` al isotipo nuevo.
   3. Encabezado único en `_cabecera.html`, `_encabezado.html`, `_barra.html`, `_barra_nueva.html`: los dos `<img>` del logotipo (la hoja muestra el del tema), recorrido «Procedimientos › procedimiento (menú que hoy es `sel-proc`, con «+ Nuevo procedimiento» y «Normativas») › sección», pestañas en píldora con el contador de `Section.pending` (sin contador si es 0), `_selector_tema.html` (dos botones de un formulario) y `_menu_usuario.html` (Salir; el enlace a «Mis fotos» lo agrega T-320). El recorrido va aquí; la línea Hay/Falta es de T-312.
@@ -175,6 +176,7 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 - **Requisitos:** REQ-126, REQ-127, REQ-141
 - **Nivel de verificación:** plena (lógica de presentación que cumple REQ-141 y un criterio numérico).
 - **Qué hay que hacer:** (ADR-0076; plan, «Tablero: mosaicos y detalle»)
+- **Aviso de tareas anteriores:** (oleada 1) En el tema claro toda marca lima lleva contorno --ink (guía visual, sección 4); no aplicar opacidad al texto secundario (.todo li.done de la maqueta baja --ink-2 a 2,4:1); --ink-3 no va sobre --tile-h.
   1. `evaluon/journey/tablero/tiles.py`: `Tile` con los campos de la definición compartida 2; la regla de REQ-141 (si `big` es `None`, la plantilla dibuja `missing`; no hay valor por omisión).
   2. `Section.tiles(...)`, `Section.ingreso_template` e `ingreso_context(...)` en `sections/base.py`; la vista `seccion` de `portada.py` arma el tablero: pide `tiles()` y `context()` a cada tema y renderiza encabezado → camino → título → Hay/Falta → pendiente de la sección (hueco que llena T-318) → tablero → detalles. Mientras un tema no declare `tiles()`, la sección sigue mostrando sus parciales como hoy.
   3. `_tablero.html` (cuadrícula) y `_mosaico.html`: cada mosaico es un `<a href="#d-…">` (sin JavaScript es un ancla a la zona de detalles); dibuja el gráfico con `{% include chart.template %}`; `seccion.html` y `seccion_base.html` con el cuerpo común; zona `.detalles` con cada detalle `id="d-…"` ya renderizado.
@@ -190,6 +192,7 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 - **Requisitos:** REQ-126, REQ-130, REQ-141
 - **Nivel de verificación:** plena (cálculo del orden económico).
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** (oleada 1) En el tema claro el lima de los gráficos lleva contorno --ink; las series --s2 y --s3 del tema negro quedan a 1,54:1 entre sí (mirarlo en la medición T-316).
   1. `evaluon/journey/tablero/__init__.py` (vacío) y `charts.py` con las siete dataclasses del protocolo (definición compartida 3): `Bars`, `Donuts` (cumple, no cumple, no determinado, pendiente por oferta), `Lollipop` (orden económico de menor a mayor con la más baja y la más alta como indicadores), `Timeline`, `Stack`, `Columns`, `Heat`. Valores `None` o series vacías no dibujan marcas.
   2. `templates/journey/graficos/_bars.html`, `_donuts.html`, `_lollipop.html`, `_timeline.html`, `_stack.html`, `_columns.html`, `_heat.html`: SVG con atributos de presentación, `currentColor` y las clases `g-*`; título y descripción accesibles; sin `style=`.
   3. `economico.py`: ordena las ofertas de menor a mayor total con `assessment.ordering.economic_order(...)` sobre `PortalOfferData.total` (empates con la misma posición), marca la más alta y la más baja y calcula la diferencia porcentual de cada una con la más baja. Sin ofertas, devuelve el día de la apertura (del cronograma) y el estado «Pendiente», sin cifras. Con ofertas sin totales, devuelve solo la cantidad y «Falta el total».
@@ -251,6 +254,7 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 - **Requisitos:** REQ-136, REQ-137, REQ-138
 - **Nivel de verificación:** plena (datos personales, P4, y medida de un criterio numérico).
 - **Qué hay que hacer:** (ADR-0073; plan, «Fotos»)
+- **Aviso de tareas anteriores:** (oleada 1) Picked ya tiene su forma final; la ruta accounts:foto la agrega T-320; la subida maneja IntegrityError por ranura repetida y llena size y sha256.
   1. `photos.upload(user, file)`: acepta solo JPEG, PNG o WebP según el contenido (no la extensión); rechaza lo mayor de 10 MiB sin procesar; abre con Pillow con tope de píxeles (rechaza bombas de descompresión); corrige la orientación EXIF; compone sobre blanco lo que tenga transparencia; pasa a luminancia; reduce a 1600 px de lado mayor sin ampliar; ajusta el histograma al de la foto de la casa (tabla de 256 niveles suavizada, en Python puro); guarda como JPEG sin metadatos, con calidad descendente hasta quedar por debajo de 2 MiB; con 10 fotos pide quitar una antes; busca la primera ranura libre (la restricción única de la base cubre la subida simultánea).
   2. `photos.remove(user, photo_id)` (borrado real, solo del dueño) y `photos.pick_for(request)` completo: al azar entre las fotos del usuario (o la de la casa si no tiene), sin repetir la anterior si tiene más de una (la guarda en la sesión); misma forma de la definición compartida 6.
   3. Tests con imágenes generadas en memoria con Pillow (ninguna foto en el repositorio).
@@ -276,6 +280,7 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 - **Requisitos:** REQ-128, REQ-129, REQ-132, REQ-135, REQ-138
 - **Nivel de verificación:** plena (datos del procedimiento, criterio de contraste, privacidad).
 - **Qué hay que hacer:** (plan, «Primer panel» y «De dónde sale cada dato»)
+- **Aviso de tareas anteriores:** (oleada 1) Completar PARES_FOTO en tests/journey/test_contraste.py con el par de la foto.
   1. `evaluon/journey/tablero/ingreso.py`: datos principales del procedimiento (objeto, tipo y número, expediente —«Falta» si no se cargó—, fecha de autorización, cantidad de ofertas, cantidad de pendientes) y el avance como «N de 5 secciones listas» (ADR-0077, D-2); el mosaico «Avance por sección» con el estado de cada sección (ícono, pendientes y faltantes, sin porcentajes). La oferta más alta y la más baja, el orden económico, los plazos y el mantenimiento los agrega T-322 en el mismo archivo.
   2. `_ingreso.html` e `ingreso.css`: foto de fondo en un contenedor absoluto al 60 % del ancho con máscara de degradado y opacidad baja, animación de entrada de 0,9 s (fundido con leve escala; con «reducir movimiento», fundido de 0,3 s), texto «Foto de la casa» o «Foto de su perfil», datos principales con `--ink`, acciones, Hay/Falta, `_window.html` (como está; lo cambia T-330) y el pendiente general con `_pendientes.html`. Foto solo en este panel; la elige `photos.pick_for(request)` al servir la página, sin script que la cambie.
   3. Mosaicos de otra sección (resultado por oferta, descartes propuestos, preguntas): enlaces a `evaluacion/#d-s4-…` con el pase de hoja, sin repetir el detalle (D-4 del plan).
@@ -380,6 +385,7 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 - **Requisitos:** REQ-133, REQ-142
 - **Nivel de verificación:** plena (principio de la guía visual y retiro de lo viejo).
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** (oleada 1) Quedan con hexadecimales _sprite.html, _window.html, tenders/matrix.css y tenders/print.css; el test de var() sin definir ya existe en test_contraste.py; Barlow se retira acá. Retirar los tokens transitorios --hdr*, los alias --ev-azul-200/800 y los pares «encabezado viejo» de test_contraste.py.
   1. Quitar los alias `--ev-*` de `tokens.css` y los restos del azul, el beige y el rojo viejos en `recorrido.css` y en cualquier hoja que quede; retirar Barlow Condensed (`evaluon/static/diseno/fuentes/barlow-*`) y cualquier referencia.
   2. Test final: prohíbe los `--ev-azul-*`, `--ev-beige-*`, `--ev-rojo*` y los colores en hexadecimal fuera de `tokens.css` (excepto `print.css`, que sigue siempre claro).
   3. Test del verde lima: compara los usos de `--lime` con una lista corta de selectores permitidos (pestaña activa, contadores, avance, lo más bajo, acción principal en el tema negro).
@@ -395,6 +401,7 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 - **Requisitos:** REQ-134, REQ-136
 - **Nivel de verificación:** liviana (documento; el Coordinador ejecuta cada paso en una copia antes de darlo por bueno).
 - **Qué hay que hacer:** `specs/017-tableros-y-estetica/entorno.md` con el procedimiento reproducible desde cero: (1) reconstruir la imagen (`docker compose build app` y `docker compose up -d`) porque WhiteNoise sirve lo que `collectstatic` reunió (tipografía, marca, foto de la casa); (2) migración de `accounts` (`0003_tema_y_fotos`) con base con datos, según `migrate_on_start.sh`: detener `app`, respaldar con `pg_dump` a `backups/`, aplicar `migrate` y levantar todo; (3) cómo volver atrás (migración reversible y respaldo); (4) comprobaciones posteriores (ingreso 200, tema, una foto de prueba, tablero de cada sección); (5) la raíz de la instancia siempre en `main` (8000 monta `./evaluon`); (6) que el clon de la 016 copia la base con las fotos y queda en el equipo.
+- **Aviso de tareas anteriores:** (oleada 1) La migración accounts 0003 hacia atrás borra accounts_photo y theme: respaldo antes. El CASCADE de fotos es solo del ORM (FK NO ACTION en la base): un DELETE crudo de usuario falla.
 - **Archivos:** `specs/017-tableros-y-estetica/entorno.md`.
 - **Verificación:** los comandos se corrieron en el clon (`scripts/clon.sh`) o en una copia con una base de prueba, y el documento anota el resultado de cada paso; la migración hacia atrás se probó.
 - **No tocar:** código, compose, scripts.
