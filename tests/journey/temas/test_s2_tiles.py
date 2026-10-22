@@ -5,7 +5,9 @@ material es inventado (P4)."""
 import dataclasses
 import datetime
 import itertools
+import re
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -123,7 +125,8 @@ def test_versiones_abre_el_mismo_detalle_que_requisitos(procedure, matrix, opera
     found = tiles_of(operator_user, procedure, rf)
     assert found["versiones"].detail == found["requisitos"].detail == "d-s2-matriz"
     assert found["versiones"].big == f"v{matrix.version.number}"
-    assert "Validada" in found["versiones"].sub
+    assert found["versiones"].sub.startswith("Validada el ")
+    assert found["versiones"].sub.lower().count("validada") == 1
 
 
 def test_documentos_dice_cuantos_estan_cargados_y_el_de_n_solo_si_el_portal_los_lista(
@@ -279,3 +282,18 @@ def test_la_seccion_trae_los_cuatro_mosaicos_de_sus_temas(procedure, matrix, ope
         assert [t.key for t in section.tiles(operator_user, procedure, contexts)] == [
             "documentos", "requisitos", "versiones", "cumplimiento"]
     assert section.opens(request) is None
+
+
+def test_las_hojas_de_la_seccion_usan_tokens_y_no_colores_sueltos():
+    """REQ-133: `s2*.css` y `matrix.css` no traen colores en hexadecimal; todo `var(--…)` que
+    usan existe en `tokens.css`."""
+    raiz = Path(__file__).resolve().parents[3] / "evaluon" / "static"
+    tokens = (raiz / "diseno" / "tokens.css").read_text(encoding="utf-8")
+    definidos = set(re.findall(r"(--[a-z0-9-]+)\s*:", tokens))
+    hojas = sorted((raiz / "journey").glob("s2*.css")) + [raiz / "tenders" / "matrix.css"]
+    assert len(hojas) >= 3
+    for hoja in hojas:
+        css = re.sub(r"/\*.*?\*/", "", hoja.read_text(encoding="utf-8"), flags=re.S)
+        assert not re.search(r"#[0-9a-fA-F]{3,8}\b", css), hoja.name
+        for token in set(re.findall(r"var\((--[a-z0-9-]+)", css)):
+            assert token in definidos, f"{hoja.name} usa {token}, que tokens.css no define"

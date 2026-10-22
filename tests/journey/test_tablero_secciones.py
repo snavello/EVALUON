@@ -262,4 +262,4 @@ def test_las_demas_secciones_no_cambian_con_los_mosaicos_de_ofertas(
         client, procedure, matrix, operator_user, con_mosaicos):
     """REQ-126: los mosaicos de una sección no aparecen en otra."""
     html = pedir(client, procedure, operator_user, "pliego")
-    assert 'class="tablero"' not in html and "Ofertas del acta" not in html
+    assert "Ofertas del acta" not in html and "La más baja" not in html

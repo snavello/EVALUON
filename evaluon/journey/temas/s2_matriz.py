@@ -535,14 +535,13 @@ def tiles(user, procedure, ctx):
         charts.StackPart("Formales", summary["formal"], "ink"),
         charts.StackPart("Económicos", summary["economico"], "mute"),
         charts.StackPart("Técnicos", summary["tecnico"], "s3")])
-    state = VERSION_LABELS[version.status]
-    when = (f"validada el {_day(version.validated_at)}"
-            if version.status == VersionStatus.VALIDATED else "todavía sin validar")
+    state = (f"Validada el {_day(version.validated_at)}"
+             if version.status == VersionStatus.VALIDATED else VERSION_LABELS[version.status])
     count = len([v for v in ctx["versions"] if v["version"].status != VersionStatus.DISCARDED])
     return [
         Tile(key="requisitos", title="Requisitos", detail=DETAIL, width=2, big=ctx["total"],
              unit="requisitos", sub=f"Versión {version.number} · {changes}", chart=stack),
         Tile(key="versiones", title="Versiones de la matriz", detail=DETAIL,
              big=f"v{version.number}",
-             sub=f"{state}, {when} · {count} {'versión' if count == 1 else 'versiones'}"),
+             sub=f"{state} · {count} {'versión' if count == 1 else 'versiones'}"),
         heat]
