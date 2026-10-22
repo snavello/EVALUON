@@ -195,6 +195,53 @@ def test_el_formato_del_monto_es_el_argentino(make, procedure):
     assert otra == "USD 10,00"
 
 
+def test_sin_moneda_el_monto_va_sin_simbolo(make, procedure):
+    """REQ-141 (H-2): con la moneda vacía no se afirma que sean pesos; el monto sale sin
+    símbolo. Con «ARS» o «$» sí es «$»."""
+    make(1, Decimal("1234567.80"), "")
+    vista = economico.economic_view(procedure)
+    assert vista.rows[0].amount_text == "1.234.567,80"
+    assert economico._money(Decimal("5.00"), "") == "5,00"
+    assert economico._money(Decimal("5.00"), "ARS") == "$ 5,00"
+    assert economico._money(Decimal("5.00"), "$") == "$ 5,00"
+
+
+def test_una_diferencia_menor_a_cinco_centesimas_no_queda_vacia(make, procedure):
+    """REQ-130 (H-5): 1.000,04 sobre 1.000,00 se aparta 0,004 %; se dice «< 0,1 %» y no se deja
+    la celda vacía. La más baja sigue sin texto."""
+    make(1, Decimal("1000.00"))
+    make(2, Decimal("1000.04"))
+    make(3, Decimal("1000.50"))
+    vista = economico.economic_view(procedure)
+    assert fila(vista, 1).diff_text == ""
+    assert fila(vista, 2).diff_text == "< 0,1 %"
+    assert fila(vista, 2).diff_pct == Decimal("0.0")
+    assert fila(vista, 3).diff_text == "+0,1 %"
+    assert "< 0,1 %" in dibujar(vista).replace("&lt;", "<")
+
+
+def test_la_nota_de_la_mas_alta_es_corta(make, procedure):
+    """REQ-130 (H-1): la nota del gráfico no repite «sobre la más baja»; el título lo dice."""
+    make(1, Decimal("87450123.50"))
+    make(2, Decimal("207800999.99"))
+    grafico = economico.economic_view(procedure).chart
+    assert [r.note for r in grafico.rows] == ["La más baja", "La más alta · +137,6 %"]
+    assert "más baja" in grafico.title
+
+
+def test_los_ids_del_cuadro_y_del_grafico_se_derivan_del_uid(make, procedure):
+    """REQ-126 (H-3): dos cuadros en una página no repiten ids si reciben `uid` distintos."""
+    make(1, Decimal("1000.00"))
+    make(2, Decimal("1200.00"))
+    a = economico.economic_view(procedure, uid="orden-a")
+    b = economico.economic_view(procedure, uid="orden-b")
+    html = dibujar(a) + render_to_string(a.chart.template, {"chart": a.chart})         + dibujar(b) + render_to_string(b.chart.template, {"chart": b.chart})
+    ids = re.findall(r'id="([^"]+)"', html)
+    assert len(ids) == len(set(ids)), ids
+    assert 'id="orden-a"' in html and 'id="orden-b"' in html
+    assert economico.economic_view(procedure).uid == "economico"
+
+
 # --- Sin ofertas y sin totales --------------------------------------------------------------------
 
 

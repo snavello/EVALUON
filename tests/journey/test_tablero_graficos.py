@@ -299,3 +299,43 @@ def test_los_textos_se_escapan():
     grafico = charts.Bars(uid="b", title="t", rows=[charts.BarRow("<b>x</b>", 1, "1")])
     html = dibujar(grafico)
     assert "<b>" not in html and "&lt;b&gt;" in html
+
+
+# --- Correcciones de la verificación (H-1 y H-3) ----------------------------------------------------
+
+
+def _ancho_estimado(texto, tamano):
+    """Ancho en unidades del SVG, por caracteres (0,6 del cuerpo por letra: cota alta)."""
+    return len(texto) * 0.6 * tamano
+
+
+def test_lollipop_la_nota_de_la_mas_alta_entra_en_el_dibujo():
+    """REQ-130 (H-1): con totales de ocho cifras la nota de la más alta no pasa el borde
+    derecho del `viewBox`; el texto completo queda en la descripción."""
+    grafico = charts.Lollipop(uid="l", title="t", rows=[
+        charts.LollipopRow("Oferta 1", Decimal("87450123.50"), "$ 87.450.123,50", "La más baja",
+                           low=True),
+        charts.LollipopRow("Oferta 2", Decimal("103200000.00"), "$ 103.200.000,00", "+18,0 %"),
+        charts.LollipopRow("Oferta 3", Decimal("207800999.99"), "$ 207.800.999,99",
+                           "La más alta · +137,6 % sobre la más baja", high=True)])
+    ancho = float(grafico.view_box.split()[2])
+    for punto in grafico.geometry:
+        inicio = float(punto["vx"])
+        assert inicio + _ancho_estimado(punto["text"], 12) <= ancho
+        assert inicio + _ancho_estimado(punto["note"], 10) <= ancho
+    assert "sobre la más baja" in grafico.description
+
+
+def test_lollipop_ancho_por_omision_no_cambia_con_textos_cortos():
+    """REQ-130 (H-1): con textos cortos el dibujo conserva su ancho de siempre."""
+    assert con_datos()["lollipop"].view_box.split()[2] == "560"
+
+
+def test_dos_graficos_del_mismo_tipo_no_repiten_ids():
+    """REQ-126 (H-3): sin `uid`, cada gráfico genera ids propios; con `uid`, los suyos."""
+    a, b = charts.Bars(rows=[charts.BarRow("A", 1)]), charts.Bars(rows=[charts.BarRow("B", 1)])
+    assert a.title_id != b.title_id and a.desc_id != b.desc_id
+    html = dibujar(a) + dibujar(b)
+    ids = re.findall(r'\bid="([^"]+)"', html)
+    assert len(ids) == len(set(ids)) == 4
+    assert charts.Bars(uid="x").title_id == "x-t"
