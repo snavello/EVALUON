@@ -491,9 +491,14 @@ def plazos_tile(found):
     due = found.maintenance
     if due.state == "computed":
         left = due.days_left
-        sub = (f"{_short_date(due.due)} · vence el mantenimiento de las ofertas" if left >= 0
-               else f"venció el mantenimiento de las ofertas el {_short_date(due.due)}")
-        big, unit = abs(left), "día" if abs(left) == 1 else "días"
+        if left >= 0:
+            sub = f"{_short_date(due.due)} · vence el mantenimiento de las ofertas"
+            big, unit = left, "día" if left == 1 else "días"
+        else:
+            # Ya venció: la cifra grande no puede leerse como «faltan» (T-336).
+            big, unit = "Venció", ""
+            sub = (f"{_distance(due.due)} · el {_short_date(due.due)} · "
+                   "venció el mantenimiento de las ofertas")
     else:
         apertura = next(e for e in found.events if e.key == "apertura")
         if apertura.day is None:
