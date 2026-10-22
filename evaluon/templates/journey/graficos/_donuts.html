@@ -1,0 +1,9 @@
+{% comment %}Una dona por oferta con sus cuatro estados y la leyenda (T-314). Variable: `chart` (charts.Donuts).{% endcomment %}<svg viewBox="{{ chart.view_box }}" width="100%" role="img" aria-labelledby="{{ chart.title_id }} {{ chart.desc_id }}" class="grafico grafico-donuts" font-size="11">
+<title id="{{ chart.title_id }}">{{ chart.title }}</title>
+<desc id="{{ chart.desc_id }}">{{ chart.description }}</desc>
+{% for d in chart.geometry %}<g transform="{{ d.rotate }}">{% for a in d.arcs %}<circle cx="{{ d.cx }}" cy="{{ d.cy }}" r="{{ d.r }}" fill="none" stroke="currentColor" stroke-width="9" stroke-dasharray="{{ a.dash }} {{ a.rest }}" stroke-dashoffset="{{ a.offset }}" class="g-{{ a.tone }}"/>{% endfor %}</g>
+<text x="{{ d.cx }}" y="{{ d.ty }}" text-anchor="middle" font-size="14" font-weight="600" fill="currentColor" class="g-ink">{{ d.center }}</text>
+<text x="{{ d.cx }}" y="{{ d.ly }}" text-anchor="middle" fill="currentColor" class="g-ink">{{ d.label }}</text>
+{% endfor %}{% if chart.has_data %}{% for l in chart.legend %}<circle cx="{{ l.x }}" cy="115" r="4" fill="currentColor" class="g-{{ l.tone }}"/>
+<text x="{{ l.tx }}" y="119" font-size="10" fill="currentColor" class="g-ink2">{{ l.name }}</text>
+{% endfor %}{% endif %}</svg>
