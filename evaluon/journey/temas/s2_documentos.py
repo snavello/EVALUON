@@ -196,12 +196,29 @@ def not_downloaded(procedure):
     return list(found.items())
 
 
-def not_downloaded_text(name, reason):
-    """El aviso de un documento del Portal que no se pudo bajar, con su motivo."""
+def _reason(reason):
+    """El motivo de un documento que no se pudo bajar, empezando en minúscula."""
     reason = reason.strip()
-    if reason:
-        reason = reason[0].lower() + reason[1:]
-    return f"«{name}», que lista el Portal, no se pudo bajar: {reason or 'sin motivo registrado.'}"
+    return (reason[0].lower() + reason[1:]) if reason else "sin motivo registrado."
+
+
+def not_downloaded_line(names):
+    """La línea corta de «Falta» para los documentos que el Portal lista y no se pudieron bajar
+    (T-338): cuántos son y cuáles; el motivo está en el detalle de los documentos."""
+    count = len(names)
+    if count == 1:
+        return f"1 documento que lista el Portal y no se pudo bajar: {names[0]}"
+    return (f"{count} documentos que lista el Portal y no se pudieron bajar: "
+            + "; ".join(names))
+
+
+def listed_count(procedure):
+    """Cuántos documentos del pliego lista el Portal para el procedimiento (cargados, por tomar y
+    no bajados) y cuántos están cargados: `(listados, cargados)`. Sin documentos que el Portal
+    liste y falten, los dos coinciden (T-338)."""
+    loaded = len(documents_of(procedure))
+    waiting = len(missing_from_portal(procedure)) + len(not_downloaded(procedure))
+    return loaded + waiting, loaded
 
 
 def portal_url(procedure):
@@ -230,8 +247,12 @@ def status(user, procedure):
             f"El Portal lista {count} {'documento' if count == 1 else 'documentos'} "
             "del pliego que no se tomaron", portal_url(procedure), "Tomar del Portal"))
     upload = reverse("expedientes:pliego", args=[procedure.pk]) + "#s2-subir"
-    for name, reason in not_downloaded(procedure):
-        missing.append(Missing(not_downloaded_text(name, reason), upload, "Subir archivo"))
+    failed = not_downloaded(procedure)
+    if failed:
+        # Una sola línea con todos y un solo «Subir archivo»; el motivo de cada uno va en el
+        # detalle del mosaico «Documentos del pliego» (T-338).
+        missing.append(Missing(not_downloaded_line([name for name, _ in failed]), upload,
+                               "Subir archivo"))
     return TemaStatus(missing=tuple(missing), sources=tuple(sources))
 
 
@@ -496,6 +517,8 @@ def _open_history(procedure, request):
 def context(user, procedure, request):
     rows = rows_of(procedure)
     absent = missing_from_portal(procedure)
+    failed = [{"name": name, "reason": _reason(reason)}
+              for name, reason in not_downloaded(procedure)]
     opened = _open_history(procedure, request)
     tab_url = reverse("expedientes:pliego", args=[procedure.pk])
     entries = timeline(opened[1]) if opened and opened[0] == "documento" else []
@@ -509,10 +532,11 @@ def context(user, procedure, request):
         "tab_url": tab_url, "retired_url": f"{tab_url}?historial=retirados#s2-retirados",
         "stale": stale_matrix_warnings(procedure),
         "rows": rows, "absent": absent, "pid": procedure.pk, "empty": not rows,
+        "failed": failed,
         "can_load": can_load(user), "kind_choices": KIND_CHOICES,
         "portal_url": portal_url(procedure),
         "results": unpack(request.GET.get("docs")),
-        "loaded_count": len(rows), "missing_count": len(absent),
+        "loaded_count": len(rows), "missing_count": len(absent) + len(failed),
     }
 
 

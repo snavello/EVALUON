@@ -51,11 +51,13 @@ def texts(procedure, user):
 
 def test_documents_the_portal_could_not_serve_are_missing_with_their_reason(
         procedure, explored, operator_user):
-    """REQ-104 (T-259, H7): el Pliego general y su Disposición, que no bajaron, figuran como
-    faltantes con el motivo; una anomalía que no es de un documento no."""
+    """REQ-104 (T-259, H7; T-338): el Pliego general y su Disposición, que no bajaron, figuran como
+    un solo faltante que los nombra; el motivo de cada uno va en el detalle de los documentos
+    (`test_s2_t338`), no en la línea; una anomalía que no es de un documento no figura."""
     missing = texts(procedure, operator_user)
-    assert any(GENERAL in t and "pantalla de error" in t for t in missing)
-    assert any(DISPOSITION in t and "no se pudo bajar" in t for t in missing)
+    assert len(missing) == 1
+    assert GENERAL in missing[0] and DISPOSITION in missing[0]
+    assert "no se pudieron bajar" in missing[0] and "pantalla de error" not in missing[0]
     assert not any("renglones" in t for t in missing)
 
 
@@ -76,4 +78,4 @@ def test_once_uploaded_by_hand_it_is_no_longer_missing(procedure, explored, oper
         loaded_by=operator_user)
     missing = texts(procedure, operator_user)
     assert not any(GENERAL in t for t in missing)
-    assert any(DISPOSITION in t for t in missing)
+    assert any(DISPOSITION in t and "1 documento" in t for t in missing)

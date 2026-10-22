@@ -13,6 +13,7 @@ Las cuentas de pendientes y sugerencias de la matriz las suma la etapa `matriz` 
 este tema no las repite.
 """
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
 
@@ -26,6 +27,7 @@ from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.tablero import charts
 from evaluon.journey.tablero.tiles import Tile, detail_id
+from evaluon.portal.models import PortalLine
 from evaluon.tenders.models import (
     Consequence,
     ConsequenceType,
@@ -77,6 +79,18 @@ class Row:
     options: list = field(default_factory=list)  # consecuencias elegibles (solo quien decide)
     technical: bool = False
     no_indica: dict = field(default_factory=dict)  # «El pliego no indica consecuencia» (T-232)
+    lead: str = ""  # de un renglón técnico: el comienzo de su primera cita (T-338)
+    quote_views: list = field(default_factory=list)  # las citas que se ven al abrir la fila
+    commons_count: int = 0  # cuántas cláusulas comunes tiene (se ven una vez, en el grupo)
+
+
+@dataclass
+class QuoteView:
+    """Una cita de la fila tal como se muestra al abrirla. `text` es el de la cita, salvo en la
+    tabla de renglones, donde es el encabezado y la fila del renglón (T-338)."""
+
+    quote: object
+    text: str
 
 
 def _day(moment):
@@ -275,7 +289,7 @@ def _rows(page, with_options=False):
         requirement = source.requirement
         first = source.quotes[0] if source.quotes else None
         items = ", ".join(str(i) for i in requirement.items)
-        text = _excerpt(first.text) if first else "Sin cita"
+        text = lead = _excerpt(first.text) if first else "Sin cita"
         if requirement.category == RequirementClass.TECNICO:
             text = f"Renglón {items or '—'} · {text}"
         mine = consequences.get(requirement.pk, [])
@@ -289,8 +303,150 @@ def _rows(page, with_options=False):
             options=[o for o in every_option if not o.undetermined
                      and o.consequence.consequence_type != ConsequenceType.SIN_CONSECUENCIA],
             no_indica=_no_indica(every_option) if with_options else {},
-            technical=requirement.category == RequirementClass.TECNICO))
+            technical=requirement.category == RequirementClass.TECNICO, lead=lead,
+            quote_views=[QuoteView(quote, quote.text) for quote in source.quotes]))
     return rows
+
+# --- Renglones técnicos: su bien y sus cláusulas comunes (T-338) ------------------------------------
+
+_TABLE_HEADER = re.compile(r"r[eé]ngl|[ií]tem", re.IGNORECASE)
+_TABLE_ROW = re.compile(r"^\s*(\d+)\s+(\S.*?)\s*$")
+_ROW_QUANTITY = re.compile(
+    r"^(?P<what>.*?)[\s.]+(?P<qty>\d[\d.,]*)\s+(?P<unit>[^\W\d_][\w.]*)\.?$")
+
+
+def table_rows(text):
+    """`{número de renglón: su fila}` de una cita que es la tabla de renglones del pliego: un
+    encabezado que nombra el renglón o el ítem y, debajo, una fila por renglón que empieza con su
+    número. Una cita que no es una tabla de al menos dos renglones da `{}`."""
+    lines = text.split("\n")
+    if len(lines) < 3 or not _TABLE_HEADER.search(lines[0]):
+        return {}
+    rows = {}
+    for line in lines[1:]:
+        found = _TABLE_ROW.match(line)
+        if found:
+            rows.setdefault(int(found.group(1)), line.strip())
+    return rows if len(rows) >= 2 else {}
+
+
+def _readable(text):
+    """El bien como se lee: lo que el pliego escribe todo en mayúsculas, en minúsculas, con el
+    nombre y la marca después de un guion largo («Alimento para perros — Royal Canin»)."""
+    text = text.strip().rstrip(".").strip()
+    if not text.isupper():
+        return text
+    head, *rest = re.split(r"\s+-\s+", text)
+    rest = [re.sub(r"^MARCA\s+", "", part).title() for part in rest]
+    head = head.capitalize()
+    return f"{head} — {' '.join(rest)}" if rest else head
+
+
+def _row_parts(line):
+    """`(bien, cantidad y unidad)` de la fila de la tabla: las celdas, si vienen separadas con
+    tabulaciones (`tenders/tables.py`), o lo que sigue al número."""
+    if "\t" in line:
+        cells = [cell.strip() for cell in line.split("\t") if cell.strip()]
+        return (cells[1] if len(cells) > 1 else ""), " ".join(cells[2:])
+    rest = _TABLE_ROW.match(line).group(2)
+    found = _ROW_QUANTITY.match(rest)
+    if found:
+        return found.group("what"), f"{found.group('qty')} {found.group('unit')}"
+    return rest, ""
+
+
+def _quantity_of(line):
+    """La cantidad y la unidad de un renglón del procedimiento."""
+    if line.quantity is None:
+        return ""
+    value = line.quantity
+    shown = (f"{int(value)}" if value == value.to_integral_value()
+             else f"{value.normalize():f}".replace(".", ","))
+    return f"{shown} {line.unit}".strip()
+
+
+def renglon_text(number, tables, lines, fallback):
+    """El renglón por su bien: «Renglón 1 · Alimento … · 2700 kilos». Sale de su fila en la tabla de
+    renglones citada (`tables`: los textos de las citas) y, si no está, del renglón del
+    procedimiento (`lines`: `{número: PortalLine}`). Si no se sabe, `fallback`: el texto de
+    siempre (no se inventa); con `fallback` en `None`, la falta se informa con `None`."""
+    what, quantity = "", ""
+    for text in tables:
+        row = table_rows(text).get(number)
+        if row is not None:
+            what, quantity = _row_parts(row)
+            if what:
+                break
+    if not what:
+        line = lines.get(number)
+        what, quantity = (line.description, _quantity_of(line)) if line is not None else ("", "")
+    if not what.strip():
+        return None if fallback is None else f"Renglón {number} · {fallback}"
+    quantity = quantity.lower() if quantity.isupper() else quantity
+    text = f"Renglón {number} · {_readable(what)}"
+    return f"{text} · {quantity}" if quantity else text
+
+
+def _key(quote):
+    return (quote.segment_id, quote.text)
+
+
+def _plain(quote):
+    """Una cita que ninguna circular tocó: la única que se puede mostrar una vez para todos."""
+    return not (quote.current or quote.earlier or quote.voided or quote.notes
+                or quote.side_notes or quote.covered)
+
+
+def technical_views(rows, procedure_id):
+    """Arma lo que se ve al abrir los renglones técnicos (T-338): cada renglón con su bien como
+    texto, la fila de la tabla de renglones que le toca (no la tabla entera) y un enlace a las
+    cláusulas comunes, que se muestran una sola vez en el grupo. Es común una cita «Común a todos
+    los renglones» y la que cita todo renglón, sin cambios de circular. Devuelve
+    `{"clauses": [...], "tables": [...]}`: las citas comunes y las tablas, completas (P3: el literal
+    no se pierde, solo se deja de repetir). Cambia las filas en el lugar."""
+    technical = [row for row in rows if row.technical]
+    common = {"clauses": [], "tables": []}
+    if not technical:
+        return common
+    everywhere = set()
+    if len(technical) > 1:
+        everywhere = set.intersection(*({_key(q) for q in row.page_row.quotes}
+                                        for row in technical))
+    seen_clauses, seen_tables, lines = set(), set(), None
+    for row in technical:
+        items = row.page_row.requirement.items
+        number = items[0] if len(items) == 1 else None
+        tables = [q.text for q in row.page_row.quotes if table_rows(q.text)]
+        views, mine = [], set()
+        for quote in row.page_row.quotes:
+            key = _key(quote)
+            of_table = table_rows(quote.text)
+            if of_table:
+                trimmed = number in of_table and _plain(quote)
+                text = quote.text
+                if trimmed:
+                    text = f"{quote.text.split(chr(10))[0]}\n{of_table[number]}"
+                    if key not in seen_tables:
+                        seen_tables.add(key)
+                        common["tables"].append(quote)
+                views.append(QuoteView(quote, text))
+            elif _plain(quote) and (quote.scope == "general" or key in everywhere):
+                mine.add(key)
+                if key not in seen_clauses:
+                    seen_clauses.add(key)
+                    common["clauses"].append(quote)
+            else:
+                views.append(QuoteView(quote, quote.text))
+        row.quote_views, row.commons_count = views, len(mine)
+        if number is not None:
+            text = renglon_text(number, tables, {}, None)
+            if text is None:
+                if lines is None:
+                    lines = {line.number: line
+                             for line in PortalLine.objects.filter(procedure_id=procedure_id)}
+                text = renglon_text(number, tables, lines, row.lead)
+            row.text = text
+    return common
 
 
 def _select(rows, query):
@@ -318,7 +474,7 @@ def _select(rows, query):
     return chosen, kind, state, text
 
 
-def _groups(rows):
+def _groups(rows, common=None):
     """Por tipo (formales, económicos, técnicos) y, dentro, por documento del pliego."""
     groups = []
     for category in TYPE_ORDER:
@@ -332,9 +488,11 @@ def _groups(rows):
                 sub.append({"heading": heading, "rows": []})
                 last = heading
             sub[-1]["rows"].append(row)
+        shared = common if (category == RequirementClass.TECNICO and common
+                            and (common["clauses"] or common["tables"])) else None
         groups.append({"category": category, "label": TYPE_LABELS[category],
                        "count": len(mine), "unconfirmed": sum(r.unconfirmed for r in mine),
-                       "subgroups": sub})
+                       "subgroups": sub, "common": shared})
     return groups
 
 
@@ -407,6 +565,7 @@ def context(user, procedure, request):
     is_evaluator = user.commission_role == CommissionRole.EVALUATOR
     decides = is_evaluator and version.status == VersionStatus.DRAFT
     rows = _rows(page, with_options=decides)
+    common = technical_views(rows, procedure.pk)
     motives = _motives([r.page_row.requirement.pk for r in rows]
                        + [r.requirement.pk for r in page.removed])
     for row in rows:
@@ -421,7 +580,7 @@ def context(user, procedure, request):
     counts = acciones.blockers(version) if version.status == VersionStatus.DRAFT else None
     segments = _tramos(page)
     return {
-        **base, "version": version, "draft": page.draft, "groups": _groups(chosen),
+        **base, "version": version, "draft": page.draft, "groups": _groups(chosen, common),
         "shown": len(chosen), "total": len(rows), "kind": kind, "state": state, "q": text,
         "filter_buttons": [(value, label, counters[value], value == state)
                            for value, label in FILTERS],
@@ -479,14 +638,18 @@ def _missing_matrix(procedure):
 
 
 def _heat(user, procedure):
-    """La tabla de calor y la cifra: por tipo de requisito y oferta, cuántos requisitos cumple la
-    propuesta vigente. Una oferta sin evaluar queda con las celdas vacías. `None` si ninguna
-    oferta fue evaluada (la sección Evaluación es la dueña de esos resultados, P3)."""
+    """La tabla de calor y las cuentas: por tipo de requisito y oferta, cuántos requisitos cumple la
+    propuesta vigente. Una oferta sin evaluar queda con las celdas vacías. Las cuentas (cumple, no
+    cumple, no determinado, sin resultado) son las de la sección Evaluación (`figures_of`), para
+    que las dos pantallas digan lo mismo. `None` si ninguna oferta fue evaluada (la sección
+    Evaluación es la dueña de esos resultados, P3)."""
+    from evaluon.journey.temas import s4_propuesta
     page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
-    evaluated = [status.evaluated for status in page.statuses]
-    if not any(evaluated):
+    figures = s4_propuesta.figures_of(page)
+    if figures is None:
         return None
-    rows, cumplen = [], 0
+    evaluated = [status.evaluated for status in page.statuses]
+    rows = []
     for category, label in HEAT_TYPES:
         mine = [r for r in page.requirements if r.category == category]
         cells = []
@@ -497,13 +660,58 @@ def _heat(user, procedure):
             found = [page.cells[(offer.pk, r.pk)].effective_key for r in mine]
             total = sum(1 for key in found if key != "no_aplica")
             value = sum(1 for key in found if key == "cumple")
-            cumplen += value
             cells.append(charts.HeatCell(value, total))
         rows.append(charts.HeatRow(label, cells))
     heat = charts.Heat(uid="s2-cumplimiento", title="Cumplimiento por tipo y oferta",
                        columns=[f"Of. {offer.number}" for offer in page.offers], rows=rows)
-    total_cells = sum(c.total for row in rows for c in row.cells if c is not None)
-    return (heat, cumplen, total_cells) if heat.has_data else None
+    if not heat.has_data:
+        return None
+    waiting = sum(1 for status in page.statuses if status.evaluated
+                  for r in page.requirements if r.category == RequirementClass.TECNICO
+                  if s4_propuesta._bucket(page.cells[(status.offer.pk, r.pk)]) == "pe")
+    counts = Compliance(
+        ok=sum(o.ok for o in figures.offers), no=figures.no, nd=figures.nd,
+        pe=sum(o.pe for o in figures.offers), na=figures.na, waiting=waiting,
+        requirements=figures.requirements, offers=len(figures.offers))
+    return heat, counts
+
+
+@dataclass(frozen=True)
+class Compliance:
+    """Las cuentas del mosaico de cumplimiento: pares requisito-oferta por categoría, las de la
+    sección Evaluación. `ok + no + nd + pe` es el total; `na` (no aplica) no se cuenta. `waiting`
+    son los sin resultado que son técnicos y esperan el informe técnico del área."""
+
+    ok: int
+    no: int
+    nd: int
+    pe: int
+    na: int
+    waiting: int
+    requirements: int
+    offers: int
+
+    @property
+    def total(self):
+        return self.ok + self.no + self.nd + self.pe
+
+    def line(self):
+        """La línea de apoyo: de cuántos se habla y cuántos hay en cada categoría."""
+        base = f"De {self.total}"
+        if not self.na:
+            base += (f" ({self.requirements} {'requisito' if self.requirements == 1 else 'requisitos'}"
+                     f" × {self.offers} {'oferta' if self.offers == 1 else 'ofertas'})")
+        parts = [f"{self.no} no cumple", f"{self.nd} no {'determinado' if self.nd == 1 else 'determinados'}",
+                 f"{self.pe} sin resultado"]
+        if self.pe and self.waiting:
+            parts[-1] += (" (técnicos: esperan el informe técnico del área)"
+                          if self.waiting == self.pe else
+                          f" ({self.waiting} técnicos esperan el informe técnico del área)")
+        text = f"{base}: " + " · ".join(parts) + "."
+        if self.na:
+            text += (f" {self.na} no aplica y no se cuenta." if self.na == 1
+                     else f" {self.na} no aplican y no se cuentan.")
+        return text + " Propuesta del sistema; decide la Comisión."
 
 
 def tiles(user, procedure, ctx):
@@ -518,10 +726,10 @@ def tiles(user, procedure, ctx):
                     href=evaluation, missing="Pendiente",
                     sub="Aparece cuando el sistema evalúa las ofertas")
     else:
-        chart, cumplen, total = found
+        chart, counts = found
         heat = Tile(key="cumplimiento", title="Cumplimiento por tipo y oferta", width=4,
-                    href=evaluation, big=cumplen, unit=f"de {total} cumplen",
-                    sub="Propuesta del sistema; decide la Comisión", chart=chart)
+                    href=evaluation, big=counts.ok, unit="cumplen", sub=counts.line(),
+                    chart=chart)
     if version is None:
         missing = _missing_matrix(procedure)
         return [Tile(key="requisitos", title="Requisitos", detail=DETAIL, width=2,
