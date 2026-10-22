@@ -1708,9 +1708,9 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 27 tareas sin terminar.
-- ○ T-308 · Esquema y perfil: `User.theme`, tabla `Photo` con sus restricciones, migración reversible, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa con sus créditos y `.gitignore` (pendiente)
-- ○ T-309 · Tokens de los dos temas con alias de los viejos, estilos de `evaluon.css`, `recorrido.css` y `punto.css` en los dos temas, guía visual, test de contraste y test de direcciones externas (pendiente)
-- ○ T-310 · Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en `static/marca/` (pendiente)
+- ▶ T-308 · Esquema y perfil: `User.theme`, tabla `Photo` con sus restricciones, migración reversible, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa con sus créditos y `.gitignore` (en curso)
+- ▶ T-309 · Tokens de los dos temas con alias de los viejos, estilos de `evaluon.css`, `recorrido.css` y `punto.css` en los dos temas, guía visual, test de contraste y test de direcciones externas (en curso)
+- ▶ T-310 · Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en `static/marca/` (en curso)
 - ○ T-311 · Tema en `base.html`, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de usuario), vista del tema, pase de hoja, ingreso con el logotipo nuevo y retiro de los SVG viejos (pendiente)
 - ○ T-312 · Línea «Hay · Falta», portada que redirige al primer panel y vista mínima del indicador de avance (pendiente)
 - ○ T-313 · Componente de tablero: contrato `Tile`, mosaico, cuadrícula, detalle desplegable (`tablero.js` y `tablero.css`) y cuerpo común de las secciones (pendiente)
@@ -1744,9 +1744,9 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  T308["○ T-308 · Esquema y perfil: User.theme, tabla Photo c…"]:::todo
-  T309["○ T-309 · Tokens de los dos temas con alias de los vi…"]:::todo
-  T310["○ T-310 · Tipografía Hanken Grotesk alojada con su li…"]:::todo
+  T308["▶ T-308 · Esquema y perfil: User.theme, tabla Photo c…"]:::active
+  T309["▶ T-309 · Tokens de los dos temas con alias de los vi…"]:::active
+  T310["▶ T-310 · Tipografía Hanken Grotesk alojada con su li…"]:::active
   T311["○ T-311 · Tema en base.html, encabezado único (logoti…"]:::todo
   T312["○ T-312 · Línea «Hay · Falta», portada que redirige a…"]:::todo
   T313["○ T-313 · Componente de tablero: contrato Tile, mosai…"]:::todo
@@ -1841,13 +1841,13 @@ flowchart TD
 | REQ-130 | El orden económico muestra las ofertas de menor a mayor total, con la oferta más alta y la más baja como indicadores, y cuánto se aparta cada una de la más baja. No se usa monto estimado. Si todavía no se cargaron las ofertas, el cuadro muestra el día de la apertura y un indicador de pendiente. | T-314, T-315, T-322 | ○ pendiente |
 | REQ-131 | Los plazos importantes muestran al menos la apertura, el día de hoy, el vencimiento del mantenimiento de las ofertas y el dictamen de la Comisión, con lo que ya pasó, lo de hoy y lo que viene. | T-322 | ○ pendiente |
 | REQ-132 | Siempre se sabe el camino: un recorrido arriba (Procedimientos › procedimiento › sección) y, en cada sección, una línea con qué hay y qué falta completar. Las pestañas muestran cuántos pendientes tiene cada sección. | T-311, T-312, T-321, T-324 | ○ pendiente |
-| REQ-133 | La estética sigue el modelo 2 de la ronda 3: negro, grises y blanco, verde lima solo para resaltar, cifras grandes, gráficos en colores levemente desaturados y pestañas en píldora. Los estados de cumplimiento siguen siendo íconos de color con forma propia y el nombre al pasar el mouse (guía visual, decisión del 2026-10-07). | T-309, T-310, T-311, T-316, T-317, T-324, T-331, T-333, T-334 | ○ pendiente |
-| REQ-134 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda guardada en el perfil del usuario y vale en cualquier equipo. El tema de inicio es gris y blanco. | T-308, T-311, T-332 | ○ pendiente |
+| REQ-133 | La estética sigue el modelo 2 de la ronda 3: negro, grises y blanco, verde lima solo para resaltar, cifras grandes, gráficos en colores levemente desaturados y pestañas en píldora. Los estados de cumplimiento siguen siendo íconos de color con forma propia y el nombre al pasar el mouse (guía visual, decisión del 2026-10-07). | T-309, T-310, T-311, T-316, T-317, T-324, T-331, T-333, T-334 | ▶ en proceso |
+| REQ-134 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda guardada en el perfil del usuario y vale en cualquier equipo. El tema de inicio es gris y blanco. | T-308, T-311, T-332 | ▶ en proceso |
 | REQ-135 | La foto aparece solo en el primer panel, como fondo muy suave, casi etéreo, pero que se note, detrás de los datos principales del procedimiento. Ocupa a lo sumo el 60 % del ancho que ocupaba en el modelo 2 (un 40 % menos) y se funde con el fondo del panel. | T-321 | ○ pendiente |
-| REQ-136 | Cada usuario tiene en su perfil «Mis fotos»: sube, ve y quita hasta 10 fotos. Si no tiene fotos propias, se muestra la foto de la casa. Las fotos quedan en el equipo, las ve solo su dueño y nunca van al repositorio ni a un servicio externo. | T-308, T-319, T-320, T-332 | ○ pendiente |
+| REQ-136 | Cada usuario tiene en su perfil «Mis fotos»: sube, ve y quita hasta 10 fotos. Si no tiene fotos propias, se muestra la foto de la casa. Las fotos quedan en el equipo, las ve solo su dueño y nunca van al repositorio ni a un servicio externo. | T-308, T-319, T-320, T-332 | ▶ en proceso |
 | REQ-137 | Al subir una foto, el sistema la ajusta para que todas tengan el mismo tono, saturación, temperatura, brillo y contraste: todas quedan en blanco y negro, con el mismo brillo medio y el mismo contraste que la foto de la casa. | T-319 | ○ pendiente |
-| REQ-138 | La foto se elige al azar entre las del usuario y cambia solo al cambiar de pantalla, nunca mientras se está en ella. Entra con una animación sutil. | T-308, T-319, T-321 | ○ pendiente |
+| REQ-138 | La foto se elige al azar entre las del usuario y cambia solo al cambiar de pantalla, nunca mientras se está en ella. Entra con una animación sutil. | T-308, T-319, T-321 | ▶ en proceso |
 | REQ-139 | Al cambiar de sección, la pantalla pasa con efecto de hoja que gira. Con «reducir movimiento» activado en el equipo, el paso es un fundido corto. | T-311, T-316, T-333 | ○ pendiente |
 | REQ-140 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su avance con la estética nueva: porcentaje, dónde va (por ejemplo, oferta 2 de 3, requisito 14 de 23) y los últimos pasos en lenguaje llano, en el primer panel y como indicador chico en el encabezado de todas las secciones. | T-312, T-330 | ○ pendiente |
 | REQ-141 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente», nunca con un valor inventado. Toda propuesta del sistema sigue mostrando su fundamento (P3). | T-313, T-314, T-315, T-318, T-322, T-323, T-325, T-326, T-327, T-328, T-329 | ○ pendiente |
-| REQ-142 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el efecto vidrio y el halo, recoloreados a la estética nueva: en el tema gris y blanco, la placa EVALU en negro y la de ON en verde lima; en el tema negro, la placa EVALU en gris y la de ON en verde lima. El encabezado muestra la versión del tema elegido y la pestaña del navegador lleva el isotipo. Archivos: `docs/diseno/marca/017/`. | T-310, T-311, T-331 | ○ pendiente |
+| REQ-142 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el efecto vidrio y el halo, recoloreados a la estética nueva: en el tema gris y blanco, la placa EVALU en negro y la de ON en verde lima; en el tema negro, la placa EVALU en gris y la de ON en verde lima. El encabezado muestra la versión del tema elegido y la pestaña del navegador lleva el isotipo. Archivos: `docs/diseno/marca/017/`. | T-310, T-311, T-331 | ▶ en proceso |

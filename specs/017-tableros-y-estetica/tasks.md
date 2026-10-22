@@ -65,9 +65,9 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
-| T-308 | Esquema y perfil: `User.theme`, tabla `Photo` con sus restricciones, migración reversible, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa con sus créditos y `.gitignore` | REQ-134, REQ-136, REQ-138 | — | pendiente |
-| T-309 | Tokens de los dos temas con alias de los viejos, estilos de `evaluon.css`, `recorrido.css` y `punto.css` en los dos temas, guía visual, test de contraste y test de direcciones externas | REQ-133 | — | pendiente |
-| T-310 | Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en `static/marca/` | REQ-133, REQ-142 | — | pendiente |
+| T-308 | Esquema y perfil: `User.theme`, tabla `Photo` con sus restricciones, migración reversible, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa con sus créditos y `.gitignore` | REQ-134, REQ-136, REQ-138 | — | en curso |
+| T-309 | Tokens de los dos temas con alias de los viejos, estilos de `evaluon.css`, `recorrido.css` y `punto.css` en los dos temas, guía visual, test de contraste y test de direcciones externas | REQ-133 | — | en curso |
+| T-310 | Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en `static/marca/` | REQ-133, REQ-142 | — | en curso |
 | T-311 | Tema en `base.html`, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de usuario), vista del tema, pase de hoja, ingreso con el logotipo nuevo y retiro de los SVG viejos | REQ-132, REQ-133, REQ-134, REQ-139, REQ-142 | T-308, T-309, T-310 | pendiente |
 | T-312 | Línea «Hay · Falta», portada que redirige al primer panel y vista mínima del indicador de avance | REQ-128, REQ-132, REQ-140 | T-311 | pendiente |
 | T-313 | Componente de tablero: contrato `Tile`, mosaico, cuadrícula, detalle desplegable (`tablero.js` y `tablero.css`) y cuerpo común de las secciones | REQ-126, REQ-127, REQ-141 | T-312 | pendiente |
