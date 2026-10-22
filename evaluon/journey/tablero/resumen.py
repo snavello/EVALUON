@@ -55,10 +55,39 @@ def _without_falta(text):
     return text[:1].upper() + text[1:]
 
 
+_PER_OFFER = re.compile(r"^Oferta (\d+) \(.*?\): (.+)$")
+
+
+def _collapse(texts):
+    """Los faltantes que repiten la misma cosa en varias ofertas («Oferta 1 (…): falta la hoja de
+    compliance», «Oferta 2 (…): …») pasan a una sola línea con la cuenta: «La hoja de compliance
+    de 2 ofertas». Lo demás queda como está."""
+    per_offer, order = {}, []
+    for text in texts:
+        found = _PER_OFFER.match(text)
+        key = found.group(2) if found else text
+        if key not in per_offer:
+            per_offer[key] = []
+            order.append((key, bool(found)))
+        if found:
+            per_offer[key].append(found.group(1))
+    collapsed = []
+    for key, is_offer in order:
+        offers = per_offer[key]
+        if not is_offer:
+            collapsed.append(key)
+        elif len(offers) == 1:
+            collapsed.append(f"{_without_falta(key)} de la oferta {offers[0]}")
+        else:
+            collapsed.append(f"{_without_falta(key)} de {len(offers)} ofertas")
+    return collapsed
+
+
 def short_falta(missing):
     """«Falta» en corto: los dos primeros faltantes sin su «Falta» inicial y, si hay más, «y N
     más». Sin faltantes, «nada»."""
-    found = [_cut(_without_falta(one.text)) for one in missing if str(one.text).strip()]
+    texts = [" ".join(str(one.text).split()) for one in missing if str(one.text).strip()]
+    found = [_cut(_without_falta(text)) for text in _collapse(texts)]
     if not found:
         return "nada"
     shown = " · ".join(found[:SHORT_MISSING])

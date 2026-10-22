@@ -85,6 +85,16 @@ def test_hay_y_falta_en_corto_sin_explicaciones():
     assert "Se puede armar" not in textos["Hay"]
 
 
+def test_lo_mismo_que_falta_en_varias_ofertas_se_cuenta_en_una_linea():
+    """REQ-132: «Oferta 1 (…): falta la hoja…» y «Oferta 2 (…): falta la hoja…» son una cosa que
+    falta en 2 ofertas: cantidad y qué, sin repetir cada oferente."""
+    faltas = (Missing("Oferta 1 (Uno SA): falta la hoja de compliance", "/1/"),
+              Missing("Oferta 2 (Dos SRL): falta la hoja de compliance", "/2/"),
+              Missing("Oferta 3 (Tres SA): falta el informe técnico", "/3/"))
+    texto = resumen.short_falta(faltas)
+    assert texto == "La hoja de compliance de 2 ofertas · El informe técnico de la oferta 3"
+
+
 def test_sin_faltantes_el_cuadro_dice_falta_nada():
     """REQ-132: sin faltantes, «Falta: nada»."""
     tile = resumen.hay_falta_tile((("Ofertas", "Hay tres ofertas leídas."),), ())
