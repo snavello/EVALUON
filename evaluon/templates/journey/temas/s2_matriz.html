@@ -87,6 +87,21 @@
       <tbody>
         {% for group in t.groups %}
         <tr class="grupo" data-tipo="{{ group.category }}"><th colspan="7" scope="colgroup">{{ group.label }}<span class="g-cta">{{ group.count }} requisito{{ group.count|pluralize }} · {{ group.unconfirmed }} sin confirmar</span>{% if t.can_review and group.unconfirmed %}<form class="en-linea g-accion" method="post" action="{% url 'expedientes:s2_confirmar' t.pid %}">{% csrf_token %}{% for sub in group.subgroups %}{% for row in sub.rows %}{% if row.unconfirmed %}<input type="hidden" name="requirement" value="{{ row.page_row.requirement.pk }}">{% endif %}{% endfor %}{% endfor %}<button class="btn secundario chico" type="submit">Confirmar los {{ group.unconfirmed }} del grupo</button></form>{% endif %}</th></tr>
+        {% if group.common %}
+        <tr class="comunes"><td colspan="7">
+          <details class="comunes-det">
+            <summary>{% if group.common.clauses %}Cláusulas comunes a todos los renglones ({{ group.common.clauses|length }}){% else %}Tabla de renglones, completa{% endif %}<span class="suave"> · se muestran una sola vez; cada renglón tiene su enlace</span></summary>
+            <div class="comunes-lista" id="comunes-tecnico">
+              {% for quote in group.common.clauses %}
+              <div class="comun"><blockquote class="cita">{{ quote.text }}</blockquote>{% include "tenders/_place.html" with place=quote.place %}</div>
+              {% endfor %}
+              {% for quote in group.common.tables %}
+              <div class="comun"><p class="suave">Tabla de renglones del pliego, completa</p><blockquote class="cita">{{ quote.text }}</blockquote>{% include "tenders/_place.html" with place=quote.place %}</div>
+              {% endfor %}
+            </div>
+          </details>
+        </td></tr>
+        {% endif %}
         {% for sub in group.subgroups %}
         {% if sub.heading %}<tr class="subgrupo"><th colspan="7" scope="colgroup">{{ sub.heading }}</th></tr>{% endif %}
         {% for row in sub.rows %}
@@ -102,7 +117,7 @@
         <tr class="detalle" id="detalle-{{ row.number }}" hidden>
           <td colspan="7"><div class="det-grid">
             <dl>
-              {% for quote in row.page_row.quotes %}
+              {% for view in row.quote_views %}{% with quote=view.quote %}
               {% if quote.current %}
               <dt>Texto anterior</dt>
               <dd><blockquote class="cita vieja">{{ quote.text }}</blockquote></dd>
@@ -113,11 +128,12 @@
               <dd><blockquote class="cita vieja">{{ quote.text }}</blockquote>Sin efecto desde {{ quote.voided.issued_on|date:"d/m/Y" }}, {{ quote.voided.place.document_title }}.</dd>
               {% else %}
               <dt>Cita literal del pliego{% if quote.scope_label %} · {{ quote.scope_label }}{% endif %}</dt>
-              <dd><blockquote class="cita">{{ quote.text }}</blockquote>{% include "tenders/_place.html" with place=quote.place %}</dd>
+              <dd><blockquote class="cita">{{ view.text }}</blockquote>{% include "tenders/_place.html" with place=quote.place %}</dd>
               {% endif %}
-              {% empty %}
-              <dt>Cita literal del pliego</dt><dd class="suave">Este requisito no tiene cita guardada.</dd>
+              {% endwith %}{% empty %}
+              {% if not row.commons_count %}<dt>Cita literal del pliego</dt><dd class="suave">Este requisito no tiene cita guardada.</dd>{% endif %}
               {% endfor %}
+              {% if row.commons_count %}<dt>Cláusulas comunes</dt><dd><a href="#comunes-tecnico">+ {{ row.commons_count }} {% if row.commons_count == 1 %}cláusula común{% else %}cláusulas comunes{% endif %}</a></dd>{% endif %}
             </dl>
             <dl>
               <dt>Consecuencia de no cumplir</dt>

@@ -73,3 +73,10 @@ details.subir input[type=date] { font: inherit; font-size: var(--ev-t-ctl); bord
 ul.resultado-subida { margin: 6px 0 0; padding-left: 1.2rem; }
 ul.resultado-subida li.rechazado { font-weight: 600; }
 .matriz tr.falta-doc th { font-weight: 600; }
+
+/* Renglones técnicos (T-338): las cláusulas comunes se ven una sola vez, en el grupo. */
+.matriz tr.comunes td { background: var(--ev-superficie); padding: 6px 14px; border-bottom: 1px solid var(--ev-borde); }
+details.comunes-det > summary { cursor: pointer; font-weight: 600; font-size: var(--ev-t-sm); }
+details.comunes-det > summary .suave { font-weight: 400; font-size: var(--ev-t-xs); }
+.comunes-lista { margin-top: 6px; }
+.comunes-lista .comun + .comun { margin-top: 8px; }
