@@ -100,6 +100,17 @@
       <tbody>
         {% for group in t.groups %}
         <tr class="grupo{% if group.external %} grupo-externo{% endif %}" data-tipo="{{ group.category }}"><th colspan="{{ t.colspan }}" scope="colgroup">{{ group.label }}<span class="g-cta">{{ group.count }} requisito{{ group.count|pluralize }}</span></th></tr>
+        {% if group.common %}
+        <tr class="comunes"><td colspan="{{ t.colspan }}">
+          <details class="comunes-det">
+            <summary>{% if group.common.points %}Cláusulas comunes a todos los renglones ({{ group.common.points|length }}){% else %}Tabla de renglones, completa{% endif %}<span class="suave"> · se muestran una sola vez; cada renglón tiene su enlace</span></summary>
+            <div class="comunes-lista" id="comunes-tecnico">
+              {% if group.common.points %}{% include "journey/_punto_pliego.html" with points=group.common.points %}{% endif %}
+              {% if group.common.tables %}<p class="suave">Tabla de renglones del pliego, completa</p>{% include "journey/_punto_pliego.html" with points=group.common.tables %}{% endif %}
+            </div>
+          </details>
+        </td></tr>
+        {% endif %}
         {% for row in group.rows %}
         <tr class="fila-req{% if row.external %} fila-externa{% endif %}" data-numero="{{ row.number }}" id="ev-{{ row.number }}">
           <td><button type="button" class="abrir" aria-expanded="false" aria-controls="ev-det-{{ row.number }}" aria-label="Ver el fundamento del requisito {{ row.number }}">▸</button></td>
@@ -114,7 +125,7 @@
             <div>
               <dl>
                 <dt>Requisito {{ row.number }} · {{ row.document }}{% if row.external %} · <span class="marca-externa">Externo</span> {{ row.external|join:", " }}{% endif %}</dt>
-                <dd>{% include "journey/_punto_pliego.html" with points=row.points %}</dd>
+                <dd>{% if row.points or not row.commons_count %}{% include "journey/_punto_pliego.html" with points=row.points %}{% endif %}{% if row.commons_count %}<p class="punto-comunes"><a href="#comunes-tecnico">+ {{ row.commons_count }} {% if row.commons_count == 1 %}cláusula común{% else %}cláusulas comunes{% endif %}</a></p>{% endif %}</dd>
               </dl>
             </div>
             <div>
