@@ -70,3 +70,10 @@
    marca (`.cita-vision`, `.marca-vision`) están en `secciones.css`. */
 .s4-prop figure.vision-page { margin: 6px 0 10px; }
 .s4-prop figure.vision-page img { max-width: 100%; height: auto; border: 1px solid var(--ev-borde); }
+
+/* Renglones técnicos (T-339): los puntos comunes se ven una sola vez, en la cabecera del grupo. */
+.s4-prop .matriz tr.comunes td { background: var(--ev-superficie); padding: 6px 14px; border-bottom: 1px solid var(--ev-borde); }
+.s4-prop details.comunes-det > summary { cursor: pointer; font-weight: 600; font-size: var(--ev-t-sm); }
+.s4-prop details.comunes-det > summary .suave { font-weight: 400; font-size: var(--ev-t-xs); }
+.s4-prop .comunes-lista { margin-top: 6px; }
+.s4-prop .punto-comunes { margin: 4px 0 0; font-size: var(--ev-t-sm); }

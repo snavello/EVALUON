@@ -34,6 +34,7 @@ from evaluon.assessment.services import evaluate, external_stages, review
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
 from evaluon.journey import basis, external, memo, points, reading_note
+from evaluon.journey.renglones import lines_of, renglon_text, table_rows
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import evaluacion as evaluation_stage
@@ -168,6 +169,8 @@ class Row:
     technical: bool
     points: list = field(default_factory=list)  # el punto completo del pliego (T-228)
     external: tuple = ()  # consultas externas que lo cubren; vacío si se resuelve con la oferta
+    lead: str = ""  # de un renglón técnico: el comienzo de su cita (T-339)
+    commons_count: int = 0  # cuántos puntos comunes tiene (se ven una vez, en el grupo)
 
 
 def _day(moment):
@@ -349,7 +352,7 @@ def _rows(page, user):
         current = texts[requirement.pk].quotes
         now = current[0].text if current else ""
         items = ", ".join(str(i) for i in requirement.items)
-        text = _excerpt(now) if first else "Sin cita"
+        text = lead = _excerpt(now) if first else "Sin cita"
         if requirement.category == RequirementClass.TECNICO:
             text = f"Renglón {items or '—'} · {text}"
         cells = [views[(offer.pk, requirement.pk)] for offer in page.offers]
@@ -359,8 +362,81 @@ def _rows(page, user):
             quote=now, cells=cells,
             technical=any(c.technical for c in cells),
             points=point_map.get(requirement.pk, []),
-            external=flagged.get(requirement.pk, ())))
+            external=flagged.get(requirement.pk, ()), lead=lead))
     return rows
+
+
+# --- Renglones técnicos: su bien y sus puntos comunes (T-339) ------------------------------------
+
+
+def _shared_segments(technical, quotes):
+    """Los tramos que citan todos los renglones técnicos con los mismos fragmentos: de ahí salen
+    los puntos comunes. Se compara lo citado (no el texto vigente), para que un cambio de circular
+    en un renglón no saque al punto de los comunes de los demás."""
+    if len(technical) < 2:
+        return set()
+    marks = []
+    for row in technical:
+        found = {}
+        for quote in quotes.get(row.requirement.pk, []):
+            found.setdefault(quote.segment_id, []).append((quote.char_start, quote.char_end))
+        marks.append({segment: tuple(sorted(spans)) for segment, spans in found.items()})
+    return {segment for segment, spans in marks[0].items()
+            if all(other.get(segment) == spans for other in marks[1:])}
+
+
+def _own_row(point, row):
+    """El punto de la tabla de renglones con solo el encabezado de las columnas y la fila del
+    renglón (el literal completo queda una vez en el grupo, P3)."""
+    header = point.text.split("\n")[0]
+    marked = any(mark for _, mark in point.parts)
+    text = f"{header}\n{row}"
+    parts = ((header + "\n", False), (row, marked))
+    return dataclasses.replace(point, parts=parts, head=parts, long=False, chars=len(text))
+
+
+def technical_views(rows, procedure_id, quotes):
+    """Arma lo que se ve al abrir los renglones técnicos, como en el Pliego (T-338): cada renglón
+    con su bien en el título, la fila de la tabla de renglones que le toca (no la tabla entera) y
+    un enlace a los puntos comunes, que se muestran una sola vez en la cabecera del grupo. Es común
+    el punto que citan todos los renglones, con los mismos fragmentos y sin cambios de circular.
+    Devuelve `{"points": [...], "tables": [...]}`: los puntos comunes y las tablas, completos (P3:
+    el literal no se pierde, solo se deja de repetir). Cambia las filas en el lugar; no toca las
+    celdas ni las acciones de la Comisión (P6)."""
+    technical = [row for row in rows if row.category == RequirementClass.TECNICO
+                 and not row.external]
+    common = {"points": [], "tables": []}
+    if not technical:
+        return common
+    everywhere = _shared_segments(technical, quotes)
+    seen_points, seen_tables = set(), set()
+    for row in technical:
+        items = row.requirement.items
+        number = items[0] if len(items) == 1 else None
+        views, mine = [], 0
+        for point in row.points:
+            key = point.segment_id
+            of_table = table_rows(point.text)
+            if of_table and number in of_table and not point.changes:
+                views.append(_own_row(point, of_table[number]))
+                if key not in seen_tables:
+                    seen_tables.add(key)
+                    common["tables"].append(point)
+            elif not of_table and not point.changes and key in everywhere:
+                mine += 1
+                if key not in seen_points:
+                    seen_points.add(key)
+                    common["points"].append(point)
+            else:
+                views.append(point)
+        row.points, row.commons_count = views, mine
+        if number is not None:
+            tables = [q.text for q in quotes.get(row.requirement.pk, []) if table_rows(q.text)]
+            text = renglon_text(number, tables, {}, None)
+            if text is None:
+                text = renglon_text(number, tables, lines_of(procedure_id), row.lead)
+            row.text = text
+    return common
 
 
 def _select(rows, query):
@@ -389,9 +465,9 @@ def _select(rows, query):
     return chosen, kind, show
 
 
-def _groups(rows):
+def _groups(rows, common=None):
     """Los requisitos que se cumplen con información externa, aparte y primero (T-228); después los
-    de cada clase."""
+    de cada clase. Los técnicos llevan en la cabecera sus puntos comunes (T-339)."""
     groups = []
     outside = [row for row in rows if row.external]
     if outside:
@@ -401,8 +477,10 @@ def _groups(rows):
     for category in TYPE_ORDER:
         mine = [row for row in rows if row.category == category]
         if mine:
+            shared = common if (category == RequirementClass.TECNICO and common
+                                and (common["points"] or common["tables"])) else None
             groups.append({"category": category, "label": TYPE_LABELS[category],
-                           "count": len(mine), "rows": mine})
+                           "count": len(mine), "rows": mine, "common": shared})
     return groups
 
 
@@ -467,9 +545,10 @@ def context(user, procedure, request):
     if not evaluated or not page.requirements:
         return base
     rows = _rows(page, user)
+    common = technical_views(rows, procedure.pk, points.quotes_of_page(page))
     chosen, kind, show = _select(rows, request.GET)
     return {
-        **base, "groups": _groups(chosen), "shown": len(chosen), "total": len(rows),
+        **base, "groups": _groups(chosen, common), "shown": len(chosen), "total": len(rows),
         "kind": kind, "show": show, "colspan": 3 + len(page.offers),
         "open_pairs": sum(c.open for row in rows for c in row.cells),
         "undetermined": sum(1 for row in rows for c in row.cells
