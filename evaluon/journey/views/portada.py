@@ -6,7 +6,7 @@ import re
 from functools import wraps
 
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET
 
@@ -92,19 +92,15 @@ def lista(request):
 
 
 @require_GET
-@memo.scoped
-@reading
 def portada(request, procedure_id):
-    overview = overview_of(request, procedure_id)
-    context = shell(request, overview)
-    context.update({
-        "window": window_for(overview.procedure),
-        "window_url": reverse("expedientes:ventana", args=[procedure_id]),
-        "pending_items": [(s, i) for s in overview.sections for i in s.pending_items],
-        "suggestion_items": [(s, i) for s in overview.sections for i in s.suggestion_items],
-    })
-    return inicio.remember(render(request, "journey/portada.html", context), request.user,
-                           procedure_id)
+    """La portada del procedimiento es el primer panel (REQ-128): redirige (302) a
+    `procedimiento/` conservando la consulta, así las anclas y los enlaces de la 014 siguen
+    andando. El procedimiento que no existe da 404."""
+    if not Procedure.objects.filter(pk=procedure_id).exists():
+        raise Http404("No hay un procedimiento con ese número.")
+    target = reverse("expedientes:procedimiento", args=[procedure_id])
+    query = request.META.get("QUERY_STRING", "")
+    return redirect(f"{target}?{query}" if query else target)
 
 
 @require_GET
