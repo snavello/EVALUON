@@ -7,7 +7,7 @@
   </div>
   <div class="hf-fila hf-falta">
     <span class="hf-et"><i class="hf-punto hf-punto-falta" aria-hidden="true"></i>Falta:</span>
-    {% if section.tema_missing %}<p class="falta">{% for item in section.tema_missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% else %}<p class="sin-falta">Nada por completar.</p>{% endif %}
+    {% if section.tema_missing %}<p class="falta">{% for item in section.tema_missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% else %}<p class="sin-falta">Ningún faltante registrado.</p>{% endif %}
   </div>
 </div>
 <!-- /hay-falta -->

@@ -79,7 +79,7 @@ def test_without_anything_missing_the_line_says_so_without_a_missing_list(
             continue
         block = hay_falta(client.get(url(key, procedure)).content.decode())
         assert "Falta:" in block and 'class="falta"' not in block
-        assert "<b>Falta:</b>" not in block
+        assert "<b>Falta:</b>" not in block and "Ningún faltante registrado" in block
         return
     pytest.skip("todas las secciones tienen faltantes en este caso")
 
