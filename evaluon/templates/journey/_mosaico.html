@@ -1,0 +1,9 @@
+{% comment %}Un mosaico del tablero (T-313, REQ-126, REQ-127, REQ-141; ADR-0076). Variable: `tile` (tablero.tiles.Tile). Es un ancla al detalle que abre: sin JavaScript lleva a la zona de detalles; `tablero.js` lo vuelve botón. Sin cifra (`big` en None) dice `missing` y no dibuja ni la cifra ni el gráfico. Si trae `href`, enlaza a otra pantalla.{% endcomment %}<a class="{{ tile.classes }}" id="m-{{ tile.key }}" href="{% if tile.href %}{{ tile.href }}{% else %}#{{ tile.detail }}{% endif %}"{% if not tile.href %} data-detail="{{ tile.detail }}" aria-controls="{{ tile.detail }}"{% endif %}>
+  <span class="th"><span>{{ tile.title }}</span><span class="go" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" focusable="false"><path d="M6 9l6 6 6-6"/></svg></span></span>
+  {% if tile.has_data %}<span class="big">{{ tile.big }}{% if tile.unit %}<small>{{ tile.unit }}</small>{% endif %}</span>
+  {% if tile.sub %}<span class="sub">{{ tile.sub }}</span>{% endif %}
+  {% if tile.chart %}<span class="ch">{% with chart=tile.chart %}{% include chart.template %}{% endwith %}</span>{% endif %}
+  {% else %}<span class="missing">{{ tile.missing }}</span>
+  {% if tile.sub %}<span class="sub">{{ tile.sub }}</span>{% endif %}
+  {% endif %}
+</a>

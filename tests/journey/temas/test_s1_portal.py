@@ -72,10 +72,11 @@ def mine(html):
 
 
 def row_links(html, text):
-    """Los enlaces del renglón de pendientes que dice `text`."""
+    """Los enlaces del renglón de pendientes que dice `text` (sin la referencia al símbolo del
+    ícono de estado, `#i-…`, que la fila dibuja desde T-318)."""
     row = re.search(r"<li>(?:(?!</li>).)*" + re.escape(text) + r"(?:(?!</li>).)*</li>", html, re.S)
     assert row, text
-    return re.findall(r'href="([^"]+)"', row.group(0))
+    return [h for h in re.findall(r'href="([^"]+)"', row.group(0)) if not h.startswith("#i-")]
 
 
 @pytest.fixture
@@ -349,7 +350,9 @@ def test_the_tab_shows_the_pending_proposal_and_counts_it(client, operator_user,
     """Lo propuesto y sin aprobar es pendiente de la sección y de la portada, con su enlace a la
     propuesta dentro de la pestaña."""
     log_in(client, operator_user)
-    pending = PortalItem.objects.filter(state=ItemState.PROPUESTO).count()
+    # El dictamen publicado ya no se cuenta acá sino en Evaluación (T-318, REQ-129).
+    pending = PortalItem.objects.filter(state=ItemState.PROPUESTO).exclude(
+        kind=ItemKind.DOCUMENTO, payload__clase="dictamen").count()
     assert pending > 0
     html = tab(client, loaded).content.decode()
     assert 'id="s1-propuesta"' in html and f"Propuesta del Portal: {pending} sin aprobar" in html

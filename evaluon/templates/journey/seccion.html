@@ -11,13 +11,20 @@
     <h2 id="seccion-titulo">{{ section.label }}</h2>
     {% include "journey/_cargas.html" %}
   </div>
+  {% if board %}
+  {# Línea Hay/Falta (T-312) y pendiente de la sección (T-318). #}
+  {% block hay_falta %}{% include "journey/_hay_falta.html" %}{% endblock %}
+  {% block pendientes %}{% include "journey/_pendientes.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False next_url=request.path %}{% endblock %}
+  {% include "journey/_tablero.html" %}
+  {% else %}
   {% include "journey/_hay_falta.html" %}
 
-  {% include "journey/_paneles.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False %}
+  {% include "journey/_pendientes.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False next_url=request.path %}
 
   <div id="seccion-detalle">
     {% for block in blocks %}{% include block.partial with t=block.t %}{% endfor %}
   </div>
+  {% endif %}
 
 </div>
 {% endblock %}

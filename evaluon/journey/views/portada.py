@@ -7,6 +7,7 @@ from functools import wraps
 
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_GET
 
@@ -16,6 +17,7 @@ from evaluon.audit.models import Channel
 from evaluon.journey import memo
 from evaluon.journey.sections import sections_for
 from evaluon.journey.stages import is_viewer
+from evaluon.journey.tablero.tiles import build_board
 from evaluon.journey.views import inicio
 from evaluon.journey.window import window_for
 from evaluon.tenders.models import Procedure
@@ -109,15 +111,29 @@ def portada(request, procedure_id):
 def seccion(request, procedure_id, key):
     overview = overview_of(request, procedure_id)
     section = overview.get(key)
-    blocks = [{"key": tema.KEY, "partial": tema.PARTIAL,
-               "t": tema.context(request.user, overview.procedure, request)}
-              for tema in section.temas]
+    contexts = {tema.KEY: tema.context(request.user, overview.procedure, request)
+                for tema in section.temas}
     context = shell(request, overview, active=key)
     context.update({
-        "section": section, "blocks": blocks,
+        "section": section,
         "pending_rows": [(section, item) for item in section.pending_items],
         "suggestion_rows": [(section, item) for item in section.suggestion_items],
     })
+    board = build_board(section, request.user, overview.procedure, contexts, request)
+    if board is None:
+        # Ningún tema declara mosaicos: la sección se muestra como antes, con sus parciales.
+        context["blocks"] = [{"key": tema.KEY, "partial": tema.PARTIAL, "t": contexts[tema.KEY]}
+                             for tema in section.temas]
+    else:
+        # Cada detalle se dibuja acá, con el contexto completo de la página (los parciales usan
+        # `procedure`, `section` y el pedido), y llega a la plantilla como HTML.
+        context.update({
+            "board": board.tiles, "abre": board.abre,
+            "details": [{"id": d.id, "title": d.title, "html": render_to_string(
+                d.template, {**context, **d.context}, request=request)} for d in board.details],
+            "blocks": [{"key": tema.KEY, "partial": tema.PARTIAL, "t": contexts[tema.KEY]}
+                       for tema in board.leftover],
+        })
     return inicio.remember(render(request, "journey/seccion.html", context), request.user,
                            procedure_id)
 

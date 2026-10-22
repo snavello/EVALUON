@@ -1,0 +1,12 @@
+{% comment %}Plazos importantes: pasado (lleno), hoy (lima con contorno ink), futuro (aro) y pendiente (aro punteado) (T-314). Variable: `chart` (charts.Timeline).{% endcomment %}<svg viewBox="{{ chart.view_box }}" width="100%" role="img" aria-labelledby="{{ chart.title_id }} {{ chart.desc_id }}" class="grafico grafico-timeline" font-size="12">
+<title id="{{ chart.title_id }}">{{ chart.title }}</title>
+<desc id="{{ chart.desc_id }}">{{ chart.description }}</desc>
+{% if chart.axis %}<line x1="12" x2="12" y1="{{ chart.axis.y1 }}" y2="{{ chart.axis.y2 }}" stroke="currentColor" stroke-width="2" class="g-line"/>
+{% endif %}{% for e in chart.geometry %}{% if e.state == "past" %}<circle cx="12" cy="{{ e.y }}" r="5" fill="currentColor" class="g-ink"/>
+{% elif e.state == "now" %}<circle cx="12" cy="{{ e.y }}" r="9" fill="currentColor" class="g-ink"/>
+<circle cx="12" cy="{{ e.y }}" r="7" fill="currentColor" class="g-lime"/>
+{% elif e.state == "pending" %}<circle cx="12" cy="{{ e.y }}" r="5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2" class="g-mute"/>
+{% else %}<circle cx="12" cy="{{ e.y }}" r="5" fill="none" stroke="currentColor" stroke-width="2" class="g-mute"/>
+{% endif %}<text x="32" y="{{ e.ty }}" font-weight="600" fill="currentColor" class="g-ink">{{ e.date }}</text>
+<text x="108" y="{{ e.ty }}" fill="currentColor" class="g-ink2">{{ e.label }}</text>
+{% endfor %}</svg>

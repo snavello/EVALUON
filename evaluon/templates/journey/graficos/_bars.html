@@ -1,0 +1,9 @@
+{% comment %}Barras horizontales (T-314). Variable: `chart` (charts.Bars). Atributos de presentación y currentColor; el color sale de las clases g-*.{% endcomment %}<svg viewBox="{{ chart.view_box }}" width="100%" role="img" aria-labelledby="{{ chart.title_id }} {{ chart.desc_id }}" class="grafico grafico-bars" font-size="11">
+<title id="{{ chart.title_id }}">{{ chart.title }}</title>
+<desc id="{{ chart.desc_id }}">{{ chart.description }}</desc>
+{% for r in chart.geometry %}<text x="0" y="{{ r.ty }}" fill="currentColor" class="g-ink">{{ r.label }}</text>
+<rect x="{{ r.x }}" y="{{ r.y }}" width="{{ r.track }}" height="8" rx="4" fill="currentColor" class="g-line"/>
+{% if r.draw %}{% if r.lime %}<rect x="{{ r.ox }}" y="{{ r.oy }}" width="{{ r.ow }}" height="{{ r.oh }}" rx="5.5" fill="currentColor" class="g-ink"/>
+{% endif %}<rect x="{{ r.x }}" y="{{ r.y }}" width="{{ r.w }}" height="8" rx="4" fill="currentColor" class="g-{{ r.tone }}"/>
+{% endif %}<text x="{{ r.tx }}" y="{{ r.ty }}" text-anchor="end" fill="currentColor" class="g-ink">{{ r.text }}</text>
+{% endfor %}</svg>

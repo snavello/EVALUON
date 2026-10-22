@@ -1,0 +1,127 @@
+/* Listado de procedimientos, alta y borrador del pliego con la estética nueva (T-324, REQ-133).
+   Sigue la maqueta aprobada (docs/diseno/mockup-017/comun/estilos.css) con los tokens de
+   diseno/tokens.css, en los dos temas. Todo va bajo `body.procedimientos`, que solo llevan estas tres
+   páginas: los parciales compartidos con la sección Procedimiento (T-323) no cambian en otras pantallas.
+   Sin colores sueltos, sin recursos externos (P4). Regla del lima: solo resalta (contador, acción
+   principal en el tema negro). `--ink-3` no va sobre `--tile-h`. */
+
+/* Títulos: Hanken liviana, interlineado corto */
+body.procedimientos h1, body.procedimientos h2, body.procedimientos h3, body.procedimientos h4 {
+  font-family: var(--f); font-weight: 400; letter-spacing: -.025em; line-height: 1.1;
+}
+body.procedimientos h1 { font-size: clamp(2rem, 4.5vw, 2.5rem); margin: .75rem 0 .5rem; }
+body.procedimientos h2 { font-size: 1.5rem; }
+body.procedimientos h3 { font-size: 1.25rem; letter-spacing: -.02em; margin-bottom: .375rem; }
+body.procedimientos h4 { font-size: 1.0625rem; }
+body.procedimientos main { padding: 1rem 0 4rem; }
+body.procedimientos .wrap { max-width: var(--maxw); padding: 0 1.5rem; }
+body.procedimientos .encab-parte { align-items: flex-end; margin: .75rem 0 1.25rem; }
+body.procedimientos .encab-parte h1 { margin: 0; }
+body.procedimientos .resumen-linea { color: var(--ink-2); }
+body.procedimientos .resumen-linea b { color: var(--ink); font-weight: 600; }
+body.procedimientos .suave, body.procedimientos .ayuda, body.procedimientos .panel .ayuda { color: var(--ink-2); }
+body.procedimientos a { color: var(--ink); text-underline-offset: 3px; }
+body.procedimientos p.volver { margin: 0 0 .75rem; font-size: .875rem; }
+body.procedimientos ::selection { background: var(--lime); color: var(--on-lime); }
+body.procedimientos :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+
+/* Botones: cuadrados de 4 px; la acción principal en negro (en el tema negro, lima) */
+body.procedimientos .btn {
+  font: 500 .875rem/1 var(--f); padding: .6875rem 1.125rem; border-radius: 4px; border: 0;
+  background: var(--tile-h); color: var(--ink); transition: background-color .15s, transform .1s;
+}
+body.procedimientos .btn:active { transform: scale(.98); }
+body.procedimientos .bloque .btn, body.procedimientos .aviso .btn { background: var(--bg); }
+body.procedimientos a.btn.primario, body.procedimientos .btn.primario { background: var(--btn); color: var(--on-btn); }
+body.procedimientos .btn.secundario, body.procedimientos a.btn.secundario { background: var(--tile-h); color: var(--ink); border: 0; }
+body.procedimientos .bloque .btn.secundario { background: var(--bg); }
+body.procedimientos .btn.acento { background: var(--no-bg); color: var(--no-ink); }
+body.procedimientos .btn.chico { padding: .4375rem .75rem; font-size: .8125rem; }
+body.procedimientos .btn:disabled { opacity: .45; cursor: not-allowed; }
+@media (hover: hover) {
+  body.procedimientos .btn.secundario:hover { background: var(--line); }
+  body.procedimientos .bloque .btn.secundario:hover { background: var(--tile-h); }
+  body.procedimientos a.btn.primario:hover, body.procedimientos .btn.primario:hover { background: var(--btn-h); }
+}
+
+/* Mosaicos: el panel y el bloque pasan a superficie sin borde ni sombra */
+body.procedimientos .bloque, body.procedimientos .panel {
+  background: var(--tile); border: 0; box-shadow: none; border-radius: var(--r); padding: 1.375rem 1.5rem;
+}
+body.procedimientos .bloque > .bloque-cab h3 .cta, body.procedimientos .panel h3 .cta {
+  font-family: var(--f); font-size: .75rem; font-weight: 600; letter-spacing: 0; color: var(--on-lime);
+  background: var(--lime); border-radius: 999px; padding: .125rem .5rem; margin-left: .5rem; font-variant-numeric: tabular-nums;
+}
+body.procedimientos .bloque .bloque-pie { border-top: 1px solid var(--line); color: var(--ink-2); }
+body.procedimientos .linea-portal, body.procedimientos .origen { color: var(--ink-2); }
+body.procedimientos .origen b { font-family: var(--f); letter-spacing: 0; text-transform: none; color: var(--ink); }
+body.procedimientos .dos { gap: var(--gap); }
+body.procedimientos .estado-vacio { padding: 2.5rem 1.5rem; }
+body.procedimientos .estado-vacio h3 { font-size: 1.5rem; }
+
+/* Tablas: encabezado discreto, líneas finas y la fila resaltada con el mouse */
+body.procedimientos .tabla-scroll { background: transparent; border: 0; border-radius: 0; }
+body.procedimientos .bloque .tabla-scroll + .tabla-scroll { margin-top: 1rem; }
+body.procedimientos table.matriz { font-size: .875rem; }
+body.procedimientos .matriz caption { font-family: var(--f); font-weight: 400; font-size: 1.0625rem; letter-spacing: -.01em; padding: .5rem .625rem; color: var(--ink); }
+body.procedimientos .matriz th, body.procedimientos .matriz td { padding: .625rem; border-bottom: 1px solid var(--line); }
+body.procedimientos .matriz thead th {
+  position: static; background: transparent; border-bottom: 1px solid var(--line); font-family: var(--f);
+  font-weight: 500; font-size: .75rem; letter-spacing: 0; text-transform: none; color: var(--ink-2);
+}
+body.procedimientos .matriz tbody tr:nth-child(even) { background: transparent; }
+body.procedimientos .matriz tbody tr:last-child th, body.procedimientos .matriz tbody tr:last-child td { border-bottom: 0; }
+body.procedimientos .matriz td.n, body.procedimientos .matriz th.n { font-family: var(--f); font-variant-numeric: tabular-nums; }
+body.procedimientos .num { font-family: var(--f); font-variant-numeric: tabular-nums; }
+@media (hover: hover) { body.procedimientos .matriz tbody tr:hover { background: var(--tile-h); } }
+/* El listado va sobre una superficie propia, no dentro de un mosaico */
+body.procedimientos #t-expedientes { background: var(--tile); border-radius: var(--r); overflow: hidden; }
+body.procedimientos #t-expedientes th, body.procedimientos #t-expedientes td { padding: .875rem 1rem; }
+body.procedimientos #t-expedientes tbody th a { font-weight: 600; }
+
+/* Etiquetas: pastilla; el lima resalta solo lo que espera a la Comisión */
+body.procedimientos .tag {
+  display: inline-block; font-size: .75rem; font-weight: 500; padding: .1875rem .5rem; border-radius: 999px;
+  background: var(--bg); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+body.procedimientos .tag.lime { background: var(--lime); color: var(--on-lime); font-weight: 600; }
+
+/* Formularios: campo sobre el fondo, borde de la guía (--ink-3 sobre --tile) */
+body.procedimientos .campo label, body.procedimientos .confirmar label,
+body.procedimientos .pliego-propuesta details.acc label { font-size: .75rem; font-weight: 500; color: var(--ink-2); margin-bottom: .25rem; }
+body.procedimientos .campo input, body.procedimientos .confirmar select, body.procedimientos .confirmar input,
+body.procedimientos .propuesta input[type=date], body.procedimientos input[type=file],
+body.procedimientos .pliego-propuesta details.acc textarea, body.procedimientos .pliego-propuesta details.acc input[type=text],
+body.procedimientos .pliego-propuesta details.acc input[type=date], body.procedimientos .pliego-propuesta details.acc select,
+body.procedimientos textarea {
+  font: inherit; font-size: .875rem; background: var(--bg); color: var(--ink);
+  border: 1px solid var(--ink-3); border-radius: 4px; padding: .5625rem .75rem; caret-color: var(--ink);
+}
+body.procedimientos .campo input { width: 100%; }
+body.procedimientos textarea { width: 100%; max-width: 100%; }
+body.procedimientos input[type=checkbox] { accent-color: var(--ink); }
+body.procedimientos .enlace-portal .campo { min-width: min(18rem, 100%); }
+
+/* Avisos: tinta de estado sobre su fondo (siempre con texto) */
+body.procedimientos .aviso { background: var(--tile); border: 0; border-radius: var(--r-sm); color: var(--ink); padding: .75rem 1rem; margin: .75rem 0; }
+body.procedimientos .aviso-ok { background: var(--ok-bg); color: var(--ok-ink); }
+body.procedimientos .aviso-ok strong { color: var(--ok-ink); }
+body.procedimientos .aviso-error { background: var(--no-bg); color: var(--no-ink); }
+body.procedimientos .aviso.importante { background: var(--no-bg); color: var(--no-ink); border: 0; border-radius: var(--r-sm); }
+body.procedimientos .aviso-ok a, body.procedimientos .aviso-error a { color: inherit; }
+
+/* Borrador del pliego: correcciones y renglones */
+body.procedimientos .pliego-propuesta details.acc form { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm); }
+body.procedimientos .pliego-propuesta details.acc > summary.btn { background: var(--bg); }
+body.procedimientos .pliego-propuesta .pie-propuesta { gap: .75rem 1rem; }
+body.procedimientos .pliego-propuesta .no-determinado { color: var(--nd-ink); }
+body.procedimientos .pliego-espera li { margin-bottom: .25rem; }
+
+/* Pestañas aún no disponibles (alta sin procedimiento) */
+body.procedimientos nav.tabs .off { color: var(--ink-2); }
+
+@media (max-width: 640px) {
+  body.procedimientos .wrap { padding: 0 1rem; }
+  body.procedimientos .bloque, body.procedimientos .panel { padding: 1.125rem 1rem; }
+  body.procedimientos .encab-parte { flex-direction: column; align-items: flex-start; }
+}
