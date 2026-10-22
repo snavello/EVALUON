@@ -41,6 +41,7 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import Missing, TemaStatus
+from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.portal.models import ItemKind, ItemState, LoadedModel, PortalItem
 from evaluon.queries.forms import DATE_INPUT_FORMATS
 from evaluon.tenders.models import (
@@ -513,3 +514,61 @@ def context(user, procedure, request):
         "results": unpack(request.GET.get("docs")),
         "loaded_count": len(rows), "missing_count": len(absent),
     }
+
+
+# --- Tablero (REQ-126, REQ-127, REQ-141; plan 017, «Pliego y matriz»; T-325) -----------------------
+
+DETAIL = detail_id(KEY)
+
+
+def opens(request):
+    """El historial de un documento, lo retirado y el resultado de una subida llegan con el detalle
+    de los documentos ya desplegado."""
+    if request.GET.get("historial") or request.GET.get("docs"):
+        return DETAIL
+    return None
+
+
+def _read_line(rows):
+    """Cuántos documentos están leídos, en lectura o con problemas, en lenguaje llano."""
+    read = sum(1 for row in rows if row.icon == "cumple")
+    parts = []
+    if read:
+        parts.append(f"{read} {'leído' if read == 1 else 'leídos'}")
+    waiting = sum(1 for row in rows if row.icon == "pend")
+    if waiting:
+        parts.append(f"{waiting} en lectura")
+    review = sum(1 for row in rows if row.icon == "nodet")
+    if review:
+        parts.append(f"{review} con tramos a revisar")
+    failed = sum(1 for row in rows if row.icon == "nocumple")
+    if failed:
+        parts.append(f"{failed} sin poder leer")
+    return " · ".join(parts)
+
+
+def _names(names, limit=2):
+    shown = [f"«{n}»" for n in names[:limit]]
+    more = len(names) - limit
+    return ", ".join(shown) + (f" y {more} más" if more > 0 else "")
+
+
+def tiles(user, procedure, ctx):
+    """«Documentos del pliego»: cuántos están cargados. El «de N» solo existe cuando el Portal
+    lista documentos que todavía no se tomaron o no se pudieron bajar (REQ-141: sin pliego,
+    «Falta»; nada se inventa)."""
+    rows = ctx["rows"]
+    absent = [m.name for m in ctx["absent"]]
+    failed = [name for name, _ in not_downloaded(procedure)]
+    if not rows:
+        listed = len(absent) + len(failed)
+        sub = (f"El Portal lista {listed} {'documento' if listed == 1 else 'documentos'} "
+               "para tomar" if listed else "Súbalo o tómelo del Portal")
+        return [Tile(key="documentos", title="Documentos del pliego", detail=DETAIL,
+                     missing="Falta el pliego", sub=sub)]
+    loaded = len(rows)
+    waiting = absent + failed
+    sub = (f"Falta {_names(waiting)}; el Portal lo lista" if waiting else _read_line(rows))
+    return [Tile(key="documentos", title="Documentos del pliego", detail=DETAIL, big=loaded,
+                 unit=f"de {loaded + len(waiting)}" if waiting else
+                 ("cargado" if loaded == 1 else "cargados"), sub=sub)]

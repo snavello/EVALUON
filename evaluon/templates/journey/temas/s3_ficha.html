@@ -114,5 +114,23 @@
   <div class="bloque-pie"><a class="btn secundario" href="{{ d.back_url }}">Volver a Ofertas</a></div>
 </div>
 {% endwith %}
+{% elif t.rows %}
+<div class="bloque" id="s3-ficha">
+  <p class="resumen-linea">Qué presentó cada oferta frente a cada requisito de la matriz, con el fragmento que lo respalda. La ficha es opcional: sirve para revisar con el original a mano.</p>
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Ficha de cada oferta</caption>
+    <thead><tr><th scope="col">Oferta</th><th scope="col">Ficha</th><th scope="col" class="n">Filas por confirmar</th><th scope="col">Acciones</th></tr></thead>
+    <tbody>
+      {% for r in t.rows %}
+      <tr>
+        <th scope="row">{{ r.offer.number }} · {{ r.offer.bidder }}</th>
+        <td>{% if r.built %}Armada el {{ r.built }} sobre la versión {{ r.version }} de la matriz{% else %}Sin armar{% endif %}</td>
+        <td class="n">{% if r.built %}{{ r.proposed }}{% else %}—{% endif %}</td>
+        <td><a href="{{ r.url }}">{% if r.built %}Ver la ficha{% else %}Armar la ficha{% endif %}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
 {% endif %}
 </div>

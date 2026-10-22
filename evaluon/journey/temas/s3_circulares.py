@@ -38,6 +38,7 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.audit.models import Channel
 from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.journey.temas import s2_documentos
 from evaluon.portal.models import ItemKind, ItemState, LoadedModel, PortalItem
 from evaluon.queries.forms import DATE_INPUT_FORMATS
@@ -389,3 +390,34 @@ def context(user, procedure, request):
         # Un solo botón: abre una sola versión con todas las modificatorias leídas.
         "open_document": next((row.document for row in rows if row.can_open), None),
     }
+
+
+# --- Tablero (REQ-126, REQ-141; plan 017, T-326) ---------------------------------------------------
+
+DETAIL = "d-s3-circulares"
+
+
+def tiles(user, procedure, ctx):
+    """«Circulares»: cuántas hay cargadas, cuántas lista el Portal sin tomar y cuántas modificatorias
+    esperan su versión de la matriz. Sin ninguna cargada, lo dice y no dibuja una cifra."""
+    if ctx and "loaded_count" in ctx:
+        loaded, absent = ctx["loaded_count"], ctx["missing_count"]
+    else:
+        loaded, absent = len(_states(procedure)), len(missing_from_portal(procedure))
+    notes = []
+    if absent:
+        notes.append(f"El Portal lista {absent} sin tomar")
+    waiting = len(circular_version.pending(procedure, _states(procedure))) if loaded else 0
+    if waiting:
+        notes.append(f"{waiting} {'espera' if waiting == 1 else 'esperan'} una versión de la matriz")
+    sub = " · ".join(notes)
+    if not loaded:
+        return [Tile(key="circulares", title="Circulares", detail=DETAIL, width=2,
+                     missing="Ninguna cargada", sub=sub)]
+    return [Tile(key="circulares", title="Circulares", detail=DETAIL, width=2, big=loaded,
+                 unit="cargada" if loaded == 1 else "cargadas", sub=sub)]
+
+
+def opens(request):
+    """El resultado de subir o abrir una circular se muestra en su detalle."""
+    return DETAIL if request.GET.get(PARAM) else None

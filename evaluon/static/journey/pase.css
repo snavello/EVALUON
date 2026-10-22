@@ -1,0 +1,59 @@
+/* Pase de hoja entre secciones (REQ-139; ADR-0075): transiciones entre documentos. Es una mejora
+   progresiva: Chrome y Edge 126 o posterior y Safari 18.2 o posterior animan el cambio de página; en
+   los demás navegadores (hoy Firefox) la navegación es la de siempre. Solo anima `transform` y
+   `opacity`. La hoja gira sobre su borde izquierdo en 0,44 s; con «reducir movimiento», fundido de
+   0,15 s. `pase.js` fija la dirección (`data-pase` en <html>); sin él, el pase va hacia adelante.
+   Los tokens de curva (`--e-io`) son los de diseno/tokens.css. */
+
+@view-transition { navigation: auto; }
+
+/* Lo que se anima: la hoja (el <main>), el encabezado (queda quieto) y la píldora de la sección actual. */
+body.app main { view-transition-name: hoja; }
+header.top { view-transition-name: cabecera; }
+header.top nav.tabs [aria-current="page"] { view-transition-name: pildora; }
+
+/* El encabezado no se anima: se muestra el nuevo desde el primer cuadro y queda por encima de la hoja. */
+::view-transition-group(cabecera), ::view-transition-old(cabecera), ::view-transition-new(cabecera) { animation: none; }
+::view-transition-old(cabecera) { display: none; }
+::view-transition-new(cabecera) { mix-blend-mode: normal; }
+::view-transition-group(cabecera) { z-index: 5; }
+
+/* La hoja: hacia adelante (la dirección por omisión) la vieja gira sobre su borde izquierdo y deja ver
+   la nueva debajo. */
+::view-transition-group(hoja) { animation: none; }
+::view-transition-image-pair(hoja) { perspective: 2400px; }
+::view-transition-old(hoja), ::view-transition-new(hoja) {
+  mix-blend-mode: normal; transform-origin: 0 50%; animation-duration: .44s;
+  animation-timing-function: var(--e-io); animation-fill-mode: both;
+}
+::view-transition-old(hoja), html[data-pase="adelante"]::view-transition-old(hoja) { z-index: 2; animation-name: hoja-sale; }
+::view-transition-new(hoja), html[data-pase="adelante"]::view-transition-new(hoja) { z-index: 1; animation: none; }
+
+/* Hacia atrás entra la nueva, girando desde el borde izquierdo sobre la vieja. */
+html[data-pase="atras"]::view-transition-old(hoja) { z-index: 1; animation: none; }
+html[data-pase="atras"]::view-transition-new(hoja) {
+  z-index: 2; animation-name: hoja-entra; animation-duration: .44s;
+  animation-timing-function: var(--e-io); animation-fill-mode: both;
+}
+
+@keyframes hoja-sale {
+  from { transform: rotateY(0); opacity: 1; }
+  to { transform: rotateY(-90deg); opacity: .35; }
+}
+@keyframes hoja-entra {
+  from { transform: rotateY(-90deg); opacity: .35; }
+  to { transform: rotateY(0); opacity: 1; }
+}
+
+/* Reducir movimiento: sin giro, un fundido corto. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(hoja), html[data-pase]::view-transition-old(hoja) {
+    z-index: 2; transform: none; animation: hoja-fundido-sale .15s linear both;
+  }
+  ::view-transition-new(hoja), html[data-pase]::view-transition-new(hoja) {
+    z-index: 1; transform: none; animation: hoja-fundido-entra .15s linear both;
+  }
+  ::view-transition-group(pildora) { animation-duration: .15s; }
+  @keyframes hoja-fundido-sale { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes hoja-fundido-entra { from { opacity: 0; } to { opacity: 1; } }
+}

@@ -11,8 +11,8 @@
   text-align: center;
   font-weight: bold;
   letter-spacing: 0.1em;
-  color: #ffffff;
-  background: #b00020;
+  color: var(--hdr-ink);
+  background: var(--accent);
 }
 
 /* Lugar para la franja, para que no tape el encabezado. */
@@ -23,36 +23,36 @@
 .literal {
   margin: 0.5rem 0 0.25rem 0;
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid #8a8a8a;
-  background: #f5f5f5;
+  border-left: 4px solid var(--ink-3);
+  background: var(--tile);
   white-space: pre-wrap;
 }
 
 .quote-place,
 .place {
   font-size: 0.9rem;
-  color: #444444;
+  color: var(--ink-2);
 }
 
 .requirement {
   margin-bottom: 1.25rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #dddddd;
+  border-bottom: 1px solid var(--line);
 }
 
 .class-mark,
 .state-mark,
 .wide-mark {
   padding: 0 0.4rem;
-  border: 1px solid #555555;
+  border: 1px solid var(--ink-2);
   border-radius: 0.25rem;
   font-size: 0.85rem;
   font-weight: normal;
 }
 
 .wide-mark {
-  border-color: #8a5a00;
-  color: #8a5a00;
+  border-color: var(--nd-ink);
+  color: var(--nd-ink);
 }
 
 .pending-item {
@@ -72,13 +72,13 @@
 .coverage-table th,
 .coverage-table td {
   padding: 0.3rem 0.5rem;
-  border-bottom: 1px solid #dddddd;
+  border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: top;
 }
 
 .coverage-pendiente {
-  background: #fff7e0;
+  background: var(--nd-bg);
 }
 
 .technical-quotes {
@@ -89,8 +89,8 @@
 /* Revisión de la matriz (T-079). */
 .review-error {
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid #b00020;
-  background: #fdecea;
+  border-left: 4px solid var(--no);
+  background: var(--no-bg);
 }
 
 .review-actions form {
@@ -113,20 +113,20 @@
 /* Descartadas, grupos y citas repetidas (T-105). */
 .discarded-line {
   padding: 0.4rem 0.75rem;
-  border-left: 4px solid #6b6b6b;
-  background: #f3f3f3;
+  border-left: 4px solid var(--ink-3);
+  background: var(--tile);
 }
 
 .group-header {
   margin: 1rem 0 0.5rem;
   padding: 0.4rem 0.75rem;
-  border-left: 4px solid #2a5db0;
-  background: #eef3fb;
+  border-left: 4px solid var(--ink-2);
+  background: var(--tile-h);
 }
 
 .group-header.group-segment {
   margin-left: 1rem;
-  border-left-color: #7f9fd3;
+  border-left-color: var(--ink-3);
 }
 
 .group-buttons {
@@ -146,8 +146,8 @@
 }
 
 .corrected-mark {
-  background: #fff7e0;
-  border: 1px solid #c79a00;
+  background: var(--nd-bg);
+  border: 1px solid var(--nd);
 }
 
 .requirement.discarded.returned {
@@ -155,7 +155,7 @@
 }
 
 .matrix-suggestions .suggestion {
-  border-left: 4px solid #c79a00;
+  border-left: 4px solid var(--nd);
 }
 
 .suggestions-note,
@@ -170,12 +170,12 @@
 }
 
 .support-mark {
-  background: #e6f4ea;
-  border: 1px solid #2e7d32;
+  background: var(--ok-bg);
+  border: 1px solid var(--ok);
 }
 
 .norm-support {
-  border-left: 3px solid #2e7d32;
+  border-left: 3px solid var(--ok);
   padding-left: 0.5rem;
 }
 
