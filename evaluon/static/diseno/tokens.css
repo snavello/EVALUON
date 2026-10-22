@@ -1,85 +1,179 @@
-/* Tokens visuales de EVALUON (propuesta, docs/diseno/guia-visual.md).
-   Todo local: sin CDN ni fuentes remotas (P4). Aún no se aplican a las plantillas. */
+/* Tokens visuales de EVALUON, feature 017 (REQ-133). Guía: docs/diseno/guia-visual.md.
+   Dos temas: `:root` es gris y blanco; `[data-theme="negro"]` (en <html>) es negro. Los nombres son
+   los de la maqueta aprobada (docs/diseno/mockup-017/comun/estilos.css); los valores de --ink-3,
+   --nd, --ok, --pe, --focus, --s2 y --s3 se ajustaron para llegar a AA (tests/journey/test_contraste.py
+   calcula la razón de cada par desde este archivo). Los --ev-* viejos son alias de los nuevos hasta
+   el cierre de la feature (T-331). Todo local: sin CDN ni fuentes remotas (P4). */
 
-/* Tipografía tomada del proyecto Colm3na (snavello/MITRABAJOC): cuerpo con la pila del sistema,
-   cifras en monoespaciada con números tabulares y títulos en Barlow Condensed 700 (SIL OFL 1.1),
-   alojada en evaluon/static/diseno/fuentes/. Sin CDN ni servicios externos (P4). */
+/* Tipografía alojada en evaluon/static/diseno/fuentes/ (sin CDN ni servicios externos, P4).
+   Barlow Condensed (SIL OFL 1.1) queda mientras haya páginas viejas; la retira T-331.
+   Hanken Grotesk variable (SIL OFL 1.1, Fontsource 5.3.0): el archivo cubre pesos 100 a 900; el diseño usa 300 a 600. */
 @font-face { font-family: "Barlow Condensed"; font-weight: 700; font-style: normal; font-display: swap;
   src: url("fuentes/barlow-condensed-bold.woff2") format("woff2"); }
+@font-face { font-family: "Hanken Grotesk"; font-weight: 300 600; font-style: normal; font-display: swap;
+  src: url("fuentes/hanken-grotesk-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Hanken Grotesk"; font-weight: 300 600; font-style: normal; font-display: swap;
+  src: url("fuentes/hanken-grotesk-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 
+/* ---------- Tema gris y blanco (modelo 1 de la ronda 3) ---------- */
 :root {
-  /* Azules: de azul noche (900) a casi blanco (50) */
-  --ev-azul-900: #0B1B33;
-  --ev-azul-800: #12284A;
-  --ev-azul-700: #1B3A66;
-  --ev-azul-600: #22467C;
-  --ev-azul-500: #1B4F8F;
-  --ev-azul-300: #9DB4D3;
-  --ev-azul-200: #C9D6E6;
-  --ev-azul-100: #E3E9F0;
-  --ev-azul-50:  #EFF3F8;
+  --e-out: cubic-bezier(.16, 1, .3, 1);
+  --e-io: cubic-bezier(.65, 0, .35, 1);
+  --f: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r: 18px;
+  --r-sm: 10px;
+  --maxw: 78rem;
+  --gap: 1rem;
 
-  /* Beiges: fondos casi blancos */
-  --ev-beige-50:  #FCFAF5;
-  --ev-beige-100: #F7F4EC;
-  --ev-beige-200: #F3EFE4;
-  --ev-beige-300: #EEE9DC;
-  --ev-beige-400: #D9D2C1;
-  --ev-beige-600: #7A7260;
+  /* Superficies, texto y líneas */
+  --bg: #FFFFFF;
+  --tile: #F4F4F4;
+  --tile-h: #ECECEC;
+  --line: #E2E2E2;
+  --ink: #171A20;
+  --ink-2: #5C5E62;
+  --ink-3: #6F6F6F;          /* maqueta #8E8E8E (3,28:1); 4,55:1 sobre --tile; no va sobre --tile-h */
+  /* Lima: solo resalta (pestaña activa, contadores, avance, lo más bajo, acción principal en negro) */
+  --lime: #C6F432;
+  --on-lime: #171A20;
+  --btn: #171A20;
+  --on-btn: #FFFFFF;
+  --btn-h: #000000;
+  --focus: #6F9108;          /* maqueta #8DB80A (2,3:1); el mismo verde oliva, más oscuro */
+  --accent: #8B1E2D;         /* acento de las páginas viejas (acción destructiva); no es del modelo 2 */
+  --accent-h: #6F1723;
+  /* Pestañas en píldora */
+  --nav-track: #F4F4F4;
+  --nav-on: #171A20;
+  --nav-on-ink: #FFFFFF;
+  --nav-ink: #5C5E62;
+  /* Estados de cumplimiento y gráficos (levemente desaturados) */
+  --ok: #5C9176;
+  --no: #BE6A64;
+  --nd: #A57F39;             /* maqueta #C29A4F (2,38:1 sobre --tile) */
+  --pe: #7488A4;
+  --ext: #8C7AB0;
+  --s2: #868686;             /* serie neutra; maqueta #8E8E8E */
+  --s3: #4A4C51;             /* tercera serie; la maqueta usaba #C9C9C9 (1,5:1) */
+  --trk: #E2E2E2;
+  --dark-tile: #171A20;
+  --dark-tile-ink: #FFFFFF;
+  --dark-tile-2: #B9BBBF;
+}
 
-  /* Acento único (uso acotado) */
-  --ev-rojo: #8B1E2D;
-  --ev-rojo-hover: #6F1723;
+/* ---------- Tema negro (modelo 3) ---------- */
+[data-theme="negro"] {
+  --bg: #0B0C0E;
+  --tile: #17181C;
+  --tile-h: #1F2126;
+  --line: #2A2C31;
+  --ink: #F2F2F2;
+  --ink-2: #A3A5AA;
+  --ink-3: #808288;          /* maqueta #6E7076 (3,58:1 sobre --tile) */
+  --btn: #C6F432;
+  --on-btn: #0B0C0E;
+  --btn-h: #D4FF4A;
+  --focus: #C6F432;
+  --accent: #B3263C;
+  --accent-h: #8F1D30;
+  --nav-track: #17181C;
+  --nav-on: #C6F432;
+  --nav-on-ink: #0B0C0E;
+  --nav-ink: #A3A5AA;
+  --ok: #62A080;             /* los estados, un poco más oscuros que la maqueta: el símbolo */
+  --no: #CC7B75;             /* blanco del círculo pide 3:1 */
+  --nd: #B98C39;
+  --pe: #8094B0;
+  --ext: #9A8AC0;
+  --s2: #8A8C91;
+  --s3: #6A6D74;             /* maqueta #4A4C51 (2,06:1) */
+  --trk: #2A2C31;
+  --dark-tile: #C6F432;
+  --dark-tile-ink: #0B0C0E;
+  --dark-tile-2: #2B3310;
+  color-scheme: dark;
+}
+
+/* ---------- Tintas de estado y alias de los tokens viejos ----------
+   Se declaran también en [data-theme] para que se recalculen si el tema se pone en un descendiente. */
+:root, [data-theme="negro"] {
+  --ok-bg: color-mix(in srgb, var(--ok) 20%, var(--bg));
+  --ok-ink: color-mix(in srgb, var(--ok) 65%, var(--ink));
+  --no-bg: color-mix(in srgb, var(--no) 20%, var(--bg));
+  --no-ink: color-mix(in srgb, var(--no) 65%, var(--ink));
+  --nd-bg: color-mix(in srgb, var(--nd) 22%, var(--bg));
+  --nd-ink: color-mix(in srgb, var(--nd) 55%, var(--ink));
+  --pe-bg: color-mix(in srgb, var(--pe) 20%, var(--bg));
+  --pe-ink: color-mix(in srgb, var(--pe) 65%, var(--ink));
+  --ext-bg: color-mix(in srgb, var(--ext) 20%, var(--bg));
+  --ext-ink: color-mix(in srgb, var(--ext) 65%, var(--ink));
+
+  /* Paleta vieja (azules y beiges) llevada a los grises del tema */
+  --ev-azul-900: var(--ink);
+  --ev-azul-800: var(--tile-h);
+  --ev-azul-700: var(--ink);
+  --ev-azul-600: var(--ink-2);
+  --ev-azul-500: var(--ink);
+  --ev-azul-300: var(--line);
+  --ev-azul-200: var(--ink-2);
+  --ev-azul-100: var(--tile-h);
+  --ev-azul-50: var(--tile-h);
+  --ev-beige-50: var(--tile);
+  --ev-beige-100: var(--tile-h);
+  --ev-beige-200: var(--tile-h);
+  --ev-beige-300: var(--tile-h);
+  --ev-beige-400: var(--line);
+  --ev-beige-600: var(--ink-3);
+  --ev-rojo: var(--accent);
+  --ev-rojo-hover: var(--accent-h);
 
   /* Roles */
-  --ev-fondo: var(--ev-beige-100);
-  --ev-superficie: var(--ev-beige-50);
-  --ev-superficie-2: var(--ev-beige-300);
-  --ev-texto: var(--ev-azul-900);
-  --ev-texto-suave: #3E4C63;
-  --ev-enlace: var(--ev-azul-500);
-  --ev-borde: var(--ev-beige-400);
-  --ev-borde-campo: var(--ev-beige-600);
-  --ev-encabezado-fondo: var(--ev-azul-900);
-  --ev-encabezado-texto: #FFFFFF;
-  --ev-nav-fondo: var(--ev-azul-800);
-  --ev-nav-texto: var(--ev-azul-100);
-  --ev-boton-fondo: var(--ev-azul-700);
-  --ev-boton-hover: var(--ev-azul-600);
-  --ev-boton-texto: #FFFFFF;
-  --ev-foco: var(--ev-azul-500);
-  --ev-tabla-cabecera: #E2E7EE;
-  --ev-tabla-cebra: var(--ev-beige-200);
+  --ev-fondo: var(--bg);
+  --ev-superficie: var(--tile);
+  --ev-superficie-2: var(--tile-h);
+  --ev-texto: var(--ink);
+  --ev-texto-suave: var(--ink-2);
+  --ev-enlace: var(--ink);
+  --ev-borde: var(--line);
+  --ev-borde-campo: var(--ink-3);
+  --ev-encabezado-fondo: var(--bg);
+  --ev-encabezado-texto: var(--ink);
+  --ev-nav-fondo: var(--nav-track);
+  --ev-nav-texto: var(--nav-ink);
+  --ev-boton-fondo: var(--btn);
+  --ev-boton-hover: var(--btn-h);
+  --ev-boton-texto: var(--on-btn);
+  --ev-foco: var(--focus);
+  --ev-tabla-cabecera: var(--tile-h);
+  --ev-tabla-cebra: var(--bg);
 
   /* Estados: texto / fondo (siempre acompañados de texto o símbolo) */
-  --ev-cumple: #14573D;        --ev-cumple-fondo: #E1EFE7;
-  --ev-nocumple: #7A1626;      --ev-nocumple-fondo: #F6E1E3;
-  --ev-nodeterminado: #6B4700; --ev-nodeterminado-fondo: #F6EACB;
-  --ev-pendiente: #34476A;     --ev-pendiente-fondo: #E3E9F0;
-  /* Información externa (T-228): los requisitos que se cumplen con la hoja de compliance, no con
-     la oferta. No es un estado de cumplimiento sino una clase de requisito, por eso tiene su
-     propia gama (violeta apagado) y no se confunde con ningún estado. Texto sobre fondo 8,58:1;
-     marca (filete, insignia) sobre superficie 6,37:1 (mínimo 3:1 para componentes). */
-  --ev-externo: #4B2E83;       --ev-externo-fondo: #ECE7F5;
-  --ev-externo-marca: #6B4BA3;
+  --ev-cumple: var(--ok-ink);          --ev-cumple-fondo: var(--ok-bg);
+  --ev-nocumple: var(--no-ink);        --ev-nocumple-fondo: var(--no-bg);
+  --ev-nodeterminado: var(--nd-ink);   --ev-nodeterminado-fondo: var(--nd-bg);
+  --ev-pendiente: var(--pe-ink);       --ev-pendiente-fondo: var(--pe-bg);
+  /* Información externa (T-228): clase de requisito, no estado de cumplimiento */
+  --ev-externo: var(--ext-ink);        --ev-externo-fondo: var(--ext-bg);
+  --ev-externo-marca: var(--ext);
 
-  /* Íconos de estado (decisión del responsable 2026-10-07): círculo de color con símbolo blanco,
-     todos del mismo tamaño y forma; el nombre aparece al pasar el mouse o con el foco.
-     Contraste del círculo contra fondos de celda: mínimo 3,69:1 (pedido: 3:1, WCAG 1.4.11);
-     símbolo blanco contra el círculo: mínimo 4,52:1. */
-  --ev-icono-cumple: #1E7F55;
-  --ev-icono-nocumple: #B3263C;
-  --ev-icono-nodeterminado: #A8680B;
-  --ev-icono-pendiente: #4A6590;
+  /* Íconos de estado: círculo de color con símbolo blanco y el nombre al pasar el mouse o con el foco */
+  --ev-icono-cumple: var(--ok);
+  --ev-icono-nocumple: var(--no);
+  --ev-icono-nodeterminado: var(--nd);
+  --ev-icono-pendiente: var(--pe);
   --ev-icono-simbolo: #FFFFFF;
-  --ev-icono-tam: 16px;
-  --ev-tooltip-fondo: var(--ev-azul-900);
-  --ev-tooltip-texto: #FFFFFF;
+  --ev-tooltip-fondo: var(--ink);
+  --ev-tooltip-texto: var(--bg);
+}
 
+/* ---------- Medidas y tipografía (iguales en los dos temas) ---------- */
+:root {
   /* Tipografía */
-  --ev-fuente: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ev-fuente: var(--f);
   --ev-fuente-num: ui-monospace, Consolas, "SF Mono", monospace;
-  --ev-fuente-titulo: "Barlow Condensed", "Arial Narrow", sans-serif;  /* solo peso 700 */
+  --ev-fuente-titulo: "Barlow Condensed", "Arial Narrow", sans-serif;  /* solo peso 700; la retira T-331 */
   --ev-t-2xs: 0.6875rem;  /* 11 px: insignias, pies de gráfico */
   --ev-t-xs: 0.78125rem;  /* 12,5 px: encabezados de tabla, notas */
   --ev-t-sm: 0.84375rem;  /* 13,5 px: tablas, texto secundario */
@@ -100,7 +194,7 @@
   --ev-espaciado-pestana: 1.4px;  /* pestañas, mayúsculas */
   --ev-peso-control: 600;
 
-  /* Espaciado (base 4 px, con los pasos chicos y densos de Colm3na) */
+  /* Espaciado (base 4 px) */
   --ev-e1: 0.25rem; --ev-e2: 0.5rem; --ev-e3: 0.75rem; --ev-e4: 1rem;
   --ev-e5: 1.5rem;  --ev-e6: 2rem;   --ev-e7: 3rem;
   --ev-celda-tabla: 7px 10px;     /* tabla de lectura */
@@ -111,7 +205,7 @@
   --ev-ancho-contenido: 72rem;
   --ev-ancho-lectura: 44rem;
 
-  /* Radios, bordes y sombras (valores de Colm3na) */
+  /* Radios, bordes y sombras */
   --ev-radio-s: 4px;      /* insignias cuadradas, casillas */
   --ev-radio-btn: 9px;
   --ev-radio-tarjeta: 12px;

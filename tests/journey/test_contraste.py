@@ -138,10 +138,8 @@ def _pares() -> list[tuple[str, str, str, float]]:
         add(f"gráfico --s2 / {s}", "--s2", s, GRAFICO)
         add(f"gráfico --s3 / {s}", "--s3", s, GRAFICO)
         add(f"anillo de foco / {s}", "--focus", s, GRAFICO)
-        add(f"contorno de marca lima (--ink) / {s}", "--ink", s, GRAFICO)
     for s in ("--bg", "--tile"):
         add(f"marca futura y borde de campo --ink-3 / {s}", "--ink-3", s, GRAFICO)
-    add("contorno de marca lima: --ink sobre lima", "--ink", "--lime", GRAFICO)
 
     # Alias de los tokens viejos: las páginas sin migrar se leen bien en los dos temas.
     fondos_viejos = ("--ev-fondo", "--ev-superficie", "--ev-superficie-2", "--ev-tabla-cabecera",
@@ -176,6 +174,15 @@ def _pares() -> list[tuple[str, str, str, float]]:
 
 PARES = _pares()
 
+# Pares que dependen del tema. El lima solo resalta y nunca va solo: en el tema gris y blanco
+# (donde el lima casi no se distingue del fondo) toda marca lima lleva contorno --ink; en el
+# negro el lima se distingue por sí mismo de las tres superficies.
+PARES_POR_TEMA: dict[str, list[tuple[str, str, str, float]]] = {
+    "claro": [("contorno --ink de una marca lima / lima", "--ink", "--lime", GRAFICO)]
+             + [(f"contorno --ink de una marca lima / {s}", "--ink", s, GRAFICO) for s in SUPERFICIES],
+    "negro": [(f"marca lima / {s}", "--lime", s, GRAFICO) for s in SUPERFICIES],
+}
+
 # Lugar para el texto sobre la foto del primer panel (lo agrega T-321, REQ-135): mismo formato
 # (nombre, primer plano, fondo, mínimo), con el peor píxel de la foto de la casa a máxima
 # opacidad como fondo literal (#RRGGBB) o una mezcla `color-mix(...)`.
@@ -196,15 +203,17 @@ def _fallos(css: str) -> list[str]:
     fallos = []
     for tema in TEMAS:
         v = variables(css, tema)
-        for nombre, fg, bg, minimo in PARES + PARES_FOTO:
+        for nombre, fg, bg, minimo in PARES + PARES_POR_TEMA[tema] + PARES_FOTO:
             r = razon(fg, bg, v)
             if r < minimo:
                 fallos.append(f"[{tema}] {nombre}: {r:.2f}:1 < {minimo}:1")
     return fallos
 
 
-@pytest.mark.parametrize("tema", TEMAS)
-@pytest.mark.parametrize("par", PARES + PARES_FOTO, ids=lambda p: p[0])
+_CASOS = [(t, par) for t in TEMAS for par in PARES + PARES_POR_TEMA[t] + PARES_FOTO]
+
+
+@pytest.mark.parametrize("tema,par", _CASOS, ids=lambda x: x if isinstance(x, str) else x[0])
 def test_cada_par_declarado_llega_al_minimo(tema, par):
     """REQ-133: cada par texto/fondo, ícono/fondo o gráfico/fondo cumple AA en el tema."""
     nombre, fg, bg, minimo = par
@@ -214,16 +223,16 @@ def test_cada_par_declarado_llega_al_minimo(tema, par):
 
 def test_cien_por_ciento_de_los_pares_en_los_dos_temas():
     """REQ-133 (criterio numérico): 100 % de los pares declarados cumplen AA en ambos temas."""
-    assert len(PARES) >= 100
+    assert len(PARES) + len(PARES_POR_TEMA["claro"]) >= 100
     assert _fallos(_css()) == []
 
 
 def test_los_dos_temas_definen_los_mismos_colores():
     """REQ-133: todo token de color del tema claro está redefinido en el negro (salvo los comunes)."""
     claro = variables(_css(), "claro")
-    bloques = {tuple(s): d for s, d in _bloques(_css())}
-    base = next(d for s, d in bloques.items() if s == (":root",) and "--bg" in d)
-    negro = bloques[('[data-theme="negro"]',)]
+    bloques = _bloques(_css())
+    base = next(d for s, d in bloques if s == [":root"] and "--bg" in d)
+    negro = next(d for s, d in bloques if s == ['[data-theme="negro"]'])
     comunes = {"--lime", "--on-lime"}
     faltan = [k for k, v in base.items() if v.startswith("#") and k not in negro and k not in comunes]
     assert faltan == [], f"definidos en el claro y no en el negro: {faltan}"
@@ -233,7 +242,7 @@ def test_los_dos_temas_definen_los_mismos_colores():
 def test_todo_token_de_color_tiene_par_o_exencion():
     """REQ-133: un color nuevo en tokens.css no entra sin declarar su contraste."""
     mencionados = set()
-    for _, fg, bg, _ in PARES:
+    for _, fg, bg, _ in PARES + PARES_POR_TEMA["claro"] + PARES_POR_TEMA["negro"]:
         mencionados.update(re.findall(r"--[\w-]+", f"{fg} {bg}"))
     colores = {k for s, d in _bloques(_css()) for k, v in d.items()
                if (v.startswith("#") or v.startswith("color-mix(")) and not k.startswith("--ev-")}
