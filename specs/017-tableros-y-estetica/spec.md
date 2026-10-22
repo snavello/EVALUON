@@ -1,6 +1,6 @@
 # Spec 017 · Tableros de primer nivel y estética nueva
 
-Estado: borrador · Fecha: 2026-10-21 · Aprobó: —
+Estado: aprobada · Fecha: 2026-10-21 · Aprobó: responsable del proyecto (2026-10-21 21:32, «Apruebo la spec 017. Seguí con el plan.»)
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Las dudas se marcan como «a aclarar» hasta que el responsable las responde. Una spec con dudas pendientes no pasa la compuerta.

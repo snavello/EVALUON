@@ -78,7 +78,7 @@ flowchart LR
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
-| [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 1 de 7 · Spec | — | — |
+| [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 2 de 7 · Plan | — | — |
 
 <a id="001"></a>
 
@@ -1693,11 +1693,11 @@ flowchart TD
 
 ## 017 · Tableros de primer nivel y estética nueva
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador) · [carpeta](../specs/017-tableros-y-estetica)
+**Etapa actual:** 2 de 7 · Plan · [carpeta](../specs/017-tableros-y-estetica)
 
 ```mermaid
 flowchart LR
-  E0["▶ 1. Spec"]:::active --> E1["○ 2. Plan"]:::todo --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1707,11 +1707,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Aprobar la spec (compuerta del responsable).
+- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
 
 ### Qué se hizo
 
-- Nada terminado todavía.
+- Etapas completas: Spec.
 
 ### Requisitos
 
