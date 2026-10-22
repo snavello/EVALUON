@@ -44,6 +44,8 @@ def test_the_three_pages_load_in_both_themes_with_the_new_sheet(client, operator
         response = client.get(url)
         assert response.status_code == 200, name
         html = response.content.decode()
+        # El sprite de íconos es compartido (símbolo blanco de los estados): no es de estas páginas.
+        html = re.sub(r"<svg class=\"sprite\".*?</svg>", "", html, flags=re.S)
         assert "journey/procedimientos.css" in html, name
         assert 'class="app procedimientos' in html or "app procedimientos" in html, name
         assert " style=" not in html and "<style" not in html, name
