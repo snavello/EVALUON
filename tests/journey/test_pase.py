@@ -150,10 +150,9 @@ def test_the_active_tab_and_main_are_where_the_sheet_looks_for_them(client, oper
     assert bar.count('aria-current="page"') == 1
 
 
-def test_the_new_sheets_exist_with_only_a_comment():
-    """REQ-126/REQ-140 (definición compartida 5): `tablero.css` y `avance.css` existen con un
-    solo comentario; los llenan T-313 y T-330."""
+def test_the_new_sheets_exist():
+    """REQ-126/REQ-140 (definición compartida 5): `tablero.css` y `avance.css` existen y no
+    están vacíos; ya los llenaron T-313 y T-330, así que no se exige que sean solo un comentario."""
     for nombre in ("journey/tablero.css", "journey/avance.css"):
         css = leer(nombre)
-        assert css.lstrip().startswith("/*")
-        assert sin_comentarios(css).strip() == "", nombre
+        assert css.strip(), nombre
