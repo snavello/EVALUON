@@ -173,12 +173,17 @@ def test_finished_job_is_complete_for_24_hours_then_one_line(procedure, two_offe
 
 def test_window_is_in_the_page_and_in_the_polled_block(client, procedure, two_offers, simulate,
                                                        operator_user):
-    """REQ-070 y REQ-067: la página y el bloque del sondeo traen la misma ventana, con los
-    estilos de la guía; ningún formulario ni acción de decisión."""
+    """REQ-070 y REQ-067: el bloque del sondeo trae la ventana, con los estilos de la guía y sin
+    ningún formulario ni acción de decisión; la página del procedimiento trae el indicador del
+    encabezado que sondea el avance (REQ-140). Desde T-312 la portada redirige al primer panel,
+    que vuelve a mostrar la ventana entera con T-322."""
     log_in(client, operator_user)
     simulate(two_offers, JobStatus.RUNNING, done=1)
-    page = client.get(reverse("expedientes:portada", args=[procedure.pk])).content.decode()
-    assert 'id="process-window"' in page and "diseno/tokens.css" in page
+    page = client.get(reverse("expedientes:portada", args=[procedure.pk]),
+                      follow=True).content.decode()
+    assert "diseno/tokens.css" in page and 'id="avance-encabezado"' in page
+    window = client.get(reverse("expedientes:ventana", args=[procedure.pk])).content.decode()
+    assert 'id="process-window"' in window and "<form" not in window
     assert "<form" not in block(client, procedure)
 
 

@@ -101,7 +101,8 @@ def test_new_procedure_opens_inside_the_five_tabs(client, operator_user, procedu
     """REQ-076: «+ Nuevo procedimiento» del desplegable lleva al alta dentro de las cinco pestañas:
     encabezado «sin crear», tres pestañas en gris, Normativas habilitada y las dos entradas."""
     log_in(client, operator_user)
-    html = client.get(reverse("expedientes:portada", args=[procedure.pk])).content.decode()
+    html = client.get(reverse("expedientes:portada", args=[procedure.pk]),
+                      follow=True).content.decode()
     assert f'href="{reverse("expedientes:nuevo")}"' in html and "+ Nuevo procedimiento" in html
     page = new_page(client)
     assert page.status_code == 200
@@ -355,7 +356,8 @@ def test_the_tab_shows_the_pending_proposal_and_counts_it(client, operator_user,
     assert pending > 0
     html = tab(client, loaded).content.decode()
     assert 'id="s1-propuesta"' in html and f"Propuesta del Portal: {pending} sin aprobar" in html
-    portada = client.get(reverse("expedientes:portada", args=[loaded.pk])).content.decode()
+    portada = client.get(reverse("expedientes:portada", args=[loaded.pk]),
+                         follow=True).content.decode()
     assert f"Propuesta del Portal: {pending} sin aprobar" in portada
     assert decision_links(mine(html)) == []
     for page in (html, portada):
@@ -387,7 +389,8 @@ def test_a_new_circular_is_a_pending_novelty_and_nothing_loads(
     assert "Novedades del Portal" in block and "2 sin aprobar" in block
     assert "Ofertas" in block  # a dónde queda
     assert "Novedades del Portal: 2 sin aprobar" in html
-    portada = client.get(reverse("expedientes:portada", args=[loaded.pk])).content.decode()
+    portada = client.get(reverse("expedientes:portada", args=[loaded.pk]),
+                         follow=True).content.decode()
     assert row_links(portada, "Novedades del Portal: 2 sin aprobar")[0].endswith("#s1-novedades")
     assert Document.objects.filter(procedure=loaded).count() == documents_before
     assert decision_links(mine(html)) == []

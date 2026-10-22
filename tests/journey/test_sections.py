@@ -152,7 +152,7 @@ def test_the_user_without_commission_role_reads_without_actions_and_is_refused_o
     for url in (reverse("expedientes:portada", args=[procedure.pk]),
                 reverse("expedientes:pliego", args=[procedure.pk]),
                 reverse("expedientes:index")):
-        response = client.get(url)
+        response = client.get(url, follow=True)
         assert response.status_code == 200
         assert "/matriz/" not in "".join(re.findall(r'<form[^>]*action="([^"]+)"',
                                                     response.content.decode()))
@@ -166,13 +166,13 @@ def test_the_front_page_has_two_separate_blocks_for_pending_and_suggestions(
         client, procedure, matrix, evaluator_user):
     """REQ-098: pendientes y sugerencias, en dos bloques aparte y visibles."""
     log_in(client, evaluator_user)
-    response = client.get(reverse("expedientes:portada", args=[procedure.pk]))
+    response = client.get(reverse("expedientes:portada", args=[procedure.pk]), follow=True)
     assert response.status_code == 200
     html = response.content.decode()
     assert 'id="pendientes"' in html and 'id="sugerencias"' in html
     assert html.index('id="pendientes"') < html.index('id="sugerencias"')
     assert "Pendientes de decidir" in html and "Sugerencias del sistema" in html
-    assert "Qué hay y qué falta" in html
+    assert 'class="hay-falta"' in html  # la portada es el primer panel (T-312)
     for key in KEYS:
         assert reverse(f"expedientes:{key}", args=[procedure.pk]) in html
 
@@ -203,7 +203,8 @@ def test_the_header_lists_procedures_and_links_to_the_new_procedure_screen(
     """El encabezado ofrece cambiar de procedimiento y «+ Nuevo procedimiento», que lleva al alta
     dentro de las cinco pestañas (T-195) y ya no al recorrido de la 013."""
     log_in(client, operator_user)
-    html = client.get(reverse("expedientes:portada", args=[procedure.pk])).content.decode()
+    html = client.get(reverse("expedientes:portada", args=[procedure.pk]),
+                      follow=True).content.decode()
     assert procedure.number in html
     assert "Nuevo procedimiento" in html
     assert f'href="{reverse("expedientes:nuevo")}"' in html and reverse("journey:index") not in html

@@ -1,0 +1,26 @@
+/* Línea «Hay: … · Falta: …» de cada sección y vista mínima del indicador de avance del encabezado
+   (REQ-132, REQ-140; T-312). Solo tokens de diseno/tokens.css. La estética final del indicador es de T-330. */
+
+.hay-falta { display: grid; gap: .375rem; margin: .75rem 0 1rem; font-size: var(--ev-t-sm); color: var(--ink-2); }
+.hay-falta .hf-fila { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: .5rem; align-items: baseline; }
+.hay-falta .hf-et { display: inline-flex; align-items: center; gap: .4375rem; font-weight: 600; color: var(--ink); }
+.hay-falta .hf-punto { width: .5rem; height: .5rem; border-radius: 50%; background: var(--ok); flex: none; }
+.hay-falta .hf-punto-falta { background: var(--nd); }
+.hay-falta p { margin: 0; max-width: 90ch; }
+.hay-falta .resumen-linea { color: var(--ink-2); }
+.hay-falta .falta { font-size: inherit; color: var(--ink); }
+.hay-falta .sin-falta { color: var(--ink-2); }
+.hay-falta a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.hay-falta a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+
+/* Indicador de avance (vista mínima): anillo con el porcentaje, enlazado al primer panel. */
+.avance-enc { display: flex; justify-content: flex-end; max-width: var(--maxw); margin: 0 auto; padding: 0 1.5rem; }
+.avance-enc .avance-anillo { margin-top: .25rem; display: inline-flex; align-items: center; gap: .5rem; padding: .1875rem .625rem .1875rem .25rem; border-radius: 999px;
+  background: var(--tile); color: var(--ink); text-decoration: none; font-size: var(--ev-t-xs); font-variant-numeric: tabular-nums; }
+.avance-enc .avance-anillo:hover { background: var(--tile-h); }
+.avance-enc .avance-anillo:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.avance-enc svg { width: 1.5rem; height: 1.5rem; flex: none; transform: rotate(-90deg); }
+.avance-enc .anillo-fondo { fill: none; stroke: var(--trk); stroke-width: 4; }
+.avance-enc .anillo-valor { fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; }
+.avance-enc .avance-texto { color: var(--ink-2); }
+.avance-enc .avance-texto b { color: var(--ink); font-weight: 600; }
