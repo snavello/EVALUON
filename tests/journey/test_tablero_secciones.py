@@ -214,9 +214,13 @@ def test_un_parametro_de_modo_abre_su_detalle(client, procedure, matrix, operato
 
 
 def test_sin_mosaicos_la_seccion_se_muestra_como_hoy(client, procedure, matrix, operator_user):
-    """REQ-126: mientras un tema no declara `tiles()`, la sección sigue con sus parciales."""
-    assert not any(t.SECTION == "ofertas" for t in tema_con_mosaicos())
-    html = pedir(client, procedure, operator_user)
+    """REQ-126: mientras un tema no declara `tiles()`, la sección sigue con sus parciales (se
+    prueba con la primera sección que todavía no tiene mosaicos; Ofertas los tiene desde T-315)."""
+    con = {t.SECTION for t in tema_con_mosaicos()}
+    libres = [clave for clave in ("pliego", "evaluacion", "procedimiento") if clave not in con]
+    if not libres:
+        pytest.skip("todas las secciones ya declaran mosaicos")
+    html = pedir(client, procedure, operator_user, libres[0])
     assert 'class="tablero"' not in html
     for marca in ('id="seccion-titulo"', 'id="seccion-resumen"', 'id="pendientes"',
                   'id="seccion-detalle"'):
