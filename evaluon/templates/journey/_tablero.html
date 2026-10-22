@@ -1,0 +1,20 @@
+{% comment %}El tablero de una sección (T-313, REQ-126, REQ-127; ADR-0076): la cuadrícula de mosaicos y, debajo, la zona de detalles ya dibujados (cada uno con su id `d-…`). Sin JavaScript los mosaicos son anclas a esa zona, que queda visible; `tablero.js` mueve el detalle debajo de la fila del mosaico y lo despliega. Variables: `board` (mosaicos), `details` ({id, title, html}), `abre` (detalle que abre la consulta) y `blocks` (temas sin mosaico, que se muestran como antes).{% endcomment %}
+<section class="tablero" aria-label="Tablero de {{ section.label }}"{% if abre %} data-abre="{{ abre }}"{% endif %}>
+  <div class="board">
+    {% for tile in board %}{% include "journey/_mosaico.html" %}{% endfor %}
+  </div>
+  <div class="detalles" id="detalles">
+    {% for d in details %}<div class="inline-detail" id="{{ d.id }}"><div>
+      <article class="dt" aria-labelledby="{{ d.id }}-titulo">
+        <h2 id="{{ d.id }}-titulo">{{ d.title }}</h2>
+        {{ d.html }}
+      </article>
+    </div></div>
+    {% endfor %}
+  </div>
+</section>
+{% if blocks %}
+<div id="seccion-detalle">
+  {% for block in blocks %}{% include block.partial with t=block.t %}{% endfor %}
+</div>
+{% endif %}

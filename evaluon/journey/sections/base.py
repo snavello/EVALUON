@@ -56,6 +56,11 @@ class Item:
     group_action: str = "Revisar"
     limit: int = 0  # si es mayor que 0, reemplaza a GROUP_LIMIT para este tipo
     points: tuple = ()  # el punto completo del pliego del requisito (T-228), si el renglón es de uno
+    # Pendientes con acción a mano (plan 017, REQ-129). Los tres son opcionales: sin `why` no se
+    # dibuja la línea de «por qué importa» (nunca se inventa, REQ-141).
+    why: str = ""  # por qué importa, escrito por el tema que sabe el motivo
+    open: str = ""  # id del detalle del tablero donde está el formulario de la acción
+    post: tuple | None = None  # (url, ((campo, valor), ...)) de una acción de un solo clic
 
 
 GROUP_LIMIT = 8
@@ -132,6 +137,41 @@ class Section:
     upload_url: str | None = None
     css: str = ""
     temas: tuple = field(default=(), repr=False)
+    # Gancho para el primer panel (plan 017): plantilla y contexto propios del ingreso de la
+    # sección. Por omisión no hay (`None` y `{}`).
+    ingreso_template: str | None = None
+
+    def ingreso_context(self, user, procedure, request=None):
+        return {}
+
+    def tiles(self, user, procedure, contexts=None):
+        """Los mosaicos de los temas que los declaran (`tema.tiles(user, procedure, ctx)`), en el
+        orden de los temas. `contexts` es {clave del tema: su `context()`}."""
+        contexts = contexts or {}
+        found = []
+        for tema in self.temas:
+            if hasattr(tema, "tiles"):
+                found += list(tema.tiles(user, procedure, contexts.get(tema.KEY)))
+        return found
+
+    def details(self, user, procedure, contexts=None):
+        """Los detalles propios que declaran los temas (`tema.details(user, procedure, ctx)`)."""
+        contexts = contexts or {}
+        found = []
+        for tema in self.temas:
+            if hasattr(tema, "details"):
+                found += list(tema.details(user, procedure, contexts.get(tema.KEY)))
+        return found
+
+    def opens(self, request):
+        """El id del detalle que abre la consulta (`?oferta=`, `?ficha=`, `?historial=`): el
+        primero que algún tema (`tema.opens(request)`) nombre."""
+        for tema in self.temas:
+            if hasattr(tema, "opens"):
+                found = tema.opens(request)
+                if found:
+                    return found
+        return None
 
     @property
     def state_label(self):
