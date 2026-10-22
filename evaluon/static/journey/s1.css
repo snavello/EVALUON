@@ -35,3 +35,11 @@ nav.tabs .off {
 }
 nav.tabs .off .t-nombre { font-weight: 600; font-size: var(--ev-t-sm); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Dentro del detalle del tablero (T-323, REQ-127): el detalle ya es la tarjeta; los bloques de la
+   014 se aplanan para no anidar tarjetas y el título que repite el del detalle no se dibuja. */
+.dt .bloque { background: transparent; border: 0; box-shadow: none; padding: 0; margin-bottom: 1.5rem; }
+.dt .bloque:last-child { margin-bottom: 0; }
+.dt .bloque > .bloque-cab h3.repite { display: none; }
+.dt .bloque > .bloque-cab { justify-content: flex-start; }
+.dt .tabla-scroll { background: transparent; }

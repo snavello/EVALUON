@@ -1,0 +1,23 @@
+{% load static %}{% comment %}Lo pendiente de decidir y las sugerencias del sistema, en dos bloques aparte y siempre visibles (REQ-098), con la acción de cada pendiente a mano (T-318, REQ-129; plan 017, «Pendientes con acción a mano»). Reemplaza al parcial anterior de dos paneles. Sirve para el pendiente general (el primer panel: `show_section=True` y filas `(sección, renglón)` de las cinco secciones, cada una con el nombre de su sección) y para el de cada sección (`show_section=False`). Variables: `pending_total`, `suggestion_total`, `pending_rows`, `suggestion_rows` (pares `(sección, renglón)`), `show_section` y `next_url` (a dónde vuelve la acción de un clic; sin él no se manda `next`). Cada fila: ícono, qué falta, por qué importa (solo si el tema lo escribió, `Item.why`), sección y acción: un botón que hace POST (`Item.post`, con CSRF y `next`) o un enlace (a la pantalla, o al detalle que abre, `Item.open`). Un pendiente de un requisito trae el punto completo del pliego (T-228). Las reglas están en `journey/pendientes.css`.{% endcomment %}<link rel="stylesheet" href="{% static 'journey/punto.css' %}"><link rel="stylesheet" href="{% static 'journey/pendientes.css' %}"><div class="dos paneles pend">
+  <section class="panel" id="pendientes" aria-labelledby="pendientes-titulo">
+    <h3 id="pendientes-titulo">Pendientes de decidir <span class="cta">{{ pending_total }}</span></h3>
+    {% if pending_rows %}
+    <ul class="pend-lista">
+      {% for s, item in pending_rows %}
+      <li>{% include "journey/_icono.html" with icon=item.post|yesno:"nodet,pend" name=item.post|yesno:"Se decide con un clic,Falta hacer" %}<span class="renglon"><span class="que">{{ item.text }}</span>{% if item.why %}<span class="por-que">{{ item.why }}</span>{% endif %}{% if item.points %}{% include "journey/_punto_pliego.html" with points=item.points %}{% endif %}</span>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}{% include "journey/_pendiente_accion.html" %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="suave">No hay nada pendiente de decidir.</p>{% endif %}
+  </section>
+  <section class="panel" id="sugerencias" aria-labelledby="sugerencias-titulo">
+    <h3 id="sugerencias-titulo">Sugerencias del sistema <span class="cta">{{ suggestion_total }}</span></h3>
+    {% if suggestion_rows %}
+    <ul class="pend-lista">
+      {% for s, item in suggestion_rows %}
+      <li>{% include "journey/_icono.html" with icon="nodet" name="Sugerencia del sistema" %}<span class="renglon"><span class="que">{{ item.text }}</span>{% if item.why %}<span class="por-que">{{ item.why }}</span>{% endif %}{% if item.points %}{% include "journey/_punto_pliego.html" with points=item.points %}{% endif %}</span>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}{% include "journey/_pendiente_accion.html" %}</li>
+      {% endfor %}
+    </ul>
+    <p class="ayuda">Son propuestas del sistema: no frenan nada y las decide la Comisión.</p>
+    {% else %}<p class="suave">El sistema no tiene sugerencias por ahora.</p>{% endif %}
+  </section>
+</div>

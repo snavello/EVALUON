@@ -3,6 +3,10 @@
 
 {% block title %}Expedientes · EVALUON{% endblock %}
 
+{% block body_class %}procedimientos{% endblock %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'journey/procedimientos.css' %}">{% endblock %}
+
 
 
 {% block content %}
@@ -20,8 +24,8 @@
       <tr>
         <th scope="row"><a href="{% url 'expedientes:portada' overview.procedure.pk %}">{{ overview.procedure.number }}</a></th>
         <td>{{ overview.procedure.subject|truncatechars:90 }}</td>
-        <td class="n">{{ overview.pending }} pend.</td>
-        <td class="n">{{ overview.suggestions }} sug.</td>
+        <td class="n"><span class="tag{% if overview.pending %} lime{% endif %}">{{ overview.pending }} pend.</span></td>
+        <td class="n"><span class="tag">{{ overview.suggestions }} sug.</span></td>
         <td><span class="iconos">{% for s in overview.sections %}<a href="{{ s.url }}" class="icono-enlace" title="{{ s.label }}: {{ s.state_label }}">{% include "journey/_icono.html" with icon=s.icon name=s.state_label tip=False %}</a>{% endfor %}</span></td>
       </tr>
       {% endfor %}
