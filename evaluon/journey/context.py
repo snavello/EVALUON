@@ -2,6 +2,8 @@
 de procedimiento: la lista del desplegable y el rótulo del rol. Se calculan solo si la plantilla
 los usa. Las vistas de las secciones los pasan ellas mismas y mandan sobre esto."""
 
+import functools
+
 from django.utils.functional import SimpleLazyObject
 
 DROPDOWN_LIMIT = 25
@@ -28,7 +30,10 @@ def shell(request):
     match = getattr(request, "resolver_match", None)
     procedure_id = match.kwargs.get("procedure_id") if match else None
     if procedure_id is not None and match.namespace == "expedientes":
-        out["avance"] = SimpleLazyObject(lambda: _avance(procedure_id))
+        # Un invocable memoizado: la plantilla lo llama al resolver `avance_pedido` y recibe el
+        # dict o `None`. No se llama `avance` porque la sección 1 pasa su propio `avance` (el de
+        # las secciones del primer panel) y tapaba este: el anillo giraba sin pedido (T-336).
+        out["avance_pedido"] = functools.cache(lambda: _avance(procedure_id))
     if not user.commission_role:
         return out
     from evaluon.journey.views.portada import ROLE_LABELS
