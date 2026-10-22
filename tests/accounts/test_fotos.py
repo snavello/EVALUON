@@ -650,6 +650,100 @@ def test_the_mapping_table_keeps_the_range_of_a_narrow_histogram():
     assert relative_difference(mean, house_mean) <= 0.05
 
 
+def flat_zones(size, top, bottom, noise, circles, seed, blur=2, blocks=()):
+    """Imagen sintética con zonas planas: degradado vertical con ruido gaussiano, círculos de
+    color liso, bloques opcionales (fracciones del ancho y alto) y desenfoque."""
+    from PIL import ImageDraw, ImageFilter
+
+    rng = random.Random(seed)
+    width, height = size
+    clip = lambda value: max(0, min(255, int(value)))  # noqa: E731
+    pixels = []
+    for row in range(height):
+        base = [top[i] + (bottom[i] - top[i]) * row / (height - 1) for i in range(3)]
+        pixels.extend(tuple(clip(rng.gauss(c, noise)) for c in base) for _ in range(width))
+    image = Image.new("RGB", size)
+    image.putdata(pixels)
+    draw = ImageDraw.Draw(image)
+    for low, high in circles:
+        radius = rng.randint(height // 12, height // 5)
+        x, y = rng.randint(0, width), rng.randint(0, height)
+        colour = tuple(rng.randint(low[i], high[i]) for i in range(3))
+        draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=colour)
+    for colour, (x0, y0, x1, y1) in blocks:
+        box = (int(x0 * width), int(y0 * height), int(x1 * width), int(y1 * height))
+        draw.rectangle(box, fill=colour)
+    return image.filter(ImageFilter.GaussianBlur(blur)) if blur else image
+
+
+def _circles(n, low, high):
+    return [(low, high)] * n
+
+
+# Las imágenes 1, 2, 3, 5 y 6 del verificador (registro de T-319, «Segunda ronda», H-3), con su
+# misma estructura: pocos niveles de gris muy repetidos. La 4 (casi lisa) es el límite documentado.
+FLAT_ZONES = {
+    "1 oscura y saturada": lambda: flat_zones(
+        (300, 200), (40, 5, 20), (15, 5, 40), 8, _circles(14, (0, 0, 0), (110, 60, 110)), seed=1
+    ),
+    "2 clara y fria": lambda: flat_zones(
+        (300, 200), (225, 235, 250), (200, 225, 245), 8,
+        _circles(14, (150, 190, 225), (255, 255, 255)), seed=2,
+    ),
+    "3 alto contraste": lambda: flat_zones(
+        (300, 200), (250, 250, 250), (250, 250, 250), 0, [], seed=3, blur=0,
+        blocks=[((0, 0, 0), (0, 0, 0.1, 1)), ((0, 0, 0), (0.5, 0, 0.55, 1))],
+    ),
+    "5 muy oscura": lambda: flat_zones(
+        (300, 200), (18, 18, 20), (10, 10, 14), 8, _circles(14, (0, 0, 0), (60, 50, 60)), seed=5
+    ),
+    "6 muy clara y quemada": lambda: flat_zones(
+        (300, 200), (245, 245, 240), (250, 250, 245), 8,
+        _circles(14, (160, 170, 170), (255, 255, 255)), seed=6,
+    ),
+}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", sorted(FLAT_ZONES))
+def test_images_with_flat_zones_reach_the_tone_of_the_house(name):
+    """REQ-137: imágenes con pocos niveles de gris muy repetidos (colores lisos, bloques, fondo
+    casi negro) quedan a 10 % o menos de la casa en brillo medio y contraste."""
+    photo = photos.upload(make_user(), io.BytesIO(encode(FLAT_ZONES[name]())))
+    mean, contrast = statistics(photo)
+    house_mean, house_contrast = house_statistics()
+    brightness_diff = relative_difference(mean, house_mean)
+    contrast_diff = relative_difference(contrast, house_contrast)
+    print(
+        f"REQ-137 {name}: brillo {mean:.1f} ({brightness_diff:.2%}); "
+        f"contraste {contrast:.1f} ({contrast_diff:.2%}) contra la casa"
+    )
+    assert brightness_diff <= LIMIT
+    assert contrast_diff <= LIMIT
+
+
+@pytest.mark.django_db
+def test_the_dark_and_the_light_image_with_flat_zones_end_close_to_each_other():
+    """REQ-137: el par oscura (1) / clara (2) con zonas planas queda a 10 % o menos entre sí."""
+    user = make_user()
+    dark = photos.upload(user, io.BytesIO(encode(FLAT_ZONES["1 oscura y saturada"]())))
+    light = photos.upload(user, io.BytesIO(encode(FLAT_ZONES["2 clara y fria"]())))
+    assert relative_difference(statistics(dark)[0], statistics(light)[0]) <= LIMIT
+    assert relative_difference(statistics(dark)[1], statistics(light)[1]) <= LIMIT
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", sorted(HOUSE_VARIANTS))
+def test_house_variants_keep_the_implementation_goal(name):
+    """REQ-137: las 8 variantes derivadas de la casa siguen a 5 % o menos (la corrección lineal
+    no las empeora)."""
+    photo = photos.upload(make_user(), io.BytesIO(encode(HOUSE_VARIANTS[name]())))
+    mean, contrast = statistics(photo)
+    house_mean, house_contrast = house_statistics()
+    assert relative_difference(mean, house_mean) <= GOAL
+    assert relative_difference(contrast, house_contrast) <= GOAL
+
+
 def test_a_smoothing_that_flattens_the_table_would_be_caught(monkeypatch):
     """REQ-137: si el suavizado fuera tan ancho que achata la tabla (radio 20 y ventana ancha),
     el test anterior falla: este test comprueba que lo detecta."""
@@ -738,6 +832,8 @@ def test_a_permanent_slot_conflict_ends_after_at_most_11_tries_with_a_clear_mess
 
     def stale(target):
         calls.append(1)
+        if len(calls) > PHOTO_SLOTS + 1:  # tope propio: falla en lugar de colgarse
+            pytest.fail("el reintento pasó de 11 vueltas: no está acotado")
         return set()
 
     monkeypatch.setattr(photos, "used_slots", stale)

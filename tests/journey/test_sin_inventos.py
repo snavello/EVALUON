@@ -18,7 +18,12 @@ pytestmark = pytest.mark.django_db
 
 # Mosaicos cuyo dato es de la instalación y no del procedimiento (por ejemplo, las normas
 # cargadas en toda la base). Cada uno entra con su razón escrita; por omisión no hay ninguno.
-DATO_DE_LA_INSTALACION: dict[str, str] = {}
+RAZON_NORMAS = ("Normas cargadas cuenta las normas de toda la base, comunes a todos los "
+                "procedimientos; sin ninguna dice «Falta cargar normas» (T-329, "
+                "tests/journey/temas/test_s5_tiles.py)")
+# Se declara con la clave del mosaico y con su id en la página (`m-…`): el primer test mira el id y
+# el segundo, la clave.
+DATO_DE_LA_INSTALACION: dict[str, str] = {"cargadas": RAZON_NORMAS, "m-cargadas": RAZON_NORMAS}
 
 
 @pytest.fixture
