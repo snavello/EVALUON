@@ -46,6 +46,8 @@ QUALITIES = range(90, 29, -5)
 SMOOTHING_RADIUS = 4  # a cuántos niveles de entrada, como máximo, se mira a cada lado
 SMOOTHING_WINDOW = 2  # y solo se promedian los que caen a 2 niveles de salida o menos
 SLOT_CONSTRAINT = "accounts_photo_user_slot_unique"
+MIN_SPREAD = 3  # con menos desvío de entrada (imagen casi lisa) no se amplifica
+LINEAR_ROUNDS = 3  # la corrección lineal y, si el recorte la corre, hasta 2 repeticiones
 
 
 class PhotoRejected(ValueError):
@@ -242,6 +244,51 @@ def tone_table(source, reference):
     return table
 
 
+def _statistics(histogram):
+    """Media y desvío estándar de un histograma de 256 niveles (en Python puro)."""
+    total = sum(histogram)
+    mean = sum(level * count for level, count in enumerate(histogram)) / total
+    variance = sum(count * (level - mean) ** 2 for level, count in enumerate(histogram)) / total
+    return mean, variance**0.5
+
+
+def _mapped(histogram, table):
+    result = [0] * 256
+    for level, count in enumerate(histogram):
+        result[table[level]] += count
+    return result
+
+
+def final_table(source, reference):
+    """Tabla completa de la foto: la de histograma (`tone_table`) y después una corrección lineal.
+
+    El ajuste por histograma manda cada nivel de entrada a un único nivel de salida; si la imagen
+    tiene pocos niveles muy repetidos (colores lisos, fondos recortados) el contraste queda lejos
+    del de la referencia. Se corrige sobre la imagen ya mapeada con
+    `y = (x - media) * (desvío_ref / desvío) + media_ref`, recortada a 0-255; si el recorte corre
+    la media o el desvío se repite, hasta 2 veces más. Con un desvío de entrada menor a
+    `MIN_SPREAD` no se amplifica (límite documentado en `tone_table`).
+    """
+    table = tone_table(source, reference)
+    if not sum(source) or not sum(reference) or _statistics(source)[1] < MIN_SPREAD:
+        return table
+    ref_mean, ref_spread = _statistics(reference)
+    current = _mapped(source, table)
+    for _ in range(LINEAR_ROUNDS):
+        mean, spread = _statistics(current)
+        if spread <= 0 or (
+            abs(mean - ref_mean) < 0.5 and abs(spread - ref_spread) < 0.5
+        ):
+            break
+        gain = ref_spread / spread
+        step = [
+            min(255, max(0, int(round((level - mean) * gain + ref_mean)))) for level in range(256)
+        ]
+        table = [step[level] for level in table]
+        current = _mapped(source, table)
+    return table
+
+
 def _normalize(data):
     """De los bytes subidos a (JPEG ajustado, ancho, alto)."""
     image = _open(data)
@@ -255,7 +302,7 @@ def _normalize(data):
     except (OSError, SyntaxError, ValueError, EOFError):
         raise _damaged() from None
     gray.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)  # no amplía
-    gray = gray.point(tone_table(gray.histogram(), reference_histogram()))
+    gray = gray.point(final_table(gray.histogram(), reference_histogram()))
     # Una imagen nueva, solo con los píxeles: ninguna información de la original (comentario,
     # perfil de color, EXIF, texto) pasa al JPEG guardado (P4).
     gray = Image.frombytes("L", gray.size, gray.tobytes())
