@@ -61,3 +61,10 @@ def once(key, compute):
     if key not in memo:
         memo[key] = compute()
     return memo[key]
+
+
+def offers(procedure):
+    """Las ofertas de `procedure`, por número, leídas una vez por alcance (T-335): el estado de la
+    sección, el contexto de cada tema y el tablero las pedían cada uno por su cuenta. Devuelve una
+    lista nueva con los mismos objetos; quien llama no debe modificarlos."""
+    return list(once(("offers", procedure.pk), lambda: list(procedure.offers.order_by("number"))))

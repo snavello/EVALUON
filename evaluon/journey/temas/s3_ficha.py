@@ -139,7 +139,7 @@ def status(user, procedure):
     """Las filas propuestas son pendientes y la oferta sin ficha es una sugerencia; ninguna es
     faltante (la ficha es opcional). Las cuentas las suma la etapa de ofertas de la 013; acá se
     reemplazan sus renglones genéricos por uno por oferta, con su enlace dentro de la pestaña."""
-    offers = list(procedure.offers.order_by("number"))
+    offers = memo.offers(procedure)
     having = offer_ids_with_documents(offers)
     with_documents = [o for o in offers if o.pk in having]
     latest = _latest_sheets(offers)
@@ -314,7 +314,7 @@ class CardRow:
 def sheet_rows(procedure):
     """Una fila por oferta, calculada una sola vez por pedido (la usan el mosaico y el detalle)."""
     def compute():
-        offers = list(procedure.offers.order_by("number"))
+        offers = memo.offers(procedure)
         latest = _latest_sheets(offers)
         pending = {offer.pk: count for offer, _, count in _pending_sheets(offers)}
         rows = []

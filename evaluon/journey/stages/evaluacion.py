@@ -14,6 +14,7 @@ from django.db.models import Max
 from django.urls import reverse
 
 from evaluon.assessment.models import Run
+from evaluon.journey import memo
 from evaluon.journey.progress import progress_of
 from evaluon.journey.stages import base
 from evaluon.offers.services.offers import offer_ids_with_documents
@@ -50,7 +51,7 @@ def compute(user, procedure):
     version = latest_validated(procedure)
     if version is None:
         return base.Stage(state=base.PENDIENTE, detail="Falta una matriz validada.", **common)
-    every = list(procedure.offers.order_by("number"))
+    every = memo.offers(procedure)
     having = offer_ids_with_documents(every)
     offers = [o for o in every if o.pk in having]
     if not offers:

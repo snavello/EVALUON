@@ -21,6 +21,7 @@ decisiones de la Comisión. El recorrido solo lee: no arma fichas ni confirma fi
 from django.db.models import Count, Exists, Max, OuterRef, Q
 from django.urls import reverse
 
+from evaluon.journey import memo
 from evaluon.journey.progress import progress_of
 from evaluon.journey.stages import base
 from evaluon.offers.models import (
@@ -100,7 +101,7 @@ def compute(user, procedure):
     view_url = reverse("expedientes:ofertas", args=[procedure.pk])
     common = {"key": KEY, "label": LABEL, "view_url": view_url}
 
-    offers = list(procedure.offers.order_by("number"))
+    offers = memo.offers(procedure)
     having = offer_ids_with_documents(offers)
     with_documents = [o for o in offers if o.pk in having]
     documents = list(Document.objects.filter(offer__in=with_documents)

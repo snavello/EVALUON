@@ -20,6 +20,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from functools import cached_property
 
 from evaluon.assessment import ordering
+from evaluon.journey import memo
 from evaluon.journey.tablero import charts
 from evaluon.journey.temas import s1_datos
 
@@ -127,7 +128,7 @@ def economic_view(procedure, offers=None, discards=None, uid="economico"):
     ninguna se descarta). `uid` da el id del cuadro y el prefijo de los del gráfico: dos cuadros
     en una página llevan `uid` distintos."""
     if offers is None:
-        offers = list(procedure.offers.order_by("number"))
+        offers = memo.offers(procedure)
     order = ordering.economic_order(procedure, list(offers), discards or {}) if offers else None
     if order is None or not order.totals:
         return EconomicView(state=STATE_PENDING, uid=uid, opening_day=opening_day(procedure),

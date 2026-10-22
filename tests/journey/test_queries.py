@@ -79,6 +79,19 @@ def test_the_memo_does_not_survive_the_request(procedure, evaluated, operator_us
     assert first.sections
 
 
+def test_the_offers_are_read_once_per_load(procedure, evaluated):
+    """REQ-100 (T-335): dentro de un alcance las ofertas del procedimiento se leen una vez; fuera,
+    cada llamada las lee."""
+    with memo.scope():
+        with CaptureQueriesContext(connection) as queries:
+            first, second = memo.offers(procedure), memo.offers(procedure)
+        assert len(queries) == 1 and first == second and first is not second
+    assert [o.number for o in first] == sorted(o.number for o in first)
+    with CaptureQueriesContext(connection) as queries:
+        memo.offers(procedure), memo.offers(procedure)
+    assert len(queries) == 2
+
+
 # --- Un caso con muchos requisitos (T-223) ------------------------------------------------------
 # Umbral escrito antes de medir: con 3 ofertas y 50 requisitos o más, cada pestaña hace menos de
 # 150 consultas, y con el doble de requisitos hace como máximo un 10 % más.
