@@ -8,7 +8,7 @@ El primer panel de la sección Procedimiento (T-321, T-322; REQ-128, REQ-129, RE
     <h1 id="seccion-titulo">{{ procedure.subject }}</h1>
     <p class="sub">{{ procedure.procedure_type }} <b class="num">N.º {{ procedure.number }}</b> · Expediente {% if expediente %}<b class="num">{{ expediente }}</b>{% else %}<span class="tag nd">Falta</span>{% endif %} · autorizada el <b class="num">{{ procedure.authorization_date|date:"d/m/Y" }}</b></p>
     <div class="nums">
-      {% for n in numeros %}<div class="n" id="n-{{ n.key }}"><b>{% if n.value %}{% if n.highlight %}<span class="hl">{{ n.value }}</span>{% else %}{{ n.value }}{% endif %}{% else %}<span class="tag nd">{{ n.missing }}</span>{% endif %}</b><span>{{ n.label }}</span></div>
+      {% for n in numeros %}<div class="n" id="n-{{ n.key }}"><b>{% if n.value %}{% if n.highlight %}<span class="hl">{{ n.value }}</span>{% else %}{{ n.value }}{% endif %}{% else %}<span class="tag nd">{{ n.missing }}</span>{% endif %}</b><span>{{ n.label }}{% if n.tag %} <span class="tag nd">{{ n.tag }}</span>{% endif %}</span></div>
       {% endfor %}
     </div>
     <div class="acts">{% include "journey/_cargas.html" %}</div>

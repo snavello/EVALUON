@@ -68,3 +68,11 @@
   .hero { padding: 1.25rem; }
   .hero h1 { font-size: 2rem; }
 }
+
+/* Detalle «Plazos importantes» (T-322) */
+.plazos-lista { display: grid; gap: .5rem; margin: 0 0 .75rem; padding: 0; list-style: none; color: var(--ink); }
+.plazos-lista li { font-size: .9375rem; }
+.plazos-lista .num { font: 400 1.375rem/1.1 var(--f); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.plazos-lista li.now .num { font-weight: 600; }
+.plazos-lista li.pending .num { color: var(--ink-2); }
+.plazos-detalle .sub { font-size: .8125rem; color: var(--ink-2); margin: 0 0 .25rem; }
