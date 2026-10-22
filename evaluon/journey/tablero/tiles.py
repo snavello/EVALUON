@@ -34,6 +34,8 @@ class Tile:
     - `missing`: lo que se dice cuando `big` es `None` («Falta …» o «Pendiente»).
     - `href`: si el mosaico lleva a otra pantalla (los del primer panel) en lugar de abrir un
       detalle de esta.
+    - `lines`: pares (rótulo, texto) de un cuadro de texto (T-337, «Qué hay y qué falta»); se
+      dibujan en lugar de la cifra.
     """
 
     key: str
@@ -47,6 +49,7 @@ class Tile:
     chart: object = None
     missing: str = "Pendiente"
     href: str = ""
+    lines: tuple = ()  # pares (rótulo, texto) para un cuadro de texto, p. ej. «Hay» y «Falta»
 
     def __post_init__(self):
         if self.width not in WIDTHS:
@@ -89,11 +92,12 @@ class Board:
 
 
 def build_board(section, user, procedure, contexts, request=None):
-    """El tablero de `section`, o `None` si ningún tema declara mosaicos (la sección se muestra
-    como antes). `contexts` es {clave del tema: su `context()`}."""
-    tiles = section.tiles(user, procedure, contexts)
-    if not tiles:
-        return None
+    """El tablero de `section`: los tres cuadros de indicadores (T-337) y, después, los mosaicos
+    de la sección y de sus temas. Los temas sin mosaico quedan en `leftover` y se muestran como
+    antes. `contexts` es {clave del tema: su `context()`}."""
+    from evaluon.journey.tablero import resumen  # importa este módulo: se carga al usarlo
+
+    tiles = resumen.tiles(section, contexts) + section.tiles(user, procedure, contexts)
     titles = {}
     for tile in tiles:
         if tile.detail:
@@ -106,6 +110,7 @@ def build_board(section, user, procedure, contexts, request=None):
             details.append(Detail(default, titles[default], tema.PARTIAL,
                                   {"t": contexts.get(tema.KEY)}))
             owned.add(tema.KEY)
+    details = resumen.details(section, contexts) + details
     details += section.details(user, procedure, contexts)
     leftover = [tema for tema in section.temas if tema.KEY not in owned]
     return Board(tiles=tiles, details=details, leftover=leftover,

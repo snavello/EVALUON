@@ -529,6 +529,8 @@ def context(section, user, procedure, request=None, overview=None):
         "window_url": reverse("expedientes:ventana", args=[procedure.pk]),
     }
     if overview is not None:
+        found["pending_total"] = overview.pending
+        found["suggestion_total"] = overview.suggestions
         found["pending_items"] = [(s, i) for s in overview.sections for i in s.pending_items]
         found["suggestion_items"] = [(s, i) for s in overview.sections
                                      for i in s.suggestion_items]

@@ -1,0 +1,10 @@
+{% comment %}Detalle de «Qué hay y qué falta» en Normativas general (T-337, REQ-097): el resumen de la página y lo que falta, con su acción. Mismos ids y clases que `_hay_falta.html` (`seccion-resumen`, `falta`).{% endcomment %}<div class="hay-falta" id="hay-falta">
+  <div class="hf-fila hf-hay">
+    <span class="hf-et"><i class="hf-punto" aria-hidden="true"></i>Hay:</span>
+    <p class="resumen-linea" id="seccion-resumen">Las normas no están atadas a ningún procedimiento: las que se cargan y validan acá sirven para todos. {% for label, detail in summary %}{{ detail }} {% endfor %}Qué normas rigen a un procedimiento según su fecha de autorización se ve en la pestaña Normativas de ese procedimiento.</p>
+  </div>
+  <div class="hf-fila hf-falta">
+    <span class="hf-et"><i class="hf-punto hf-punto-falta" aria-hidden="true"></i>Falta:</span>
+    {% if missing %}<p class="falta">{% for item in missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% else %}<p class="sin-falta">Ningún faltante registrado.</p>{% endif %}
+  </div>
+</div>

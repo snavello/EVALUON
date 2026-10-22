@@ -241,7 +241,7 @@ def test_without_a_tender_there_is_one_summary_line_and_no_link_to_old_screens(
     log_in(client, operator_user)
     page = client.get(tab(bare)).content.decode()
     assert "Todavía no hay pliego: súbalo o tómelo del Portal" in page
-    assert "<b>Falta:</b>" not in page
+    assert '<p class="falta">' not in page  # el cuadro dice «Falta: nada», no una línea con acciones
     assert "Faltan los documentos del pliego" not in page
     assert f"/procedimientos/{bare.pk}/" not in page
 

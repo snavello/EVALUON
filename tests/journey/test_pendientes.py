@@ -153,17 +153,18 @@ def test_la_hoja_de_estilos_no_usa_opacidad_ni_ink3_ni_estilos_en_linea():
     assert "journey/pendientes.css" in plantilla
 
 
-def test_paneles_se_retira_y_seccion_llena_su_hueco():
-    """T-318: `_paneles.html` ya no existe y `seccion.html` incluye el pendiente de la sección
-    en el hueco, entre Hay/Falta y el tablero."""
+def test_paneles_se_retira_y_los_pendientes_viven_en_su_detalle():
+    """T-318, T-337: `_paneles.html` ya no existe y el pendiente de la sección vive en el detalle
+    de su cuadro (`_detalle_pendientes.html` y `_detalle_sugerencias.html`), que usan
+    `_pendientes.html`; `seccion.html` solo incluye el tablero."""
     assert not (RAIZ / "evaluon/templates/journey/_paneles.html").exists()
     for plantilla in (RAIZ / "evaluon/templates").rglob("*.html"):
         assert "_paneles.html" not in plantilla.read_text(encoding="utf-8"), plantilla
-    texto = (RAIZ / "evaluon/templates/journey/seccion.html").read_text(encoding="utf-8")
-    hueco = re.search(r"\{% block pendientes %\}(.*?)\{% endblock %\}", texto, re.S).group(1)
-    assert "journey/_pendientes.html" in hueco
-    assert texto.index("block hay_falta") < texto.index("block pendientes") < texto.index(
-        "journey/_tablero.html")
+    for nombre in ("_detalle_pendientes.html", "_detalle_sugerencias.html"):
+        texto = (RAIZ / "evaluon/templates/journey" / nombre).read_text(encoding="utf-8")
+        assert "journey/_pendientes.html" in texto
+    seccion = (RAIZ / "evaluon/templates/journey/seccion.html").read_text(encoding="utf-8")
+    assert "journey/_tablero.html" in seccion and "_pendientes.html" not in seccion
 
 
 # --- El dictamen del Portal en Evaluación ----------------------------------------------------------
