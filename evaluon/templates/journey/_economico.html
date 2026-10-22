@@ -1,0 +1,35 @@
+{% comment %}
+Cuadro del orden económico (detalle). Lo reutilizan el tablero de Ofertas (T-315) y el primer panel (T-322).
+Variable: `orden` (tablero.economico.EconomicView). Sin monto estimado (ADR-0077, D). Todo lo que falta se dice: nunca hay una cifra inventada (REQ-141).
+{% endcomment %}<div class="economico" id="{{ orden.uid }}">
+{% if orden.state == "ordered" %}
+  {% if orden.warning %}<p class="aviso" role="status">{{ orden.warning }}</p>{% endif %}
+  <table class="tbl economico-tabla">
+    <caption class="sr-only">Orden económico: las ofertas de menor a mayor total, con cuánto se aparta cada una de la más baja</caption>
+    <thead><tr><th scope="col">Posición</th><th scope="col">Oferta</th><th scope="col" class="r">Total</th><th scope="col" class="r">Diferencia con la más baja</th><th scope="col">Indicador</th></tr></thead>
+    <tbody>
+    {% for row in orden.rows %}
+      <tr{% if row.is_low %} class="es-baja"{% elif row.is_high %} class="es-alta"{% endif %}>
+        <td class="num">{% if row.position %}{{ row.position }}{% else %}<span class="sub">—</span>{% endif %}</td>
+        <td>{{ row.name }} · {{ row.offer.bidder }}</td>
+        {% if row.amount_text %}<td class="r num">{{ row.amount_text }}</td>{% else %}<td class="r"><span class="tag nd">{{ row.note }}</span></td>{% endif %}
+        <td class="r num">{{ row.diff_text }}</td>
+        <td>{% if row.is_low %}<span class="tag lime">La más baja</span>{% elif row.is_high %}<span class="tag">La más alta</span>{% elif row.amount_text and row.note %}<span class="sub">{{ row.note }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% elif orden.state == "pending" %}
+  <p class="economico-pendiente">
+    {% if orden.opening_day %}<span class="big">{{ orden.opening_day }}</span>{% endif %}
+    <span class="tag nd">{{ orden.missing }}</span>
+    <span class="sub">{% if orden.opening_day %}Apertura de ofertas · {% endif %}todavía no se cargaron ofertas</span>
+  </p>
+  {% if not orden.opening_day %}<p class="sub">Falta la fecha de apertura en el cronograma.</p>{% endif %}
+{% else %}
+  <p class="economico-pendiente">
+    <span class="tag nd">{{ orden.missing }}</span>
+    <span class="sub">{{ orden.count }} oferta{{ orden.count|pluralize }} cargada{{ orden.count|pluralize }}, ninguna con su total del Portal</span>
+  </p>
+{% endif %}
+</div>

@@ -1,0 +1,10 @@
+{% comment %}Columnas chicas; la destacada en lima con contorno ink (T-314). Variable: `chart` (charts.Columns).{% endcomment %}<svg viewBox="{{ chart.view_box }}" width="100%" role="img" aria-labelledby="{{ chart.title_id }} {{ chart.desc_id }}" class="grafico grafico-columns" font-size="10">
+<title id="{{ chart.title_id }}">{{ chart.title }}</title>
+<desc id="{{ chart.desc_id }}">{{ chart.description }}</desc>
+{% if chart.has_data %}<line x1="0" x2="{{ chart.baseline.x2 }}" y1="{{ chart.baseline.y }}" y2="{{ chart.baseline.y }}" stroke="currentColor" class="g-line"/>
+{% endif %}{% for c in chart.geometry %}{% if c.draw %}{% if c.highlight %}<rect x="{{ c.ox }}" y="{{ c.oy }}" width="{{ c.ow }}" height="{{ c.oh }}" rx="4" fill="currentColor" class="g-ink"/>
+<rect x="{{ c.x }}" y="{{ c.y }}" width="{{ c.w }}" height="{{ c.h }}" rx="3" fill="currentColor" class="g-lime"/>
+{% else %}<rect x="{{ c.x }}" y="{{ c.y }}" width="{{ c.w }}" height="{{ c.h }}" rx="3" fill="currentColor" class="g-mute"/>
+{% endif %}{% endif %}{% if c.text %}<text x="{{ c.cx }}" y="{{ c.ty }}" text-anchor="middle" fill="currentColor" class="g-ink">{{ c.text }}</text>
+{% endif %}<text x="{{ c.cx }}" y="{{ c.ly }}" text-anchor="middle" fill="currentColor" class="g-ink2">{{ c.label }}</text>
+{% endfor %}</svg>
