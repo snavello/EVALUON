@@ -598,11 +598,8 @@ def house_statistics():
 
 
 def narrow_histogram():
-    """Una foto oscura: pocos niveles de gris ocupados (del 10 al 90)."""
-    histogram = [0] * 256
-    for level in range(10, 90):
-        histogram[level] = int(1000 * 2.718281828 ** (-((level - 40) ** 2) / (2 * 14**2)))
-    return histogram
+    """Una foto oscura y saturada: ocupa pocos niveles de gris (unos 75 de 256)."""
+    return photos.to_luminance(HOUSE_VARIANTS["roja saturada"]()).histogram()
 
 
 def mapped_statistics(histogram, table):
