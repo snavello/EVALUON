@@ -1,1 +1,65 @@
-/* Indicador y panel de avance de los procesos largos (REQ-140). La hoja la llena T-330; la enlaza base.html desde T-311. */
+/* Avance de los procesos largos (REQ-140; T-330): el indicador del encabezado (anillo) y la ventana
+   del proceso del primer panel. Solo tokens de diseno/tokens.css, sin colores sueltos. El lima es
+   el acento del avance; en el tema gris y blanco lleva un contorno --ink porque el lima solo no se
+   distingue del fondo (test_contraste). Sin porcentaje inventado: lo que no se sabe gira (D-10). */
+
+/* ---- Indicador del encabezado: anillo con el porcentaje, enlazado al primer panel ---- */
+.avance-enc { display: flex; justify-content: flex-end; max-width: var(--maxw); margin: 0 auto; padding: 0 1.5rem; }
+.avance-enc .avance-anillo { margin-top: .25rem; display: inline-flex; align-items: center; gap: .5rem; padding: .1875rem .75rem .1875rem .25rem; border-radius: 999px;
+  background: var(--tile); color: var(--ink); text-decoration: none; font-size: var(--ev-t-xs); font-variant-numeric: tabular-nums; transition: background-color .2s; }
+.avance-enc .avance-anillo:hover { background: var(--tile-h); }
+.avance-enc .avance-anillo:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.avance-enc svg { width: 1.5rem; height: 1.5rem; flex: none; transform: rotate(-90deg); }
+.avance-enc circle { fill: none; }
+.avance-enc .anillo-fondo { stroke: var(--trk); stroke-width: 4; }
+.avance-enc .anillo-borde { stroke: var(--ink); stroke-width: 4; }
+.avance-enc .anillo-valor, .avance-enc .anillo-resto { stroke: var(--lime); stroke-width: 2; }
+[data-theme="negro"] .avance-enc .anillo-borde { display: none; }
+[data-theme="negro"] .avance-enc .anillo-valor, [data-theme="negro"] .avance-enc .anillo-resto { stroke-width: 4; }
+.avance-enc .anillo-giro { animation: anillo-giro 1.2s linear infinite; }
+.avance-enc .avance-texto { color: var(--ink-2); }
+.avance-enc .avance-texto b { color: var(--ink); font-weight: 600; }
+@keyframes anillo-giro { from { transform: rotate(-90deg); } to { transform: rotate(270deg); } }
+
+/* ---- Ventana del proceso (primer panel) ---- */
+.run { background: var(--tile); border-radius: var(--r); padding: 1.125rem 1.5rem; margin-bottom: var(--gap);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem 1.5rem; align-items: center; color: var(--ink); }
+.run.pw-failed { box-shadow: inset 0 0 0 1.5px var(--no); }
+.run .pw-num { font-family: var(--f); font-variant-numeric: tabular-nums; }
+.run .pw-title { margin: 0; display: flex; align-items: center; gap: .625rem; font: 500 1rem/1.3 var(--f); }
+.run .pw-donde { margin: .125rem 0 0; color: var(--ink-2); font-size: .8125rem; }
+.run .pw-pct { font: 400 2rem/1 var(--f); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.run .pw-barra, .run .pw-step, .run .pw-summary, .run .pw-counts, .run .pw-subtitle, .run .pw-steps, .run .pw-empty { grid-column: 1 / -1; }
+.run p { margin: 0; }
+.run .pw-step { font-weight: 500; }
+.run .pw-label { color: var(--ink-2); font-size: .8125rem; }
+.run .pw-counts { display: grid; gap: .125rem; font-size: .8125rem; color: var(--ink-2); }
+.run .pw-error { color: var(--no-ink); background: var(--no-bg); border-radius: var(--r-sm); padding: .5rem .75rem; }
+.run .pw-subtitle { margin: .25rem 0 0; font: 500 .75rem/1.2 var(--f); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
+.run .pw-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: .125rem; font-size: .8125rem; color: var(--ink-2); }
+.run .pw-steps li:first-child { color: var(--ink); }
+.run .pw-time { margin-right: .5rem; color: var(--ink-3); }
+.run .pw-scope { color: var(--ink-2); }
+.run .pw-empty { color: var(--ink-2); font-size: .8125rem; }
+.pw-last { margin: 0 0 var(--gap); color: var(--ink-2); font-size: .8125rem; }
+.pw-sprite { position: absolute; }
+.run .pw-icon svg { stroke: var(--ev-icono-simbolo); }
+
+/* Barra: lima con contorno --ink en el tema gris y blanco. Con valor es <progress>; sin valor,
+   un tramo que va y viene (la barra no sabe cuánto falta). */
+.run progress.pw-barra { -webkit-appearance: none; appearance: none; width: 100%; height: .5rem; border: 0; border-radius: 99px; background: var(--trk); overflow: hidden; }
+.run progress.pw-barra::-webkit-progress-bar { background: var(--trk); border-radius: 99px; }
+.run progress.pw-barra::-webkit-progress-value { background: var(--lime); border-radius: 99px; box-shadow: inset 0 0 0 1px var(--ink); transition: width .6s var(--e-out); }
+.run progress.pw-barra::-moz-progress-bar { background: var(--lime); border-radius: 99px; box-shadow: inset 0 0 0 1px var(--ink); }
+.run .pw-indet { height: .5rem; border-radius: 99px; background: var(--trk); position: relative; overflow: hidden; }
+.run .pw-indet i { position: absolute; inset: 0 auto 0 0; width: 30%; border-radius: inherit; background: var(--lime); box-shadow: inset 0 0 0 1px var(--ink); animation: pw-ir-y-venir 1.6s ease-in-out infinite; }
+[data-theme="negro"] .run progress.pw-barra::-webkit-progress-value, [data-theme="negro"] .run .pw-indet i { box-shadow: none; }
+[data-theme="negro"] .run progress.pw-barra::-moz-progress-bar { box-shadow: none; }
+@keyframes pw-ir-y-venir { from { transform: translateX(-100%); } to { transform: translateX(333%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .avance-enc .anillo-giro { animation: none; }
+  .avance-enc .avance-anillo { transition: none; }
+  .run progress.pw-barra::-webkit-progress-value { transition: none; }
+  .run .pw-indet i { animation: none; width: 100%; opacity: .45; }
+}
