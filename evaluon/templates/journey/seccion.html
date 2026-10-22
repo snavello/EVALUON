@@ -11,6 +11,12 @@
     <h2 id="seccion-titulo">{{ section.label }}</h2>
     {% include "journey/_cargas.html" %}
   </div>
+  {% if board %}
+  {# Huecos que llenan otras tareas al integrar: la línea Hay/Falta (T-312, _hay_falta.html) y el pendiente de la sección (T-318). #}
+  {% block hay_falta %}{% endblock %}
+  {% block pendientes %}{% endblock %}
+  {% include "journey/_tablero.html" %}
+  {% else %}
   <p class="resumen-linea" id="seccion-resumen">
     {% if section.summary %}{% for label, detail in section.summary %}{{ detail }} {% endfor %}{% else %}Esta sección no tiene todavía datos que resumir.{% endif %}
   </p>
@@ -23,6 +29,7 @@
   <div id="seccion-detalle">
     {% for block in blocks %}{% include block.partial with t=block.t %}{% endfor %}
   </div>
+  {% endif %}
 
 </div>
 {% endblock %}

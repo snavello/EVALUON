@@ -1,0 +1,146 @@
+/* Tablero de las secciones (feature 017: REQ-126, REQ-127, REQ-141; ADR-0076; T-313).
+   Mosaicos, detalle que se despliega debajo de la fila, tablas y etiquetas del detalle, cuadro del
+   orden económico y las clases `g-*` de los gráficos (journey/tablero/charts.py). Copia de la
+   maqueta aprobada (docs/diseno/mockup-017/comun/estilos.css) con los tokens de tokens.css.
+   Todo color sale de `var(--…)`: nada en hexadecimal ni `style=` (la política de contenido es
+   default-src 'self'). Sin opacidad en el texto (el contraste se mide con colores planos) y sin
+   --ink-3, que no tiene par con --tile-h. Las clases genéricas (tbl, tag, num, sub, r, big) están
+   acotadas al tablero para no tocar las pantallas que todavía no se migraron. */
+
+/* ---------- Gráficos: el color sale de la clase (charts.CLASSES) ---------- */
+.g-ok { color: var(--ok); }
+.g-no { color: var(--no); }
+.g-nd { color: var(--nd); }
+.g-pe { color: var(--pe); }
+.g-ext { color: var(--ext); }
+.g-lime { color: var(--lime); }
+.g-ink { color: var(--ink); }
+.g-s3 { color: var(--s3); }
+.g-mute { color: var(--s2); }
+.g-ink2 { color: var(--ink-2); }
+.g-line { color: var(--line); }
+.grafico { display: block; width: 100%; height: auto; }
+
+/* ---------- Cuadrícula de mosaicos ---------- */
+.tablero { margin-bottom: var(--gap); }
+.board {
+  position: relative; /* offsetTop de los mosaicos se mide contra la cuadrícula */
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+.tile {
+  position: relative; display: flex; flex-direction: column; gap: .375rem; min-height: 9.5rem;
+  padding: 1.25rem 1.25rem 1.125rem; border-radius: var(--r); background: var(--tile);
+  color: var(--ink); text-align: left; text-decoration: none; cursor: pointer;
+  transition: background-color .2s ease;
+}
+.tile.w2 { grid-column: span 2; }
+.tile.w4 { grid-column: span 4; }
+.tile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tile[aria-expanded="true"] { background: var(--tile-h); }
+@media (hover: hover) { .tile:hover { background: var(--tile-h); } }
+.tile .th {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem;
+  font-size: .875rem; font-weight: 500; color: var(--ink-2);
+}
+.tile .go {
+  flex: none; display: grid; place-items: center; width: 1.75rem; height: 1.75rem;
+  border-radius: 50%; background: var(--bg); color: var(--ink-2);
+  transition: color .2s, transform .3s var(--e-out);
+}
+.tile .go .i { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tile:hover .go, .tile[aria-expanded="true"] .go { color: var(--ink); }
+.tile[aria-expanded="true"] .go { transform: rotate(180deg); }
+.tile .big {
+  margin-top: auto; font: 400 3rem/1 var(--f); letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+}
+.tile .big small { margin-left: .25rem; font-size: .38em; letter-spacing: 0; color: var(--ink-2); }
+.tile .missing { margin-top: auto; font: 400 1.5rem/1.15 var(--f); letter-spacing: -.02em; color: var(--ink-2); }
+.tile .sub { font-size: .8125rem; color: var(--ink-2); }
+.tile .sub b { font-weight: 600; color: var(--ink); }
+.tile .ch { display: block; margin-top: .5rem; }
+/* Los gráficos se dibujan para columnas angostas: en un mosaico ancho no se estiran. */
+.tile .ch .grafico { max-height: 8rem; }
+.hl {
+  display: inline-block; padding: 0 .3125rem; border-radius: 4px; font-weight: 600;
+  background: var(--lime); color: var(--on-lime);
+}
+
+/* Tono oscuro (negro en el tema gris y blanco; lima en el tema negro) */
+.tile.dark, .tile.dark[aria-expanded="true"] {
+  background: var(--dark-tile); color: var(--dark-tile-ink);
+  /* los gráficos (.g-ink, .g-ink2) leen estos tokens: sobre el mosaico oscuro toman su tinta */
+  --ink: var(--dark-tile-ink); --ink-2: var(--dark-tile-2);
+}
+@media (hover: hover) { .tile.dark:hover { background: var(--dark-tile); } }
+.tile.dark .th, .tile.dark .sub, .tile.dark .big small, .tile.dark .missing { color: var(--dark-tile-2); }
+.tile.dark .sub b { color: var(--dark-tile-ink); }
+.tile.dark .go, .tile.dark:hover .go, .tile.dark[aria-expanded="true"] .go { background: var(--lime); color: var(--on-lime); }
+
+/* ---------- Detalle que se despliega debajo de la fila ---------- */
+/* Sin script: la zona de detalles queda a la vista, uno debajo del otro, y el mosaico es un ancla. */
+.detalles { display: grid; gap: var(--gap); }
+.inline-detail { grid-column: 1 / -1; }
+.dt { padding: 1.5rem 1.75rem; border-radius: var(--r); background: var(--tile); color: var(--ink); }
+body.app .dt h2 { font: 400 1.5rem/1.1 var(--f); letter-spacing: -.025em; margin: 0 0 1rem; }
+/* Con script (`tablero.js` pone `con-js`): los plegados viven ocultos en la zona y el abierto se
+   mueve debajo de la fila de su mosaico. La altura anima con `grid-template-rows`. */
+.con-js .detalles { display: none; }
+.con-js .inline-detail {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows .35s var(--e-out);
+}
+.con-js .inline-detail.open { grid-template-rows: 1fr; }
+.con-js .inline-detail > div {
+  min-height: 0; overflow: hidden; visibility: hidden;
+  transition: visibility 0s linear .35s;
+}
+.con-js .inline-detail.open > div { visibility: visible; transition-delay: 0s; }
+.con-js .inline-detail .dt { margin-top: .25rem; }
+.con-js.quieto .inline-detail, .con-js.quieto .inline-detail > div { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .tile, .tile .go, .con-js .inline-detail, .con-js .inline-detail > div { transition: none; }
+}
+
+/* ---------- Tablas, etiquetas y textos del detalle ---------- */
+.dt .num, .economico .num, .tile .num { font-variant-numeric: tabular-nums; }
+/* secciones.css fija una fuente de números para `body.app .num`; el tablero usa la del diseño. */
+body.app .dt .num, body.app .economico .num { font-family: var(--f); }
+.dt .sub, .economico .sub { font-size: .8125rem; color: var(--ink-2); }
+.dt .tbl, .economico .tbl { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.dt .tbl th, .economico .tbl th {
+  padding: .5rem .625rem; border-bottom: 1px solid var(--line); text-align: left;
+  font-size: .75rem; font-weight: 500; white-space: nowrap; color: var(--ink-2);
+}
+.dt .tbl td, .economico .tbl td { padding: .625rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.dt .tbl tr:last-child td, .economico .tbl tr:last-child td { border-bottom: 0; }
+.tbl .r { text-align: right; }
+.dt .tag, .economico .tag {
+  display: inline-block; padding: .1875rem .5rem; border-radius: 999px; white-space: nowrap;
+  font-size: .75rem; font-weight: 500; background: var(--bg); color: var(--ink-2);
+}
+.economico .tag.nd, .dt .tag.nd { background: var(--nd-bg); color: var(--nd-ink); }
+.economico .tag.lime, .dt .tag.lime { background: var(--lime); color: var(--on-lime); font-weight: 600; }
+
+/* ---------- Cuadro del orden económico (journey/_economico.html) ---------- */
+.economico { color: var(--ink); }
+.economico .aviso {
+  margin: 0 0 .75rem; padding: .75rem 1rem; border-radius: var(--r-sm);
+  background: var(--bg); color: var(--ink); font-size: .875rem;
+}
+.economico-tabla .es-baja td { font-weight: 600; }
+.economico-tabla .es-alta td { color: var(--ink); }
+.economico-pendiente { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .875rem; margin: 0; }
+.economico .big { font: 400 2.5rem/1 var(--f); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+
+/* ---------- Pantallas angostas ---------- */
+@media (max-width: 1100px) {
+  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tile.w4 { grid-column: span 2; }
+}
+@media (max-width: 640px) {
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .tile.w2, .tile.w4 { grid-column: auto; }
+  .dt { padding: 1.25rem 1rem; }
+}
