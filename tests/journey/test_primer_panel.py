@@ -10,12 +10,14 @@ import time
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from evaluon.journey import sections
 from evaluon.journey.stages import base as stage_base
 from tests.accounts.test_fotos import make_photo
 from tests.accounts.test_session import TEST_PASSWORD
-from tests.journey.test_economico import make, opening, portal  # noqa: F401  (fixtures)
+from evaluon.portal import models as pm
+from tests.journey.test_economico import make, opening  # noqa: F401  (fixtures)
 from tests.journey.test_tablero_secciones import revisar
 
 pytestmark = pytest.mark.django_db
@@ -43,8 +45,24 @@ def ingreso(html):
 
 def numero(html, clave):
     """El texto del dato principal `n-<clave>`, sin etiquetas."""
-    trozo = html.split(f'id="n-{clave}"')[1].split("</div>")[0]
+    trozo = html.split(f'id="n-{clave}"')[1].split(">", 1)[1].split("</div>")[0]
     return " ".join(re.sub(r"<[^>]+>", " ", trozo).split())
+
+
+@pytest.fixture
+def portal(procedure, operator_user):
+    """El ítem del Portal del que cuelgan los datos y el cronograma, ya aprobado: así la sección 1
+    no lo ofrece como propuesta pendiente (su vista de la propuesta pide el CUIT de una oferta)."""
+    link = pm.PortalLink.objects.create(url="https://portal.invalid/proceso",
+                                        procedure=procedure, created_by=operator_user)
+    page = pm.PortalPage.objects.create(link=link, exploration=1, kind="cuadro",
+                                        url="https://portal.invalid/cuadro",
+                                        sha256="a" * 64, content=b"x")
+    proposal = pm.PortalProposal.objects.create(link=link, exploration=1, origin="importacion")
+    return pm.PortalItem.objects.create(proposal=proposal, kind="oferta", key="o", payload={},
+                                        content_sha256="b" * 64, page=page,
+                                        state=pm.ItemState.APROBADO, decided_by=operator_user,
+                                        decided_at=timezone.now())
 
 
 @pytest.fixture
@@ -244,7 +262,7 @@ def test_el_texto_sobre_la_foto_no_usa_opacidad():
     """REQ-135: el contraste se mide con colores planos: la opacidad solo está en la imagen."""
     css = re.sub(r"/\*.*?\*/", "", INGRESO_CSS.read_text(encoding="utf-8"), flags=re.S)
     for selector, cuerpo in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
-        if "opacity" in cuerpo:
+        if "opacity" in cuerpo and selector.strip() not in ("from", "to"):
             assert "photo-bg" in selector, f"opacidad fuera de la foto: {selector.strip()}"
 
 

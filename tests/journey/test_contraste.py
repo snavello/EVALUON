@@ -192,11 +192,11 @@ PARES_POR_TEMA: dict[str, list[tuple[str, str, str, float]]] = {
 }
 
 # Texto sobre la foto del primer panel (T-321, REQ-135): mismo formato (nombre, primer plano,
-# fondo, mínimo). El fondo es el peor píxel de la foto de la casa (el más oscuro y el más claro: el
-# texto cambia de color con el tema) a la máxima opacidad que declara `ingreso.css`, mezclado con
-# el mosaico del panel. Los datos del primer panel se dibujan con --ink (el plan descarta --ink-2
-# sobre la foto). Es la mezcla normal; `test_texto_sobre_la_foto_con_el_modo_de_mezcla_real` repite
-# la cuenta con el modo (multiplicar o pantalla) y el filtro de cada tema.
+# fondo, mínimo), por tema. El fondo es el peor píxel de la foto de la casa (el más oscuro y el más
+# claro: el texto cambia de color con el tema) a la opacidad que `ingreso.css` declara para el
+# tema, mezclado con el mosaico del panel. Los datos del primer panel se dibujan con --ink (el plan
+# descarta --ink-2 sobre la foto). Es la mezcla normal; `test_texto_sobre_la_foto_con_el_modo_de_
+# mezcla_real` repite la cuenta con el modo (multiplicar o pantalla) y el filtro de cada tema.
 FOTO = TOKENS.parents[1] / "diseno" / "casa" / "biblioratos-bn.jpg"
 INGRESO_CSS = TOKENS.parents[1] / "journey" / "ingreso.css"
 
@@ -217,33 +217,27 @@ def _regla_de_la_foto(tema: str) -> dict[str, str]:
     for selector, cuerpo in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
         for uno in selector.split(","):
             uno = " ".join(uno.split())
-            if not uno.endswith(".photo-bg img") or (".enter" in uno):
+            if not uno.endswith(".photo-bg img"):
                 continue
             if '[data-theme="negro"]' in uno and tema != "negro":
                 continue
-            reglas.update({k.strip(): v.strip() for k, v in re.findall(r"([\w-]+)\s*:\s*([^;]+)", cuerpo)})
+            reglas.update({k.strip(): v.strip()
+                           for k, v in re.findall(r"([\w-]+)\s*:\s*([^;]+)", cuerpo)})
     return reglas
 
 
-def _opacidad_maxima() -> float:
-    """La mayor opacidad de la foto en los dos temas (1 si la hoja todavía no existe)."""
-    if not INGRESO_CSS.exists():
-        return 1.0
-    return max(float(_regla_de_la_foto(t).get("opacity", 1)) for t in TEMAS)
-
-
-def _pares_foto() -> list[tuple[str, str, str, float]]:
-    bajo, alto = _extremos_de_la_foto()
-    alfa = round(_opacidad_maxima() * 100, 2)
+def _pares_foto(tema: str) -> list[tuple[str, str, str, float]]:
+    # Sin la hoja todavía, la opacidad peor posible (1): el par falla hasta que exista.
+    alfa = float(_regla_de_la_foto(tema).get("opacity", 1)) if INGRESO_CSS.exists() else 1.0
     pares = []
-    for nombre, nivel in (("píxel más oscuro", bajo), ("píxel más claro", alto)):
+    for nombre, nivel in zip(("píxel más oscuro", "píxel más claro"), _extremos_de_la_foto()):
         pixel = "#" + f"{nivel:02X}" * 3
-        pares.append((f"texto --ink sobre la foto ({nombre}, opacidad máxima)", "--ink",
-                      f"color-mix(in srgb, {pixel} {alfa}%, --tile)", TEXTO))
+        pares.append((f"texto --ink sobre la foto ({nombre}, opacidad {alfa})", "--ink",
+                      f"color-mix(in srgb, {pixel} {round(alfa * 100, 2)}%, --tile)", TEXTO))
     return pares
 
 
-PARES_FOTO: list[tuple[str, str, str, float]] = _pares_foto()
+PARES_FOTO: dict[str, list[tuple[str, str, str, float]]] = {t: _pares_foto(t) for t in TEMAS}
 
 # Tokens de color que no llevan par propio, con la razón. Todo lo demás tiene que figurar en un par.
 EXENTOS = {
@@ -260,14 +254,14 @@ def _fallos(css: str) -> list[str]:
     fallos = []
     for tema in TEMAS:
         v = variables(css, tema)
-        for nombre, fg, bg, minimo in PARES + PARES_POR_TEMA[tema] + PARES_FOTO:
+        for nombre, fg, bg, minimo in PARES + PARES_POR_TEMA[tema] + PARES_FOTO[tema]:
             r = razon(fg, bg, v)
             if r < minimo:
                 fallos.append(f"[{tema}] {nombre}: {r:.2f}:1 < {minimo}:1")
     return fallos
 
 
-_CASOS = [(t, par) for t in TEMAS for par in PARES + PARES_POR_TEMA[t] + PARES_FOTO]
+_CASOS = [(t, par) for t in TEMAS for par in PARES + PARES_POR_TEMA[t] + PARES_FOTO[t]]
 
 
 @pytest.mark.parametrize("tema,par", _CASOS, ids=lambda x: x if isinstance(x, str) else x[0])
@@ -326,9 +320,11 @@ def test_un_amarillo_claro_en_el_icono_no_determinado_hace_fallar_el_test():
 
 def test_el_lugar_para_el_texto_sobre_la_foto_existe():
     """REQ-135 (lo llena T-321): cada entrada trae nombre, primer plano, fondo y mínimo."""
-    assert isinstance(PARES_FOTO, list) and len(PARES_FOTO) == 2
-    for entrada in PARES_FOTO:
-        assert len(entrada) == 4 and entrada[3] >= TEXTO
+    assert set(PARES_FOTO) == set(TEMAS)
+    for pares in PARES_FOTO.values():
+        assert len(pares) == 2
+        for entrada in pares:
+            assert len(entrada) == 4 and entrada[3] >= TEXTO
 
 
 def _filtro(valor: str, nombre: str, defecto: float = 1.0) -> float:

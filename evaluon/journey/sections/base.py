@@ -140,24 +140,34 @@ class Section:
     # Gancho para el primer panel (plan 017): plantilla y contexto propios del ingreso de la
     # sección. Por omisión no hay (`None` y `{}`).
     ingreso_template: str | None = None
+    # El módulo de la sección (`s1.py`, …): su `ingreso_context`, `tiles` y `details` opcionales
+    # son los del primer panel (T-321).
+    module: object = field(default=None, repr=False)
 
-    def ingreso_context(self, user, procedure, request=None):
-        return {}
+    def ingreso_context(self, user, procedure, request=None, overview=None):
+        """El contexto propio del ingreso de la sección (el primer panel); `overview` son las
+        cinco secciones. Sin gancho en el módulo, vacío."""
+        hook = getattr(self.module, "ingreso_context", None)
+        return hook(self, user, procedure, request, overview) if hook else {}
 
     def tiles(self, user, procedure, contexts=None):
-        """Los mosaicos de los temas que los declaran (`tema.tiles(user, procedure, ctx)`), en el
+        """Los mosaicos propios de la sección (`module.tiles(section, user, procedure, ctxs)`) y,
+        después, los de los temas que los declaran (`tema.tiles(user, procedure, ctx)`), en el
         orden de los temas. `contexts` es {clave del tema: su `context()`}."""
         contexts = contexts or {}
-        found = []
+        own = getattr(self.module, "tiles", None)
+        found = list(own(self, user, procedure, contexts)) if own else []
         for tema in self.temas:
             if hasattr(tema, "tiles"):
                 found += list(tema.tiles(user, procedure, contexts.get(tema.KEY)))
         return found
 
     def details(self, user, procedure, contexts=None):
-        """Los detalles propios que declaran los temas (`tema.details(user, procedure, ctx)`)."""
+        """Los detalles propios que declaran la sección (`module.details(...)`) y los temas
+        (`tema.details(user, procedure, ctx)`)."""
         contexts = contexts or {}
-        found = []
+        own = getattr(self.module, "details", None)
+        found = list(own(self, user, procedure, contexts)) if own else []
         for tema in self.temas:
             if hasattr(tema, "details"):
                 found += list(tema.details(user, procedure, contexts.get(tema.KEY)))
@@ -260,4 +270,5 @@ def build_section(module, user, procedure, stages_by_key):
         # Sin rol de la Comisión (usuario de lectura) no hay dónde subir: no se ofrece.
         upload_url=(module.upload_url(procedure, user)
                     if getattr(user, "commission_role", "") else None),
-        css=f"journey/{module.__name__.rsplit('.', 1)[-1]}.css", temas=tuple(tema_modules))
+        css=f"journey/{module.__name__.rsplit('.', 1)[-1]}.css", temas=tuple(tema_modules),
+        ingreso_template=getattr(module, "INGRESO_TEMPLATE", None), module=module)
