@@ -5,7 +5,9 @@
 
 {% block title %}Nuevo procedimiento · EVALUON{% endblock %}
 
-{% block head %}{{ block.super }}{% if refresh %}<meta http-equiv="refresh" content="{{ refresh }}">{% endif %}{% endblock %}
+{% block body_class %}procedimientos{% endblock %}
+
+{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'journey/procedimientos.css' %}">{% if refresh %}<meta http-equiv="refresh" content="{{ refresh }}">{% endif %}{% endblock %}
 
 {% block section_css %}<link rel="stylesheet" href="{% static 'journey/s1.css' %}">{% endblock %}
 
