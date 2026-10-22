@@ -1,7 +1,7 @@
 {% extends "journey/seccion_base.html" %}
 {% load static %}
 
-{% comment %}Página de Normativas general, sin procedimiento (T-225, REQ-094, REQ-096): la normativa no está atada a ningún procedimiento. Encabezado de la maqueta (título, «Subir archivo» y resumen), los pendientes de la normativa y, como en cada sección (plan 017, T-329), el tablero: «Normas cargadas» abre el tema s5_normas (subir, informe de lectura, validar y lista de normas) y «Consulta de normativa» lleva a la consulta general. Ver evaluon/journey/views/normativas.py.{% endcomment %}
+{% comment %}Página de Normativas general, sin procedimiento (T-225, REQ-094, REQ-096): la normativa no está atada a ningún procedimiento. Encabezado de la maqueta (título y «Subir archivo») y, como en cada sección (plan 017, T-329, T-337), el tablero con los cuadros de indicadores («Qué hay y qué falta» y «Pendientes de decidir», con su detalle debajo) y: «Normas cargadas» abre el tema s5_normas (subir, informe de lectura, validar y lista de normas) y «Consulta de normativa» lleva a la consulta general. Ver evaluon/journey/views/normativas.py.{% endcomment %}
 
 {% block title %}Normativas · EVALUON{% endblock %}
 
@@ -13,13 +13,6 @@
     <h2 id="seccion-titulo">Normativas</h2>
     <span class="barra-cargas"><a class="btn primario" href="#s5-subir">Subir archivo</a></span>
   </div>
-  <p class="resumen-linea" id="seccion-resumen">Las normas no están atadas a ningún procedimiento: las que se cargan y validan acá sirven para todos. {% for label, detail in summary %}{{ detail }} {% endfor %}Qué normas rigen a un procedimiento según su fecha de autorización se ve en la pestaña Normativas de ese procedimiento.</p>
-  {% if missing %}
-  <p class="falta"><b>Falta:</b> {% for item in missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
-  {% endif %}
-
-  {% include "journey/_pendientes.html" with pending_total=pending_total suggestion_total=0 pending_rows=pending_rows suggestion_rows=None show_section=False next_url=request.path %}
-
   {% include "journey/_tablero.html" with blocks=None %}
 </div>
 {% endblock %}

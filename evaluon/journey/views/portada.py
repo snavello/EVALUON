@@ -127,20 +127,15 @@ def seccion(request, procedure_id, key):
         "suggestion_rows": [(section, item) for item in section.suggestion_items],
     })
     board = build_board(section, request.user, overview.procedure, contexts, request)
-    if board is None:
-        # Ningún tema declara mosaicos: la sección se muestra como antes, con sus parciales.
-        context["blocks"] = [{"key": tema.KEY, "partial": tema.PARTIAL, "t": contexts[tema.KEY]}
-                             for tema in section.temas]
-    else:
-        # Cada detalle se dibuja acá, con el contexto completo de la página (los parciales usan
-        # `procedure`, `section` y el pedido), y llega a la plantilla como HTML.
-        context.update({
-            "board": board.tiles, "abre": board.abre,
-            "details": [{"id": d.id, "title": d.title, "html": render_to_string(
-                d.template, {**context, **d.context}, request=request)} for d in board.details],
-            "blocks": [{"key": tema.KEY, "partial": tema.PARTIAL, "t": contexts[tema.KEY]}
-                       for tema in board.leftover],
-        })
+    # Cada detalle se dibuja acá, con el contexto completo de la página (los parciales usan
+    # `procedure`, `section` y el pedido), y llega a la plantilla como HTML.
+    context.update({
+        "board": board.tiles, "abre": board.abre,
+        "details": [{"id": d.id, "title": d.title, "html": render_to_string(
+            d.template, {**context, **d.context}, request=request)} for d in board.details],
+        "blocks": [{"key": tema.KEY, "partial": tema.PARTIAL, "t": contexts[tema.KEY]}
+                   for tema in board.leftover],
+    })
     return inicio.remember(render(request, "journey/seccion.html", context), request.user,
                            procedure_id)
 

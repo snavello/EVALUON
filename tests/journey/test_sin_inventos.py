@@ -5,6 +5,8 @@ Recorre los temas que declaran `tiles()`. Datos inventados (P4)."""
 
 from datetime import date
 
+import re
+
 import pytest
 from django.urls import reverse
 
@@ -37,8 +39,11 @@ def vacio(operator_user):
 
 
 def mosaicos_html(html):
-    """El HTML de cada mosaico del tablero, tal como lo ve la persona."""
+    """El HTML de cada mosaico del tablero, tal como lo ve la persona. Los tres cuadros de
+    indicadores (T-337) quedan afuera: «Pendientes de decidir: 0» es un dato (REQ-141) y se
+    prueba en `test_cuadros_indicadores.py`."""
     partes = html.split('<a class="tile')[1:]
+    partes = [p for p in partes if not re.match(r'[^"]*" id="m-(hay-falta|pendientes|sugerencias)"', p)]
     return [parte.split("</a>")[0] for parte in partes]
 
 

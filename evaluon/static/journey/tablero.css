@@ -67,6 +67,12 @@
   background: var(--lime); color: var(--on-lime);
 }
 
+/* Cuadro de texto («Qué hay y qué falta», T-337): «Hay: …» y «Falta: …» en corto, en lugar de la
+   cifra. El detalle completo se despliega debajo. */
+.tile .lineas { margin-top: auto; display: flex; flex-direction: column; gap: .5rem; }
+.tile .linea { font-size: 1rem; line-height: 1.3; color: var(--ink); overflow-wrap: anywhere; }
+.tile .linea b { font-weight: 600; margin-right: .25rem; }
+
 /* Tono oscuro (negro en el tema gris y blanco; lima en el tema negro) */
 .tile.dark, .tile.dark[aria-expanded="true"] {
   background: var(--dark-tile); color: var(--dark-tile-ink);
