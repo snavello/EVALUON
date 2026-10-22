@@ -45,6 +45,7 @@
 
 <div class="bloque s4-desc" id="s4-descartes">
   <div class="bloque-cab"><h3>Descartes propuestos{% if t.rows %} <span class="cta">{{ t.to_decide }} por decidir · {{ t.decided }} {% if t.decided == 1 %}decidido{% else %}decididos{% endif %}</span>{% endif %}</h3></div>
+  {% include "journey/temas/_s4_aviso.html" with aviso=t.aviso ident=t.aviso_id %}
   {% if t.rows %}
   <div class="tabla-scroll"><table class="matriz lectura">
     <thead><tr><th scope="col">Descarte</th><th scope="col">Fundamento</th><th scope="col">Estado</th><th scope="col">Decisión</th></tr></thead>

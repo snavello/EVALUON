@@ -228,7 +228,16 @@ def _blocks(page):
     return blocks
 
 
+AVISO = "s4-informe-aviso"
+
+
+def _back(procedure, text, ok=True):
+    """Vuelve al detalle del informe, donde se dibuja el aviso (T-335)."""
+    return acciones.back(procedure, text, ok, anchor=f"#{AVISO}")
+
+
 def context(user, procedure, request):
+    aviso = acciones.unpack(request.GET.get("aviso")) if request is not None else None
     page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     blocks = _blocks(page)
     items = sorted({row.item for block in blocks for row in block.rows})
@@ -249,7 +258,7 @@ def context(user, procedure, request):
     return {
         "tablero": _figures(blocks, cells),
         "pid": procedure.pk, "blocks": blocks, "table": table,
-        "is_evaluator": _is_evaluator(user), "total": len(cells), "proposed": proposed,
+        "aviso": aviso, "aviso_id": AVISO, "is_evaluator": _is_evaluator(user), "total": len(cells), "proposed": proposed,
         "choices": list(TechnicalVerdict.choices),
         "all_reports": sum(len(b.docs) for b in blocks),
     }
@@ -369,13 +378,13 @@ def upload(request, procedure_id):
                 note=request.POST.get("note", ""), channel=CHANNEL)
             scope = "todo el procedimiento"
     except (technical_report.ReportRefused, offers_service.OfferRefused) as error:
-        return acciones.back(procedure, str(error), ok=False)
+        return _back(procedure, str(error), ok=False)
     text = (f"Se cargó el informe técnico del área para {scope} "
             f"({_plural(len(done.documents), 'oferta', 'ofertas')}); queda en espera de "
             "lectura. Cuando termine, el sistema propone apto o no apto por renglón.")
     if done.already:
         text += " Ya lo tenían: " + ", ".join(f"oferta {o.number}" for o in done.already) + "."
-    return acciones.back(procedure, text)
+    return _back(procedure, text)
 
 
 @require_POST
@@ -386,8 +395,8 @@ def propose(request, procedure_id, offer_id):
     try:
         technical_report.request_proposal(request.user, offer.pk, channel=CHANNEL)
     except technical_report.ReportRefused as error:
-        return acciones.back(procedure, str(error), ok=False)
-    return acciones.back(procedure, f"El sistema volvió a leer el informe de la oferta "
+        return _back(procedure, str(error), ok=False)
+    return _back(procedure, f"El sistema volvió a leer el informe de la oferta "
                                     f"{offer.number} y dejó su propuesta por renglón.")
 
 
@@ -405,8 +414,8 @@ def give(request, procedure_id, offer_id):
         technical.give_ok(request.user, offer, items=items, verdicts=verdicts,
                           note=request.POST.get("note", ""), channel=CHANNEL)
     except technical.TechnicalRefused as error:
-        return acciones.back(procedure, str(error), ok=False)
-    return acciones.back(procedure, f"Se dio el ok al informe técnico de la oferta "
+        return _back(procedure, str(error), ok=False)
+    return _back(procedure, f"Se dio el ok al informe técnico de la oferta "
                                     f"{offer.number}. Quedó registrado quién y cuándo.")
 
 
@@ -419,8 +428,8 @@ def withdraw(request, procedure_id, offer_id):
         technical.withdraw_ok(request.user, offer, items=None,
                               note=request.POST.get("note", ""), channel=CHANNEL)
     except technical.TechnicalRefused as error:
-        return acciones.back(procedure, str(error), ok=False)
-    return acciones.back(procedure, f"Se retiró el ok del informe técnico de la oferta "
+        return _back(procedure, str(error), ok=False)
+    return _back(procedure, f"Se retiró el ok del informe técnico de la oferta "
                                     f"{offer.number}. Quedó registrado quién y cuándo.")
 
 
