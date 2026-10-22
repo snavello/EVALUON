@@ -11,8 +11,10 @@ cambio, mismo rol, mismo hecho de auditoría) y vuelven a la pestaña con el men
 operador y el evaluador toman y suben; sin rol, «acceso denegado» (403) con el rechazo registrado
 por el servicio. Las fechas se muestran en hora local.
 
-Lo que falta se cuenta como faltante con su acción directa, no como pendiente: el ítem del Portal
-sin aprobar ya lo cuenta la propuesta del Portal en la sección 1.
+Lo que falta se cuenta como faltante con su acción directa. El dictamen que publicó el Portal y
+espera su aprobación es además un pendiente de esta sección (plan 017, REQ-129): la sección 1 ya no
+lo cuenta, así que el total del procedimiento no cambia. Su botón «Aprobar» es el POST de siempre
+del Portal (`s1_portal_decidir`, `aprobar=item:<id>`); sin el rol que lo decide queda el enlace.
 
 El dictamen subido se reemplaza, se retira y se restituye sin borrar nada (REQ-099, T-225), con
 el servicio `tenders.services.document_history` y el motivo obligatorio: la versión anterior y el
@@ -33,7 +35,9 @@ from django.views.decorators.http import require_POST
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
-from evaluon.journey.sections.base import Missing, TemaStatus
+from evaluon.journey.sections.base import Item, Missing, TemaStatus
+from evaluon.journey.stages.portal import DICTAMEN
+from evaluon.journey.temas import s1_portal
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.temas.s2_documentos import timeline
 from evaluon.journey.temas.s4_propuesta import when
@@ -139,8 +143,24 @@ def _portal_view(item):
         decided=decided, failure=item.failure)
 
 
+def _pending_item(user, procedure, item):
+    """El pendiente «aprobar el dictamen del Portal», con el motivo y, si el usuario puede decidir
+    documentos, el botón de un clic (el POST de siempre del Portal)."""
+    post = None
+    if s1_portal.can_decide(user, ItemKind.DOCUMENTO):
+        url = reverse("expedientes:s1_portal_decidir", args=[procedure.pk, item.proposal.link_id])
+        post = (url, (("aprobar", f"item:{item.pk}"),))
+    return Item("Aprobar el dictamen publicado en el Portal", f"{_tab(procedure)}{ANCHOR}", 1,
+                "Aprobar" if post else "Ver", post=post,
+                why=f"El Portal lo publicó el {_published(item)}; hasta que se apruebe no queda "
+                    "cargado en esta sección.")
+
+
 def status(user, procedure):
     base = _tab(procedure)
+    waiting = list(PortalItem.objects.filter(
+        proposal__link__procedure=procedure, state=ItemState.PROPUESTO).filter(DICTAMEN)
+        .select_related("proposal").order_by("pk"))
     portal = portal_dictamen(procedure)
     uploaded = uploaded_dictamenes(procedure)
     sources = []
@@ -159,7 +179,8 @@ def status(user, procedure):
                                f"{base}{ANCHOR}", "Tomar del Portal"),)
         else:
             missing = (Missing("Dictamen: no se cargó", f"{base}{ANCHOR}", "Subir el dictamen"),)
-    return TemaStatus(sources=tuple(sources), missing=missing)
+    return TemaStatus(sources=tuple(sources), missing=missing, pending=len(waiting),
+                      pending_items=tuple(_pending_item(user, procedure, item) for item in waiting))
 
 
 def context(user, procedure, request):
