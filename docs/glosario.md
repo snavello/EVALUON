@@ -57,7 +57,7 @@ Qué significa cada prefijo:
 | **010** | 010 | Asistente técnico: Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por… |  |
 | **011** | 011 | Pautas para documentos legibles por IA: Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y… |  |
 
-## Tareas (343)
+## Tareas (346)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -404,6 +404,9 @@ Qué significa cada prefijo:
 | **T-334** | 017 | Correcciones de la medición final, en una sola tarea (se cierra sin cambios si no hay hallazgos) | pendiente |
 | **T-335** | 017 | Ajuste de integración de la 017 para la demo: #seccion-detalle siempre, consultas de Ofertas, fotos truncadas… | terminada |
 | **T-336** | 017 | Correcciones del recorrido en 8000: anillo sin pedido, «Venció» en plazos, «Falta:» siempre, documentos propios en… | terminada |
+| **T-337** | 017 | Cuadros de indicadores arriba y detalle debajo en todas las secciones y el primer panel («Qué hay y qué falta»… | terminada |
+| **T-338** | 017 | Pliego y matriz más claros: Hay/Falta coherente, cumplimiento desglosado, renglones técnicos con su bien y cláusulas… | terminada |
+| **T-339** | 017 | Renglones técnicos de Evaluación sin repetir (mismo criterio que T-338) | terminada |
 
 ## Requisitos (133)
 

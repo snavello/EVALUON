@@ -78,7 +78,7 @@ flowchart LR
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
-| [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 23/29 | ████████░░ 79% |
+| [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
 
 <a id="001"></a>
 
@@ -1740,7 +1740,10 @@ flowchart LR
 - ✓ T-329 · Tablero de Normativas y página general de normativas (`d9f584c1` 2026-10-22, `c846e4dc` 2026-10-22, `45e47454` 2026-10-22, `80de5ef3` 2026-10-22)
 - ✓ T-330 · Avance de procesos largos: porcentaje global, panel de avance e indicador del encabezado con la estética nueva (`85b4c5a8` 2026-10-22, `112bcaa8` 2026-10-22, `c0e25557` 2026-10-22)
 - ✓ T-335 · Ajuste de integración de la 017 para la demo: `#seccion-detalle` siempre, consultas de Ofertas, fotos truncadas rechazadas aunque `weasyprint` cambie Pillow, trato de usted, aviso de cada acción en su detalle, singulares, «Sin resultado», `why` (`522a4640` 2026-10-22, `16f130fe` 2026-10-22, `2575c35c` 2026-10-22, `d403d7f3` 2026-10-22, `65f68bf2` 2026-10-22, `d3e78d6f` 2026-10-22, `d536374d` 2026-10-22, `5c8376a5` 2026-10-22, `a81af181` 2026-10-22, `2db36456` 2026-10-22, `a2cb6ee1` 2026-10-22)
-- ✓ T-336 · Correcciones del recorrido en 8000: anillo sin pedido, «Venció» en plazos, «Falta:» siempre, documentos propios en Ofertas
+- ✓ T-336 · Correcciones del recorrido en 8000: anillo sin pedido, «Venció» en plazos, «Falta:» siempre, documentos propios en Ofertas (`3bbc8bb8` 2026-10-22, `eebb94c8` 2026-10-22, `f0d574bf` 2026-10-22, `aaae3462` 2026-10-22, `a7acd482` 2026-10-22)
+- ✓ T-337 · Cuadros de indicadores arriba y detalle debajo en todas las secciones y el primer panel («Qué hay y qué falta», «Pendientes de decidir» con la cuenta por grupo, «Sugerencias del sistema»); pedido del responsable del 2026-10-22 (`4c203cdc` 2026-10-22, `f65b41bc` 2026-10-22)
+- ✓ T-338 · Pliego y matriz más claros: Hay/Falta coherente, cumplimiento desglosado, renglones técnicos con su bien y cláusulas comunes una sola vez (`22894830` 2026-10-22, `1ff8ca1c` 2026-10-22)
+- ✓ T-339 · Renglones técnicos de Evaluación sin repetir (mismo criterio que T-338) (`e0da1c78` 2026-10-22)
 
 ### Mapa de tareas
 
@@ -1775,6 +1778,9 @@ flowchart TD
   T334["○ T-334 · Correcciones de la medición final, en una s…"]:::todo
   T335["✓ T-335 · Ajuste de integración de la 017 para la dem…"]:::done
   T336["✓ T-336 · Correcciones del recorrido en 8000: anillo…"]:::done
+  T337["✓ T-337 · Cuadros de indicadores arriba y detalle deb…"]:::done
+  T338["✓ T-338 · Pliego y matriz más claros: Hay/Falta coher…"]:::done
+  T339["✓ T-339 · Renglones técnicos de Evaluación sin repeti…"]:::done
   T308 --> T311
   T309 --> T311
   T310 --> T311
@@ -1830,6 +1836,9 @@ flowchart TD
   T311 --> T335
   T330 --> T335
   T335 --> T336
+  T336 --> T337
+  T336 --> T338
+  T338 --> T339
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1841,13 +1850,13 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-126 | Cada una de las cinco secciones abre con un tablero de primer nivel: mosaicos con información agregada (cifras grandes y gráficos), cada uno con un detalle. | T-313, T-314, T-315, T-316, T-317, T-323, T-325, T-326, T-327, T-328, T-329, T-333, T-334, T-335 | ▶ en proceso |
+| REQ-126 | Cada una de las cinco secciones abre con un tablero de primer nivel: mosaicos con información agregada (cifras grandes y gráficos), cada uno con un detalle. | T-313, T-314, T-315, T-316, T-317, T-323, T-325, T-326, T-327, T-328, T-329, T-333, T-334, T-335, T-337, T-338, T-339 | ▶ en proceso |
 | REQ-127 | Al tocar un mosaico, su detalle se despliega debajo de la fila del mosaico, en la misma pantalla; al tocarlo de nuevo se pliega. Solo un detalle abierto a la vez. | T-313, T-315, T-316, T-317, T-335 | ▶ en proceso |
 | REQ-128 | El primer panel (sección Procedimiento) es el ingreso a lo importante del procedimiento: sus datos principales (objeto, número, expediente, fecha de autorización, cantidad de ofertas, la oferta más alta y la más baja, avance, días hasta el vencimiento del mantenimiento y cantidad de pendientes), el pendiente general, el orden económico de las ofertas y los plazos importantes. La normativa no aparece en el primer panel: actúa como soporte estático y se consulta en su sección. Es el ingreso de un procedimiento, no una portada de todos los procedimientos. | T-312, T-321, T-322 | ✓ cubierto |
-| REQ-129 | Hay un pendiente general en el primer panel, con todo lo que falta hacer en las cinco secciones, y un pendiente propio en cada sección. Cada pendiente dice qué falta, por qué importa, en qué sección está y tiene su acción a mano (aprobar, tomar del Portal, subir, responder, decidir). | T-318, T-321, T-323, T-325, T-326, T-328, T-329, T-335 | ✓ cubierto |
+| REQ-129 | Hay un pendiente general en el primer panel, con todo lo que falta hacer en las cinco secciones, y un pendiente propio en cada sección. Cada pendiente dice qué falta, por qué importa, en qué sección está y tiene su acción a mano (aprobar, tomar del Portal, subir, responder, decidir). | T-318, T-321, T-323, T-325, T-326, T-328, T-329, T-335, T-337 | ✓ cubierto |
 | REQ-130 | El orden económico muestra las ofertas de menor a mayor total, con la oferta más alta y la más baja como indicadores, y cuánto se aparta cada una de la más baja. No se usa monto estimado. Si todavía no se cargaron las ofertas, el cuadro muestra el día de la apertura y un indicador de pendiente. | T-314, T-315, T-322 | ✓ cubierto |
 | REQ-131 | Los plazos importantes muestran al menos la apertura, el día de hoy, el vencimiento del mantenimiento de las ofertas y el dictamen de la Comisión, con lo que ya pasó, lo de hoy y lo que viene. | T-322, T-336 | ✓ cubierto |
-| REQ-132 | Siempre se sabe el camino: un recorrido arriba (Procedimientos › procedimiento › sección) y, en cada sección, una línea con qué hay y qué falta completar. Las pestañas muestran cuántos pendientes tiene cada sección. | T-311, T-312, T-321, T-324, T-335, T-336 | ✓ cubierto |
+| REQ-132 | Siempre se sabe el camino: un recorrido arriba (Procedimientos › procedimiento › sección) y, en cada sección, una línea con qué hay y qué falta completar. Las pestañas muestran cuántos pendientes tiene cada sección. | T-311, T-312, T-321, T-324, T-335, T-336, T-337, T-338 | ✓ cubierto |
 | REQ-133 | La estética sigue el modelo 2 de la ronda 3: negro, grises y blanco, verde lima solo para resaltar, cifras grandes, gráficos en colores levemente desaturados y pestañas en píldora. Los estados de cumplimiento siguen siendo íconos de color con forma propia y el nombre al pasar el mouse (guía visual, decisión del 2026-10-07). | T-309, T-310, T-311, T-316, T-317, T-324, T-331, T-333, T-334 | ▶ en proceso |
 | REQ-134 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda guardada en el perfil del usuario y vale en cualquier equipo. El tema de inicio es gris y blanco. | T-308, T-311, T-332 | ▶ en proceso |
 | REQ-135 | La foto aparece solo en el primer panel, como fondo muy suave, casi etéreo, pero que se note, detrás de los datos principales del procedimiento. Ocupa a lo sumo el 60 % del ancho que ocupaba en el modelo 2 (un 40 % menos) y se funde con el fondo del panel. | T-321 | ✓ cubierto |

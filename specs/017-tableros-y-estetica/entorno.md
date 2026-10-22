@@ -16,6 +16,10 @@ Estado: desplegado el 2026-10-22 01:48 por el Coordinador. Versión provisoria p
 - Raíz en `main` b1bd308c (PR 465, T-336: anillo sin pedido, «Venció» en plazos, «Falta:» siempre, documentos propios en Ofertas). Sin migraciones. Imagen reconstruida (`evaluon-app:local` = 9bf8feb504bc) y servicios recreados. Suite completa sobre la rama: 7925 pasaron, 0 fallaron.
 - Comprobado en las cinco secciones del procedimiento 10: sin anillo (no hay pedidos en curso), «Falta:» siempre, «Venció · hace 263 días» en plazos.
 
+## Tercer paso (09:00 y 09:11): pedido del responsable de la mañana
+- 09:00: raíz en `main` cd8fda20 (PR 467, T-337: cuadros arriba). Suite completa: 7946 pasaron.
+- 09:11: raíz en `main` ddff9e8e (PR 468 y 469, T-338 y T-339: Pliego más claro y renglones técnicos sin repetir). Suite completa: 7972 pasaron, 31 omitidas. Sin migraciones; imagen reconstruida y servicios recreados.
+
 ## Respaldo previo
 `backups/evaluon-2026-10-22-previo-017.dump` (pg_dump -Fc, 146.412.724 bytes, 861 líneas con `pg_restore -l`). Solo en el equipo (ignorada por git). Imagen anterior: `evaluon-app:previo-017` (fc1ac35bc2eb).
 
