@@ -133,7 +133,7 @@ def test_the_login_page_is_always_in_the_start_theme(client):
     """ADR-0074: el visitante anónimo ve el tema de inicio y no ve el selector."""
     html = client.get(reverse("accounts:login")).content.decode()
     assert "data-theme" not in html_tag(html)
-    assert 'class="preferencia"' not in html and reverse(TEMA) not in html
+    assert 'class="preferencia"' not in html and reverse(TEMA) not in html and "popover" not in html
 
 
 def test_the_read_only_user_can_change_the_theme_and_sees_the_selector(
@@ -143,7 +143,7 @@ def test_the_read_only_user_can_change_the_theme_and_sees_the_selector(
     log_in(client, no_commission_user)
     page = reverse("expedientes:pliego", args=[procedure.pk])
     html = client.get(page).content.decode()
-    assert f'action="{reverse(TEMA)}"' in html and 'class="preferencia"' in html
+    assert f'action="{reverse(TEMA)}?next=' in html and 'class="preferencia"' in html
     assert 'name="tema" value="negro"' in html and 'name="tema" value="claro"' in html
     response = set_theme(client, "negro", next=page)
     assert response.status_code == 302 and response["Location"] == page
@@ -158,15 +158,16 @@ def test_the_read_only_user_still_loses_the_action_forms(client, procedure, no_c
     log_in(client, no_commission_user)
     html = client.get(reverse("expedientes:pliego", args=[procedure.pk])).content.decode()
     actions = [m.group(1) for m in re.finditer(r'<form[^>]*method="post"[^>]*action="([^"]+)"', html)]
-    assert sorted(actions) == sorted([reverse(TEMA), reverse("accounts:logout")]), actions
+    assert sorted(a.split("?")[0] for a in actions) == sorted([reverse(TEMA), reverse("accounts:logout")]), actions
 
 
-def test_the_selector_marks_the_current_theme_and_keeps_the_page(client, operator_user, procedure):
-    """REQ-134: dos botones de un formulario; el del tema actual está presionado; `next` es la
-    página actual con su consulta."""
+def test_the_selector_marks_the_current_theme_and_names_the_page_to_return_to(
+        client, operator_user, procedure):
+    """REQ-134: dos botones de un formulario; el del tema actual está presionado; `next` va en la
+    dirección del formulario (la ruta de la página actual) y el formulario no suma campos."""
     log_in(client, operator_user)
-    url = reverse("expedientes:pliego", args=[procedure.pk]) + "?x=1"
-    html = client.get(url).content.decode()
+    path = reverse("expedientes:pliego", args=[procedure.pk])
+    html = client.get(path + "?x=1").content.decode()
     form = re.search(r'<form[^>]*class="preferencia"[^>]*>.*?</form>', html, re.S).group(0)
     assert 'method="post"' in form and "csrfmiddlewaretoken" in form
     assert form.count("<button") == 2
@@ -174,11 +175,41 @@ def test_the_selector_marks_the_current_theme_and_keeps_the_page(client, operato
     negro = re.search(r'<button[^>]*value="negro"[^>]*>', form).group(0)
     assert 'aria-pressed="true"' in claro and 'aria-pressed="false"' in negro
     assert 'aria-label="Gris y blanco"' in claro and 'aria-label="Negro"' in negro
-    assert re.search(r'name="next" value="[^"]*pliego[^"]*x=1', form)
+    assert f'action="{reverse(TEMA)}?next={path}"' in form
+    assert re.findall(r'<input[^>]*name="([^"]+)"', form) == ["csrfmiddlewaretoken"]
     set_theme(client, "negro")
     form = re.search(r'<form[^>]*class="preferencia"[^>]*>.*?</form>',
-                     client.get(url).content.decode(), re.S).group(0)
+                     client.get(path).content.decode(), re.S).group(0)
     assert 'aria-pressed="true"' in re.search(r'<button[^>]*value="negro"[^>]*>', form).group(0)
+
+
+def test_the_page_does_not_change_with_the_query_because_of_the_selector(
+        client, operator_user, procedure):
+    """REQ-134: la dirección del selector lleva solo la ruta; una consulta desconocida no cambia
+    el HTML (las pantallas de la 014 lo comprueban así)."""
+    log_in(client, operator_user)
+    path = reverse("expedientes:pliego", args=[procedure.pk])
+    mask = lambda t: re.sub(r'value="[A-Za-z0-9]{64}"', "", t)  # noqa: E731  (el token de CSRF)
+    assert mask(client.get(path + "?ver=inventado").content.decode()) == mask(
+        client.get(path).content.decode())
+
+
+def test_the_return_keeps_the_query_of_the_page_the_user_was_on(client, operator_user, procedure):
+    """REQ-134: el Referer del mismo sitio y de la misma ruta conserva la consulta; si es de otra
+    ruta, de otro sitio o intenta salir del sitio, se vuelve a `next` sin consulta."""
+    log_in(client, operator_user)
+    path = reverse("expedientes:ofertas", args=[procedure.pk])
+    url = f"{reverse(TEMA)}?next={path}"
+    same = client.post(url, {"tema": "negro"}, headers={"Referer": f"http://testserver{path}?oferta=3"})
+    assert same["Location"] == f"{path}?oferta=3"
+    other_path = client.post(url, {"tema": "claro"}, headers={"Referer": "http://testserver/otra/?x=1"})
+    assert other_path["Location"] == path
+    other_site = client.post(url, {"tema": "negro"}, headers={"Referer": f"https://evil.example{path}?x=1"})
+    assert other_site["Location"] == path
+    sneaky = client.post(f"{reverse(TEMA)}?next=http://testserver//evil.example/x", {"tema": "claro"},
+                         headers={"Referer": "http://testserver//evil.example/x?y=1"})
+    assert sneaky["Location"].startswith("http://testserver/")  # el propio sitio, nunca «//evil.example»
+    assert client.post(url, {"tema": "negro", "next": "https://evil.example/"})["Location"] == reverse("inicio")
 
 
 def test_the_selector_is_in_the_single_header_of_every_page(client, operator_user, procedure):
@@ -205,9 +236,11 @@ def test_the_page_writes_the_two_logos_and_the_sheet_shows_the_one_of_the_theme(
     assert all('alt="EVALUON"' in i or 'alt=""' in i for i in imgs)
     assert sum('alt="EVALUON"' in i for i in imgs) == 1  # un solo nombre accesible
     css = open(finders.find("journey/secciones.css"), encoding="utf-8").read()
-    assert re.search(r'\[data-theme="negro"\][^{]*\.logo-claro\s*\{[^}]*display:\s*none', css)
-    assert re.search(r"\.logo-negro\s*\{[^}]*display:\s*none", css)
-    assert re.search(r'\[data-theme="negro"\][^{]*\.logo-negro\s*\{[^}]*display:\s*(block|inline)', css)
+    # Los selectores llevan `.nombre` para pesar más que `header.top .nombre img { display: block }`;
+    # sin eso los dos logotipos se ven a la vez (hallazgo de la revisión en Edge).
+    assert re.search(r'\[data-theme="negro"\] header\.top \.nombre \.logo-claro\s*\{[^}]*display:\s*none', css)
+    assert re.search(r"header\.top \.nombre \.logo-negro\s*\{[^}]*display:\s*none", css)
+    assert re.search(r'\[data-theme="negro"\] header\.top \.nombre \.logo-negro\s*\{[^}]*display:\s*(block|inline)', css)
 
 
 def test_the_header_uses_only_tokens_for_color():
@@ -246,3 +279,18 @@ def test_the_state_icon_keeps_its_form_and_its_name():
     css = open(finders.find("journey/secciones.css"), encoding="utf-8").read()
     assert "content: attr(data-nombre)" in css
     assert ".est:hover::after" in css and ".est:focus-visible::after" in css
+
+
+def test_the_user_menu_is_a_declarative_popover_with_the_name_and_exit(client, operator_user,
+                                                                       procedure):
+    """REQ-132: el menú del usuario abre con un botón y un `popover` (sin scripts ni `details`):
+    nombre, rol y «Salir» con su formulario; todo dentro del encabezado único."""
+    log_in(client, operator_user)
+    html = client.get(reverse("expedientes:pliego", args=[procedure.pk])).content.decode()
+    header = re.search(r'<header class="top".*?</header>', html, re.S).group(0)
+    button = re.search(r'<button class="av"[^>]*>', header).group(0)
+    assert 'popovertarget="menu-usuario"' in button and f'aria-label="Su perfil: {operator_user.username}"' in button
+    menu = re.search(r'<div id="menu-usuario"[^>]*popover[^>]*>.*?</form>\s*</div>', header, re.S).group(0)
+    assert operator_user.username in menu and "Operador" in menu and "Salir" in menu
+    assert f'action="{reverse("accounts:logout")}"' in menu and "csrfmiddlewaretoken" in menu
+    assert '<details class="me"' not in header
