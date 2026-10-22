@@ -1,0 +1,10 @@
+{% comment %}Detalle «Plazos importantes» del primer panel (T-322; REQ-131, REQ-141; ADR-0077). Variable: `plazos` (tablero.ingreso.Plazos). Cada hito dice su fecha, qué ya pasó, lo de hoy y lo que viene; lo que no tiene fecha dice «Falta» o «Pendiente». Nada se inventa.{% endcomment %}<div class="plazos-detalle">
+  <ul class="plazos-lista">
+    {% for e in plazos.events %}<li class="{{ e.state }}"><b class="num">{{ e.date_text }}</b> · {{ e.sentence }}{% if e.note %} <span class="sub">{{ e.note }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% with m=plazos.maintenance %}
+  {% if m.term %}<p class="sub">Mantenimiento de las ofertas: {{ m.term }}.{% if m.state == "calendar" %} {{ m.note }}: el sistema no tiene el calendario de feriados.{% endif %}</p>{% elif m.note %}<p class="sub">{{ m.note }}.</p>{% endif %}
+  {% if m.source %}<p class="sub">{{ m.source }}.</p>{% endif %}
+  {% endwith %}
+</div>

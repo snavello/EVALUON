@@ -11,6 +11,25 @@ TEMA_KEYS = ("s1_datos", "s1_portal", "s1_pliego")
 # Con algo que falta (datos, cronograma, garantías, renglones con su cantidad) la sección no queda
 # «Lista»: su única etapa es el Portal, opcional, y no alcanza para decirlo (T-217, brecha 2).
 MISSING_BLOCKS_READY = True
+# El primer panel (plan 017, T-321): el encabezado con la foto y los datos principales. Su contexto
+# y sus mosaicos salen de `tablero/ingreso.py`; se importa al usarlo (evita importaciones
+# circulares con los temas).
+INGRESO_TEMPLATE = "journey/_ingreso.html"
+
+
+def ingreso_context(section, user, procedure, request=None, overview=None):
+    from evaluon.journey.tablero import ingreso
+    return ingreso.context(section, user, procedure, request, overview)
+
+
+def tiles(section, user, procedure, contexts):
+    from evaluon.journey.tablero import ingreso
+    return ingreso.tiles(section, user, procedure, contexts)
+
+
+def details(section, user, procedure, contexts):
+    from evaluon.journey.tablero import ingreso
+    return ingreso.details(section, user, procedure, contexts)
 
 
 def legacy_links(procedure):
