@@ -200,7 +200,8 @@ def test_with_ten_photos_the_page_asks_to_remove_one_before(client, owner):
     html = client.get(reverse(FOTOS)).content.decode()
     assert len(re.findall(r'class="slot"', html)) == PHOTO_SLOTS
     assert 'type="file"' not in html
-    assert "quitá una antes" in html
+    assert "quite una antes" in html
+    assert "Ya tiene 10 fotos" in html and "Ya tenés" not in html
 
 
 def test_without_photos_the_page_says_the_house_photo_is_shown(client, owner):
@@ -244,7 +245,9 @@ def test_the_eleventh_photo_is_rejected_asking_to_remove_one(client, owner):
     log_in(client, owner)
     response = post_photo(client)
     assert response.status_code == 200
-    assert "quitá una" in response.content.decode()
+    html = response.content.decode()
+    assert "quite una" in html and "quitá" not in html
+    assert html.count("Ya tiene 10 fotos") == 1  # el aviso va una sola vez (T-335)
     assert Photo.objects.filter(user=owner).count() == PHOTO_SLOTS
 
 

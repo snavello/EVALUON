@@ -162,7 +162,7 @@ def upload(user, file):
 
 def _full():
     return PhotoRejected(
-        f"Ya tenés {PHOTO_SLOTS} fotos, el máximo. Para subir otra, quitá una antes."
+        f"Ya tiene {PHOTO_SLOTS} fotos, el máximo. Para subir otra, quite una antes."
     )
 
 
@@ -175,7 +175,7 @@ def _read(file):
             file.seek(0)
         data = file.read(MAX_RAW_BYTES + 1)
     if len(data) > MAX_RAW_BYTES:
-        raise PhotoRejected("La foto pesa más de 10 MiB. Elegí una más liviana.")
+        raise PhotoRejected("La foto pesa más de 10 MiB. Elija una más liviana.")
     return data
 
 
@@ -185,7 +185,7 @@ def _open(data):
         image = Image.open(io.BytesIO(data), formats=ALLOWED_FORMATS)
     except UnidentifiedImageError:
         raise PhotoRejected(
-            "El archivo no es una foto en un formato permitido. Subí una imagen JPEG, PNG o WebP."
+            "El archivo no es una foto en un formato permitido. Suba una imagen JPEG, PNG o WebP."
         ) from None
     except Image.DecompressionBombError:
         raise _too_many_pixels() from None
@@ -201,12 +201,12 @@ def _open(data):
 def _too_many_pixels():
     return PhotoRejected(
         f"La foto tiene demasiados píxeles (más de {MAX_PIXELS // 1_000_000} millones). "
-        "Elegí una más chica."
+        "Elija una más chica."
     )
 
 
 def _damaged():
-    return PhotoRejected("La foto está dañada o incompleta. Probá con otra.")
+    return PhotoRejected("La foto está dañada o incompleta. Pruebe con otra.")
 
 
 def to_luminance(image):
@@ -335,7 +335,7 @@ def _normalize(data):
         if buffer.tell() < PHOTO_MAX_BYTES:
             return buffer.getvalue(), gray.width, gray.height
     raise PhotoRejected(
-        "No se pudo dejar la foto con un tamaño menor a 2 MiB. Elegí una más simple o más chica."
+        "No se pudo dejar la foto con un tamaño menor a 2 MiB. Elija una más simple o más chica."
     )
 
 
@@ -362,7 +362,7 @@ def _store(user, content, width, height):
             if not _is_slot_conflict(error):
                 raise  # otra restricción (por ejemplo el tope de tamaño): no es una carrera
     raise PhotoRejected(
-        "No se pudo guardar la foto porque hubo otras subidas a la vez. Probá de nuevo."
+        "No se pudo guardar la foto porque hubo otras subidas a la vez. Pruebe de nuevo."
     )
 
 

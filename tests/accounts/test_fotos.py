@@ -400,7 +400,7 @@ def test_the_11th_photo_is_rejected_asking_to_remove_one():
         make_photo(user, slot)
     with pytest.raises(photos.PhotoRejected) as error:
         photos.upload(user, io.BytesIO(encode(dark_saturated())))
-    assert "quitá una" in str(error.value)
+    assert "quite una" in str(error.value)
     assert Photo.objects.filter(user=user).count() == 10
 
 
@@ -461,7 +461,7 @@ def test_a_lost_race_for_the_last_slot_is_rejected_with_a_clear_message(monkeypa
     monkeypatch.setattr(photos, "used_slots", stale)
     with pytest.raises(photos.PhotoRejected) as error:
         photos.upload(user, io.BytesIO(encode(dark_saturated())))
-    assert "quitá una" in str(error.value)
+    assert "quite una" in str(error.value)
     assert Photo.objects.filter(user=user).count() == 10
 
 
