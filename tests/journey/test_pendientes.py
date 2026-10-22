@@ -31,7 +31,9 @@ def log_in(client, user):
 
 
 def portada_url(procedure):
-    return reverse("expedientes:portada", args=[procedure.pk])
+    """La pantalla del pendiente general: la portada ya no dibuja nada, redirige a «Procedimiento»
+    (T-312), así que se pide y se vuelve a esa pantalla directamente."""
+    return reverse("expedientes:procedimiento", args=[procedure.pk])
 
 
 def seccion_url(procedure, key="evaluacion"):
