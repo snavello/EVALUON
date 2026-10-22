@@ -229,7 +229,8 @@ def test_la_pagina_sin_pliego_dice_falta_y_no_muestra_cifras(client, bare, opera
     """REQ-141: sin pliego, de punta a punta, ningún mosaico dibuja cifra."""
     log_in(client, operator_user)
     html = client.get(tab(bare)).content.decode()
-    mosaicos = html.split('<a class="tile')[1:]
+    # Los tres primeros son los cuadros de indicadores (T-337): «Pendientes de decidir: 0» es un dato.
+    mosaicos = html.split('<a class="tile')[1:][3:]
     assert len(mosaicos) == 4
     for mosaico in mosaicos:
         mosaico = mosaico.split("</a>")[0]

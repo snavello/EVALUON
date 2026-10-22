@@ -22,7 +22,7 @@
 
 .pend-lista { list-style: none; margin: 0; padding: 0; }
 .pend-lista li {
-  display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto auto; gap: .875rem;
+  display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto auto auto; gap: .875rem;
   align-items: center; padding: .75rem 0; border-top: 1px solid var(--line);
 }
 .pend-lista .renglon { display: flex; flex-direction: column; gap: .125rem; min-width: 0; }
@@ -44,7 +44,18 @@
 }
 @media (hover: hover) { .pend-lista .btn.primario:hover { background: var(--btn-h); } }
 
+/* Cuánto suma cada fila (T-337): los pendientes agrupados cuentan varios en una sola fila. */
+.pend-lista .cuenta {
+  min-width: 1.75rem; padding: .1875rem .5rem; border-radius: 999px; text-align: center;
+  font-size: .75rem; font-weight: 500; font-variant-numeric: tabular-nums;
+  background: var(--bg); color: var(--ink-2);
+}
+/* Dentro del detalle de un cuadro la lista usa el ancho completo, sin un segundo fondo. */
+.dt .pend { gap: 0; }
+.dt .pend .panel { padding: 0; }
+
 @media (max-width: 720px) {
   .pend-lista li { grid-template-columns: 1.5rem minmax(0, 1fr); }
+  .pend-lista .cuenta { grid-column: 2; justify-self: start; }
   .pend-lista .donde, .pend-lista .accion, .pend-lista .accion-form { grid-column: 2; justify-self: start; }
 }

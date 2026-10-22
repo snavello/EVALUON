@@ -34,12 +34,19 @@ def tema_con_mosaicos():
 # --- Lectura del HTML ----------------------------------------------------------------------------
 
 
+# Los tres cuadros de indicadores que abren toda sección (T-337): se leen aparte (`cuadros` y
+# `cuadros_detalles`) para que `tiles` y `details` sigan siendo los de los temas.
+CUADROS = ("m-hay-falta", "m-pendientes", "m-sugerencias")
+CUADROS_DETALLES = ("d-hay-falta", "d-pendientes", "d-sugerencias")
+
+
 class Pagina(HTMLParser):
     """Lo que hace falta del HTML: mosaicos, detalles (con su texto) y enlaces a anclas."""
 
     def __init__(self, html):
         super().__init__(convert_charrefs=True)
         self.tiles, self.details, self.ids, self.anchors = [], {}, [], []
+        self.cuadros, self.cuadros_detalles = [], {}
         self.root, self.zone_depth = {}, None
         self._stack, self._detail = [], None
         self.outside_text = []
@@ -53,10 +60,11 @@ class Pagina(HTMLParser):
         if "tablero" in classes:
             self.root = a
         if tag == "a" and "tile" in classes:
-            self.tiles.append(a)
+            (self.cuadros if a.get("id") in CUADROS else self.tiles).append(a)
         if "inline-detail" in classes:
             self._detail = {"id": a.get("id"), "depth": len(self._stack), "text": [], "ids": []}
-            self.details[a.get("id")] = self._detail
+            (self.cuadros_detalles if a.get("id") in CUADROS_DETALLES
+             else self.details)[a.get("id")] = self._detail
         elif self._detail is not None:
             if a.get("id"):
                 self._detail["ids"].append(a["id"])
@@ -91,12 +99,14 @@ def revisar(html):
     llaves = [t.get("id") for t in pagina.tiles]
     assert len(llaves) == len(set(llaves)), "mosaicos con id repetido"
     assert len(pagina.details) == len(set(pagina.details)), "detalles con id repetido"
-    for tile in pagina.tiles:
+    assert [t["id"] for t in pagina.cuadros] == list(CUADROS), "faltan los cuadros de indicadores"
+    assert list(pagina.cuadros_detalles) == list(CUADROS_DETALLES)
+    for tile in pagina.cuadros + pagina.tiles:
         destino = tile.get("data-detail")
         if destino is None:  # enlace a otra pantalla
             assert not (tile.get("href") or "").startswith("#")
             continue
-        assert destino in pagina.details, f"el mosaico {tile.get('id')} abre {destino}, que no existe"
+        assert destino in {**pagina.details, **pagina.cuadros_detalles},             f"el mosaico {tile.get('id')} abre {destino}, que no existe"
         assert tile["href"] == f"#{destino}"
         assert tile.get("aria-controls") == destino
     for detalle in pagina.details.values():
@@ -242,18 +252,15 @@ def test_la_pagina_con_tablero_enlaza_el_script_y_no_lleva_scripts_en_linea(
     assert "<script>" not in html
 
 
-def test_el_tablero_deja_los_huecos_de_otras_tareas():
-    """T-312 (Hay/Falta) llena su bloque de `seccion.html` al integrar y acá tiene que seguir
-    definido y vacío. El de pendientes lo llenó T-318 (`test_pendientes.py` lo comprueba) y tiene
-    que seguir entre Hay/Falta y el tablero."""
+def test_el_tablero_lleva_los_cuadros_de_indicadores_y_no_deja_huecos():
+    """T-337: Hay/Falta y los pendientes ya no son bloques sueltos de `seccion.html`: son los tres
+    primeros mosaicos del tablero y su detalle se despliega debajo (T-312 y T-318 llenaron los
+    huecos que este test dejaba)."""
     texto = (Path(__file__).resolve().parents[2] / "evaluon" / "templates" / "journey"
              / "seccion.html").read_text(encoding="utf-8")
-    # T-312 lo llenó: el bloque sigue definido y lleva el parcial de Hay/Falta.
-    assert re.search(r'\{% block hay_falta %\}(\{% include "journey/_hay_falta.html" %\})?'
-                     r'\{% endblock %\}', texto)
-    assert "{% block pendientes %}" in texto
-    assert texto.index("block hay_falta") < texto.index("block pendientes") < texto.index(
-        "journey/_tablero.html")
+    assert "{% block hay_falta %}" not in texto and "{% block pendientes %}" not in texto
+    assert "_pendientes.html" not in texto and "_hay_falta.html" not in texto
+    assert "journey/_tablero.html" in texto
 
 
 def test_la_seccion_junta_los_mosaicos_de_sus_temas_en_orden(procedure, matrix, operator_user,
