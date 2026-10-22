@@ -2,6 +2,7 @@
 ADR-0074; T-311). Todo el material es inventado (P4)."""
 
 import re
+from urllib.parse import quote
 
 import pytest
 from django.contrib.staticfiles import finders
@@ -175,7 +176,7 @@ def test_the_selector_marks_the_current_theme_and_names_the_page_to_return_to(
     negro = re.search(r'<button[^>]*value="negro"[^>]*>', form).group(0)
     assert 'aria-pressed="true"' in claro and 'aria-pressed="false"' in negro
     assert 'aria-label="Gris y blanco"' in claro and 'aria-label="Negro"' in negro
-    assert f'action="{reverse(TEMA)}?next={path}"' in form
+    assert f'action="{reverse(TEMA)}?next={quote(path, safe="")}"' in form
     assert re.findall(r'<input[^>]*name="([^"]+)"', form) == ["csrfmiddlewaretoken"]
     set_theme(client, "negro")
     form = re.search(r'<form[^>]*class="preferencia"[^>]*>.*?</form>',
