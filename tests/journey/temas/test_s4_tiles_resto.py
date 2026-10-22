@@ -194,7 +194,7 @@ def test_informe_subido_y_sin_leer_dice_en_espera_y_no_inventa_paginas(
     assert subir_informe(client, procedure).status_code == 302
     tile = mosaicos()["informe"]
     assert tile.has_data and tile.big == "En espera"
-    assert "págs" not in tile.sub and "apto" not in tile.sub.lower()
+    assert "pág" not in tile.sub and "apto" not in tile.sub.lower()
     assert tile.chart is None
 
 
@@ -210,7 +210,7 @@ def test_informe_leido_cuenta_apto_y_no_apto_de_lo_guardado_y_las_paginas_conoci
     assert tile.has_data and tile.big == "Leído"
     assert verdicts.count("apto") == 5 and verdicts.count("no_apto") == 1
     assert "5 apto" in tile.sub and "1 no apto" in tile.sub and "propuesta" in tile.sub.lower()
-    assert " págs." in tile.sub
+    assert "pág" in tile.sub and "Ok de la Comisión: 0 de 6" in tile.sub
     assert isinstance(tile.chart, charts.Stack)
     assert {p.label for p in tile.chart.parts} >= {"Apto", "No apto"}
     assert sum(p.value for p in tile.chart.parts if p.label in ("Apto", "No apto")) == 6
@@ -230,7 +230,7 @@ def test_las_paginas_del_informe_repetido_en_cada_oferta_se_cuentan_una_vez(
     data = reading.pages
     listed = data.get("pages", []) if isinstance(data, dict) else data
     tile = mosaicos()["informe"]
-    assert f"{len(listed)} págs." in tile.sub
+    assert (f"{len(listed)} págs." if len(listed) != 1 else "1 pág.") in tile.sub
 
 
 def test_los_pendientes_del_informe_dicen_por_que_importan(offers, procedure, operator_user):

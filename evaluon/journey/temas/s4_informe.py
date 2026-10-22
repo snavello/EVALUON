@@ -312,10 +312,10 @@ def tiles(user, procedure, ctx):
     apto, no_apto = fig["apto"], fig["no_apto"]
     without = fig["total"] - apto - no_apto
     parts = [f"Propone {apto} {'apto' if apto == 1 else 'aptos'}, {no_apto} no "
-             f"{'apto' if no_apto == 1 else 'aptos'} y {without} sin propuesta; el ok es de la "
-             f"Comisión ({fig['approved']} de {fig['total']})"]
+             f"{'apto' if no_apto == 1 else 'aptos'} y {without} sin propuesta",
+             f"Ok de la Comisión: {fig['approved']} de {fig['total']}"]
     if fig["pages"]:
-        parts.append(f"{fig['pages']} págs.")
+        parts.append("1 pág." if fig["pages"] == 1 else f"{fig['pages']} págs.")
     if absent:
         parts.append(absent.rstrip("."))
     chart = None
