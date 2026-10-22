@@ -172,7 +172,7 @@ def test_the_front_page_has_two_separate_blocks_for_pending_and_suggestions(
     assert 'id="pendientes"' in html and 'id="sugerencias"' in html
     assert html.index('id="pendientes"') < html.index('id="sugerencias"')
     assert "Pendientes de decidir" in html and "Sugerencias del sistema" in html
-    assert "Qué hay y qué falta" in html
+    assert 'class="hay-falta"' in html  # la portada es el primer panel (T-312)
     for key in KEYS:
         assert reverse(f"expedientes:{key}", args=[procedure.pk]) in html
 
