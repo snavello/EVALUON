@@ -51,10 +51,12 @@ def shell(request, overview, active=""):
     }
 
 
-# Un formulario de acción (POST), salvo el de salir. Las acciones del usuario de lectura no se
-# dibujan: el servicio igual lo rechazaría (403), pero un botón que no funciona confunde.
+# Un formulario de acción (POST), salvo el de salir y los de preferencias (la clase `preferencia`:
+# el selector de tema, REQ-134; ADR-0074). Las acciones del usuario de lectura no se dibujan: el
+# servicio igual lo rechazaría (403), pero un botón que no funciona confunde.
 _ACTION_FORM = re.compile(
-    r'<form(?=[\s>])(?=[^>]*method="post")(?![^>]*logout-form)[^>]*>.*?</form>', re.S | re.I)
+    r'<form(?=[\s>])(?=[^>]*method="post")(?![^>]*(?:logout-form|preferencia))[^>]*>.*?</form>',
+    re.S | re.I)
 
 
 # Los enlaces «Subir …» llevan a un formulario que el usuario de lectura no tiene (D-3 de T-227).

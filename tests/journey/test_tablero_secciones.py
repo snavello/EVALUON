@@ -242,12 +242,13 @@ def test_la_pagina_con_tablero_enlaza_el_script_y_no_lleva_scripts_en_linea(
 
 
 def test_el_tablero_deja_los_huecos_de_otras_tareas():
-    """T-312 (Hay/Falta) y T-318 (pendiente de la sección) llenan estos bloques de `seccion.html`
-    al integrar; acá tienen que seguir definidos y vacíos."""
+    """T-312 (Hay/Falta) llena su bloque de `seccion.html` al integrar y acá tiene que seguir
+    definido y vacío. El de pendientes lo llenó T-318 (`test_pendientes.py` lo comprueba) y tiene
+    que seguir entre Hay/Falta y el tablero."""
     texto = (Path(__file__).resolve().parents[2] / "evaluon" / "templates" / "journey"
              / "seccion.html").read_text(encoding="utf-8")
     assert "{% block hay_falta %}{% endblock %}" in texto
-    assert "{% block pendientes %}{% endblock %}" in texto
+    assert "{% block pendientes %}" in texto
     assert texto.index("block hay_falta") < texto.index("block pendientes") < texto.index(
         "journey/_tablero.html")
 
@@ -271,4 +272,4 @@ def test_las_demas_secciones_no_cambian_con_los_mosaicos_de_ofertas(
         client, procedure, matrix, operator_user, con_mosaicos):
     """REQ-126: los mosaicos de una sección no aparecen en otra."""
     html = pedir(client, procedure, operator_user, "pliego")
-    assert 'class="tablero"' not in html and "Ofertas del acta" not in html
+    assert "Ofertas del acta" not in html and "La más baja" not in html

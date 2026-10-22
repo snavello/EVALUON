@@ -2,8 +2,10 @@
 Todo el material es inventado (P4)."""
 
 import re
+from types import SimpleNamespace
 
 import pytest
+from django.template.loader import render_to_string
 from django.urls import reverse
 
 from evaluon.audit.models import AuditEvent
@@ -62,16 +64,83 @@ def test_the_18_themes_exist_with_zero_counts(procedure, operator_user):
 @pytest.mark.parametrize("key", KEYS)
 def test_any_section_opens_directly_and_shows_the_five_tabs(client, procedure, operator_user,
                                                             key):
-    """REQ-075: se entra a cualquiera sin pasar por otra y las cinco se ven con sus cuentas."""
+    """REQ-075, REQ-132: se entra a cualquiera sin pasar por otra y las cinco se ven como
+    pestañas en píldora, con la activa marcada; el estado y las dos cuentas quedan en el texto
+    para quien lee con un lector de pantalla."""
     log_in(client, operator_user)
     response = client.get(reverse(f"expedientes:{key}", args=[procedure.pk]))
     assert response.status_code == 200
     html = response.content.decode()
+    bar = html[html.index('id="barra-secciones"'):html.index('id="journey-status"')]
     for label in LABELS:
-        assert label in html
-    assert html.count('data-seccion="') == 5
-    assert "pend." in html and "sug." in html
-    assert 'aria-current="page"' in html
+        assert label in bar
+    assert html.count('data-seccion="') == 5 and bar.count('class="tab') == 5
+    assert "pend." in bar and "sug." in bar
+    assert bar.count('aria-current="page"') == 1
+    current = re.search(r'<a class="tab[^"]*" href="[^"]*" data-seccion="(\w+)"[^>]*'
+                        r'aria-current="page"', bar)
+    assert current and current.group(1) == key
+
+
+def _fake_overview(pendings):
+    sections_ = [SimpleNamespace(key=k, label=l, url=f"/x/{k}/", state="pendiente", error="",
+                                 state_label="Pendiente", pending=n, suggestions=2)
+                 for k, l, n in zip(KEYS, LABELS, pendings)]
+    return SimpleNamespace(sections=sections_)
+
+
+def test_each_tab_shows_its_pending_count_and_none_when_there_are_no_pending():
+    """REQ-132: cada pestaña muestra cuántos pendientes tiene su sección; con 0, ningún
+    contador (la cuenta para el lector de pantalla sigue en el texto)."""
+    html = render_to_string("journey/_barra.html", {"overview": _fake_overview([3, 0, 12, 0, 1]),
+                                                    "active": "ofertas"})
+    tabs = re.findall(r"<li>.*?</li>", html, re.S)
+    assert len(tabs) == 5
+    counters = [re.findall(r'<span class="c"[^>]*>(\d+)</span>', t) for t in tabs]
+    assert counters == [["3"], [], ["12"], [], ["1"]]
+    assert "<b>0</b> pend." in tabs[1] and "<b>3</b> pend." in tabs[0]  # texto para lectores
+    assert 'aria-current="page"' in tabs[2] and html.count('aria-current="page"') == 1
+
+
+def test_the_poll_brings_the_same_tabs_and_counters_as_the_page(client, procedure, operator_user):
+    """REQ-132: el sondeo trae las mismas píldoras y el mismo contador que la página."""
+    log_in(client, operator_user)
+    page = client.get(reverse("expedientes:pliego", args=[procedure.pk])).content.decode()
+    bar = client.get(reverse("expedientes:barra", args=[procedure.pk]), {"activa": "pliego"}
+                     ).content.decode()
+    inside = page[page.index('id="barra-secciones"'):page.index('id="journey-status"')]
+    counters = lambda h: re.findall(r'<span class="c"[^>]*>(\d+)</span>', h)  # noqa: E731
+    assert counters(bar) == counters(inside)
+    assert bar.count('class="tab') == 5 and 'aria-current="page"' in bar
+
+
+@pytest.mark.parametrize("key,label", list(zip(KEYS, LABELS)))
+def test_the_path_says_where_i_am_on_every_section(client, procedure, operator_user, key, label):
+    """REQ-132: el recorrido «Procedimientos › procedimiento › sección» está arriba, con el
+    procedimiento como menú y la sección actual como último tramo."""
+    log_in(client, operator_user)
+    html = client.get(reverse(f"expedientes:{key}", args=[procedure.pk])).content.decode()
+    path = re.search(r'<nav class="camino"[^>]*>.*?</nav>', html, re.S).group(0)
+    assert f'<a href="{reverse("expedientes:index")}">Procedimientos</a>' in path
+    assert path.index("Procedimientos") < path.index(procedure.number) < path.rindex(label)
+    assert path.count("›") == 2
+    assert 'class="sel-proc"' in path and "Cambiar de procedimiento" in path
+    last = re.findall(r'<[a-z]+[^>]*aria-current="page"[^>]*>(.*?)</', path, re.S)
+    assert last and label in last[-1]
+    assert html.index('<nav class="camino"') < html.index('id="seccion-titulo"')
+
+
+def test_the_path_is_in_the_header_also_without_a_procedure(client, procedure, operator_user):
+    """REQ-132: la lista, el alta y las normativas generales también tienen recorrido, dentro
+    del único encabezado."""
+    log_in(client, operator_user)
+    for url, expected in ((reverse("expedientes:index"), "Procedimientos"),
+                          (reverse("expedientes:nuevo"), "Nuevo procedimiento (sin crear)"),
+                          (reverse("expedientes:normativas_general"), "Normativas")):
+        html = client.get(url).content.decode()
+        header = re.search(r'<header class="top".*?</header>', html, re.S).group(0)
+        assert '<nav class="camino"' in header and expected in header, url
+        assert html.count('<nav class="camino"') == 1, url
 
 
 def test_the_user_without_commission_role_reads_without_actions_and_is_refused_on_post(
