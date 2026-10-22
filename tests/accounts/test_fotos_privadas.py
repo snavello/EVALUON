@@ -358,3 +358,21 @@ def test_the_user_menu_links_to_my_photos(client, role):
     menu = re.search(r'<div id="menu-usuario".*?</form>', html, re.S).group(0)
     assert f'href="{reverse(FOTOS)}"' in menu
     assert "Mis fotos" in menu
+
+
+def test_every_post_form_is_a_preference_so_the_read_user_keeps_it(client):
+    """REQ-136: los formularios de subir y quitar llevan la clase `preferencia`; así
+    `without_actions` (vistas de lectura) no se los oculta al usuario de lectura."""
+    from evaluon.journey.views.portada import without_actions
+
+    reader = make_user("lector-fotos", Role.READ)
+    made = fill(reader, 2)
+    log_in(client, reader)
+    response = client.get(reverse(FOTOS))
+    forms = re.findall(r"<form\b[^>]*>", response.content.decode())
+    posts = [tag for tag in forms if 'method="post"' in tag]
+    assert posts and all("preferencia" in tag for tag in posts if "logout-form" not in tag)
+    kept = without_actions(response).content.decode()
+    for photo in made:
+        assert f'action="{reverse(QUITAR, args=[photo.pk])}"' in kept
+    assert 'name="foto"' in kept and f'action="{reverse(FOTOS)}"' in kept
