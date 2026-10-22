@@ -1,0 +1,50 @@
+/* Pendientes con acción a mano (feature 017: REQ-129; T-318). Parcial `journey/_pendientes.html`:
+   el pendiente general (primer panel) y el de cada sección, más las sugerencias del sistema.
+   Copia de la forma de `.todo` de la maqueta aprobada (docs/diseno/mockup-017/comun/estilos.css)
+   con los tokens de tokens.css. Todo color sale de `var(--…)`: nada en hexadecimal ni `style=`
+   (la política de contenido es default-src 'self'). Sin opacidad en el texto (el contraste se
+   mide con colores planos) y sin --ink-3, que no tiene par con --tile-h. Las reglas están
+   acotadas a `.pend` para no tocar las pantallas que todavía no se migraron. */
+
+.pend { grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.pend .panel {
+  background: var(--tile); color: var(--ink); border: 0; box-shadow: none;
+  border-radius: var(--r); padding: 1.25rem 1.5rem;
+}
+.pend .panel h3 {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+  margin: 0 0 .5rem; font-size: 1.375rem; font-weight: 500; color: var(--ink);
+}
+.pend .panel h3 .cta { font-size: .8125rem; font-weight: 400; color: var(--ink-2); }
+.pend .suave, .pend .ayuda { color: var(--ink-2); }
+.pend .suave { margin: 0; padding: .75rem 0; border-top: 1px solid var(--line); }
+.pend .ayuda { margin: .5rem 0 0; font-size: .8125rem; }
+
+.pend-lista { list-style: none; margin: 0; padding: 0; }
+.pend-lista li {
+  display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto auto; gap: .875rem;
+  align-items: center; padding: .75rem 0; border-top: 1px solid var(--line);
+}
+.pend-lista .renglon { display: flex; flex-direction: column; gap: .125rem; min-width: 0; }
+.pend-lista .que { font-weight: 500; color: var(--ink); }
+.pend-lista .por-que { font-size: .8125rem; color: var(--ink-2); }
+.pend-lista .donde { font-size: .8125rem; color: var(--ink-2); white-space: nowrap; min-width: 0; }
+.pend-lista .accion {
+  font-size: .8125rem; color: var(--ink); white-space: nowrap;
+  text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px;
+}
+@media (hover: hover) { .pend-lista .accion:hover { color: var(--ink); text-decoration-color: var(--ink); } }
+.pend-lista .accion:focus-visible,
+.pend-lista .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pend-lista .accion-form { margin: 0; }
+.pend-lista .btn.primario {
+  font: inherit; font-size: .8125rem; font-weight: 500; padding: .4rem .9rem; border: 0;
+  border-radius: 999px; background: var(--btn); color: var(--on-btn); cursor: pointer;
+  white-space: nowrap;
+}
+@media (hover: hover) { .pend-lista .btn.primario:hover { background: var(--btn-h); } }
+
+@media (max-width: 720px) {
+  .pend-lista li { grid-template-columns: 1.5rem minmax(0, 1fr); }
+  .pend-lista .donde, .pend-lista .accion, .pend-lista .accion-form { grid-column: 2; justify-self: start; }
+}

@@ -12,9 +12,9 @@
     {% include "journey/_cargas.html" %}
   </div>
   {% if board %}
-  {# Huecos que llenan otras tareas al integrar: la línea Hay/Falta (T-312, _hay_falta.html) y el pendiente de la sección (T-318). #}
+  {# Hueco que llena otra tarea al integrar: la línea Hay/Falta (T-312, _hay_falta.html). El pendiente de la sección (T-318) va en su bloque. #}
   {% block hay_falta %}{% endblock %}
-  {% block pendientes %}{% endblock %}
+  {% block pendientes %}{% include "journey/_pendientes.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False next_url=request.path %}{% endblock %}
   {% include "journey/_tablero.html" %}
   {% else %}
   <p class="resumen-linea" id="seccion-resumen">
@@ -24,7 +24,7 @@
   <p class="falta"><b>Falta:</b> {% for item in section.tema_missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
   {% endif %}
 
-  {% include "journey/_paneles.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False %}
+  {% include "journey/_pendientes.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False next_url=request.path %}
 
   <div id="seccion-detalle">
     {% for block in blocks %}{% include block.partial with t=block.t %}{% endfor %}

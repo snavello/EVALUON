@@ -214,9 +214,13 @@ def test_un_parametro_de_modo_abre_su_detalle(client, procedure, matrix, operato
 
 
 def test_sin_mosaicos_la_seccion_se_muestra_como_hoy(client, procedure, matrix, operator_user):
-    """REQ-126: mientras un tema no declara `tiles()`, la sección sigue con sus parciales."""
-    assert not any(t.SECTION == "ofertas" for t in tema_con_mosaicos())
-    html = pedir(client, procedure, operator_user)
+    """REQ-126: mientras un tema no declara `tiles()`, la sección sigue con sus parciales (se
+    prueba con la primera sección que todavía no tiene mosaicos; Ofertas los tiene desde T-315)."""
+    con = {t.SECTION for t in tema_con_mosaicos()}
+    libres = [clave for clave in ("pliego", "evaluacion", "procedimiento") if clave not in con]
+    if not libres:
+        pytest.skip("todas las secciones ya declaran mosaicos")
+    html = pedir(client, procedure, operator_user, libres[0])
     assert 'class="tablero"' not in html
     for marca in ('id="seccion-titulo"', 'id="seccion-resumen"', 'id="pendientes"',
                   'id="seccion-detalle"'):
@@ -233,12 +237,13 @@ def test_la_pagina_con_tablero_enlaza_el_script_y_no_lleva_scripts_en_linea(
 
 
 def test_el_tablero_deja_los_huecos_de_otras_tareas():
-    """T-312 (Hay/Falta) y T-318 (pendiente de la sección) llenan estos bloques de `seccion.html`
-    al integrar; acá tienen que seguir definidos y vacíos."""
+    """T-312 (Hay/Falta) llena su bloque de `seccion.html` al integrar y acá tiene que seguir
+    definido y vacío. El de pendientes lo llenó T-318 (`test_pendientes.py` lo comprueba) y tiene
+    que seguir entre Hay/Falta y el tablero."""
     texto = (Path(__file__).resolve().parents[2] / "evaluon" / "templates" / "journey"
              / "seccion.html").read_text(encoding="utf-8")
     assert "{% block hay_falta %}{% endblock %}" in texto
-    assert "{% block pendientes %}{% endblock %}" in texto
+    assert "{% block pendientes %}" in texto
     assert texto.index("block hay_falta") < texto.index("block pendientes") < texto.index(
         "journey/_tablero.html")
 

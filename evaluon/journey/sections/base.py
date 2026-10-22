@@ -56,6 +56,11 @@ class Item:
     group_action: str = "Revisar"
     limit: int = 0  # si es mayor que 0, reemplaza a GROUP_LIMIT para este tipo
     points: tuple = ()  # el punto completo del pliego del requisito (T-228), si el renglón es de uno
+    # Pendientes con acción a mano (plan 017, REQ-129). Los tres son opcionales: sin `why` no se
+    # dibuja la línea de «por qué importa» (nunca se inventa, REQ-141).
+    why: str = ""  # por qué importa, escrito por el tema que sabe el motivo
+    open: str = ""  # id del detalle del tablero donde está el formulario de la acción
+    post: tuple | None = None  # (url, ((campo, valor), ...)) de una acción de un solo clic
 
 
 GROUP_LIMIT = 8
