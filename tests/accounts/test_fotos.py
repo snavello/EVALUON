@@ -551,3 +551,216 @@ def test_the_url_of_an_own_photo_works_before_and_after_the_route_exists():
     assert picked.photo_id == photo.pk
     assert picked.url == f"/perfil/fotos/{photo.pk}/"
     assert photos.Picked(photo_id=None, label="x").url.endswith("biblioratos-bn.jpg")
+
+
+# --- Verificación de T-319: tono con pocos niveles, metadatos JPEG y tope del reintento ----------
+
+
+def house_gray():
+    """La foto de la casa en grises y reducida: estructura real para derivar variantes."""
+    with Image.open(photos.house_photo_path()) as house:
+        gray = house.convert("L")
+    gray.thumbnail((700, 700))
+    return gray
+
+
+def tinted(low, high, saturation, gamma=None):
+    """La foto de la casa oscurecida (gamma), teñida entre dos colores y saturada."""
+    from PIL import ImageEnhance, ImageOps
+
+    gray = house_gray()
+    if gamma:
+        gray = gray.point([int(255 * (level / 255) ** gamma) for level in range(256)])
+    return ImageEnhance.Color(ImageOps.colorize(gray, low, high)).enhance(saturation)
+
+
+HOUSE_VARIANTS = {
+    "roja saturada": lambda: tinted((20, 0, 0), (250, 60, 30), 1.8),
+    "roja muy oscurecida": lambda: tinted((20, 0, 0), (250, 60, 30), 1.8, gamma=4.5),
+    "azul oscura": lambda: tinted((0, 0, 10), (40, 80, 255), 2.0, gamma=3.0),
+    "verde oscurecida": lambda: tinted((0, 10, 0), (60, 255, 40), 1.5, gamma=2.0),
+    "naranja oscurecida": lambda: tinted((10, 5, 0), (255, 140, 20), 1.0, gamma=3.0),
+    "clara y fria": lambda: tinted((120, 160, 200), (250, 255, 255), 1.0, gamma=0.5),
+    "quemada": lambda: tinted((200, 200, 210), (255, 255, 255), 1.0),
+    "alto contraste": lambda: tinted((0, 0, 0), (255, 255, 255), 1.0, gamma=0.7),
+}
+
+
+def histogram_statistics(histogram):
+    total = sum(histogram)
+    mean = sum(level * count for level, count in enumerate(histogram)) / total
+    spread = (sum(c * (level - mean) ** 2 for level, c in enumerate(histogram)) / total) ** 0.5
+    return mean, spread
+
+
+def house_statistics():
+    return histogram_statistics(photos.reference_histogram())
+
+
+def narrow_histogram():
+    """Una foto oscura: pocos niveles de gris ocupados (del 10 al 90)."""
+    histogram = [0] * 256
+    for level in range(10, 90):
+        histogram[level] = int(1000 * 2.718281828 ** (-((level - 40) ** 2) / (2 * 14**2)))
+    return histogram
+
+
+def mapped_statistics(histogram, table):
+    """Brillo medio y contraste que resultan de aplicar `table` a `histogram`."""
+    mapped = [0] * 256
+    for level, count in enumerate(histogram):
+        mapped[table[level]] += count
+    return histogram_statistics(mapped)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", sorted(HOUSE_VARIANTS))
+def test_photos_with_few_gray_levels_still_reach_the_tone_of_the_house(name):
+    """REQ-137: fotos oscuras, teñidas o saturadas (pocos niveles de gris ocupados) quedan con
+    brillo medio y contraste a 10 % o menos de los de la casa (el suavizado no achata el rango)."""
+    photo = photos.upload(make_user(), io.BytesIO(encode(HOUSE_VARIANTS[name]())))
+    mean, contrast = statistics(photo)
+    house_mean, house_contrast = house_statistics()
+    brightness_diff = relative_difference(mean, house_mean)
+    contrast_diff = relative_difference(contrast, house_contrast)
+    print(
+        f"REQ-137 {name}: brillo {mean:.1f} ({brightness_diff:.2%}); "
+        f"contraste {contrast:.1f} ({contrast_diff:.2%}) contra la casa"
+    )
+    assert brightness_diff <= LIMIT
+    assert contrast_diff <= LIMIT
+
+
+@pytest.mark.django_db
+def test_a_dark_saturated_and_a_light_cool_photo_of_the_house_end_close_to_each_other():
+    """REQ-137: entre la roja saturada y la clara y fría, brillo y contraste difieren 10 % o menos."""
+    user = make_user()
+    dark = photos.upload(user, io.BytesIO(encode(HOUSE_VARIANTS["roja saturada"]())))
+    light = photos.upload(user, io.BytesIO(encode(HOUSE_VARIANTS["clara y fria"]())))
+    assert relative_difference(statistics(dark)[0], statistics(light)[0]) <= LIMIT
+    assert relative_difference(statistics(dark)[1], statistics(light)[1]) <= LIMIT
+
+
+def test_the_mapping_table_keeps_the_range_of_a_narrow_histogram():
+    """REQ-137: con un histograma que ocupa pocos niveles (una foto oscura), la tabla suavizada
+    sigue dando el brillo y el contraste de la referencia: el suavizado no achata lo empinado."""
+    narrow = narrow_histogram()
+    table = photos.tone_table(narrow, photos.reference_histogram())
+    assert all(a <= b for a, b in zip(table, table[1:]))
+    mean, spread = mapped_statistics(narrow, table)
+    house_mean, house_contrast = house_statistics()
+    assert relative_difference(spread, house_contrast) <= 0.05
+    assert relative_difference(mean, house_mean) <= 0.05
+
+
+def test_a_smoothing_that_flattens_the_table_would_be_caught(monkeypatch):
+    """REQ-137: si el suavizado fuera tan ancho que achata la tabla (radio 20 y ventana ancha),
+    el test anterior falla: este test comprueba que lo detecta."""
+    narrow = narrow_histogram()
+    monkeypatch.setattr(photos, "SMOOTHING_RADIUS", 20)
+    monkeypatch.setattr(photos, "SMOOTHING_WINDOW", 100)
+    table = photos.tone_table(narrow, photos.reference_histogram())
+    _, spread = mapped_statistics(narrow, table)
+    assert relative_difference(spread, house_statistics()[1]) > 0.05
+
+
+def jpeg_markers(content):
+    """Los marcadores (segmentos) de un JPEG, hasta el comienzo de los datos."""
+    markers, position = [], 2
+    while position < len(content):
+        assert content[position] == 0xFF
+        marker = content[position + 1]
+        markers.append(marker)
+        if marker == 0xDA:
+            break
+        position += 2 + int.from_bytes(content[position + 2 : position + 4], "big")
+    return markers
+
+
+def with_segments(jpeg, *segments):
+    """Inserta segmentos (marcador, datos) justo después del comienzo de un JPEG."""
+    extra = b"".join(
+        b"\xff" + bytes([marker]) + (len(data) + 2).to_bytes(2, "big") + data
+        for marker, data in segments
+    )
+    return jpeg[:2] + extra + jpeg[2:]
+
+
+@pytest.mark.django_db
+def test_the_stored_jpeg_has_no_comment_xmp_icc_nor_exif():
+    """REQ-136, P4: un JPEG con comentario, XMP, perfil ICC y EXIF se guarda sin ninguno de ellos:
+    solo quedan los segmentos de la imagen (JFIF, tablas, cuadro y datos)."""
+    exif = Image.Exif()
+    exif[0x010F] = "Camara sintetica"
+    raw = encode(dark_saturated(), "JPEG", exif=exif, icc_profile=b"perfil-icc-privado" * 3)
+    raw = with_segments(
+        raw,
+        (0xFE, b"comentario-privado-777"),
+        (0xE1, b"http://ns.adobe.com/xap/1.0/\x00<x:xmpmeta>autor-privado-xmp</x:xmpmeta>"),
+    )
+    assert b"comentario-privado-777" in raw and b"autor-privado-xmp" in raw
+
+    photo = photos.upload(make_user(), io.BytesIO(raw))
+
+    content = bytes(photo.content)
+    for secret in (
+        b"comentario-privado-777",
+        b"autor-privado-xmp",
+        b"perfil-icc-privado",
+        b"Camara sintetica",
+        b"Exif",
+        b"xmpmeta",
+        b"ICC_PROFILE",
+    ):
+        assert secret not in content
+    allowed = {0xE0, 0xDB, 0xC0, 0xC2, 0xC4, 0xDA}  # JFIF, tablas, cuadro, Huffman, datos
+    assert set(jpeg_markers(content)) <= allowed
+    reopened = stored(photo)
+    assert "comment" not in reopened.info and "icc_profile" not in reopened.info
+    assert len(reopened.getexif()) == 0
+
+
+@pytest.mark.django_db
+def test_the_text_of_a_png_does_not_reach_the_stored_jpeg():
+    """REQ-136, P4: el texto de un PNG tampoco pasa al JPEG guardado."""
+    from PIL import PngImagePlugin
+
+    meta = PngImagePlugin.PngInfo()
+    meta.add_text("Comment", "texto-privado-png-555")
+    photo = photos.upload(make_user(), io.BytesIO(encode(dark_saturated(), "PNG", pnginfo=meta)))
+    assert b"texto-privado-png-555" not in bytes(photo.content)
+
+
+@pytest.mark.django_db
+def test_a_permanent_slot_conflict_ends_after_at_most_11_tries_with_a_clear_message(monkeypatch):
+    """REQ-136: si la base siempre responde que la ranura está ocupada, no hay bucle infinito:
+    termina en 11 vueltas o menos con el mensaje de las subidas a la vez."""
+    user = make_user()
+    make_photo(user, 0, b"ocupa")
+    calls = []
+
+    def stale(target):
+        calls.append(1)
+        return set()
+
+    monkeypatch.setattr(photos, "used_slots", stale)
+    with pytest.raises(photos.PhotoRejected) as error:
+        photos.upload(user, io.BytesIO(encode(dark_saturated())))
+    assert len(calls) <= PHOTO_SLOTS + 1
+    assert "otras subidas a la vez" in str(error.value)
+    assert Photo.objects.filter(user=user).count() == 1
+
+
+@pytest.mark.django_db
+def test_an_integrity_error_that_is_not_the_slot_is_not_called_simultaneous_uploads(monkeypatch):
+    """REQ-136: un error de la base que no es el de la ranura (aquí el tope de tamaño) se
+    relanza: no se disfraza de «subidas a la vez» ni se reintenta."""
+    from django.db import IntegrityError
+
+    monkeypatch.setattr(photos, "_normalize", lambda data: (b"x" * (PHOTO_MAX_BYTES + 1), 10, 10))
+    calls = []
+    real = photos.used_slots
+    monkeypatch.setattr(photos, "used_slots", lambda target: calls.append(1) or real(target))
+    with pytest.raises(IntegrityError):
+        photos.upload(make_user(), io.BytesIO(encode(dark_saturated())))
+    assert len(calls) == 1
