@@ -17,6 +17,7 @@ from evaluon.audit.models import Channel
 from evaluon.journey import memo
 from evaluon.journey.sections import sections_for
 from evaluon.journey.stages import is_viewer
+from evaluon.journey.tablero.ingreso import KEY as INGRESO_KEY
 from evaluon.journey.tablero.tiles import build_board
 from evaluon.journey.views import inicio
 from evaluon.journey.window import window_for
@@ -114,6 +115,12 @@ def seccion(request, procedure_id, key):
     contexts = {tema.KEY: tema.context(request.user, overview.procedure, request)
                 for tema in section.temas}
     context = shell(request, overview, active=key)
+    if section.ingreso_template:
+        # El primer panel (T-321): foto, datos principales y pendiente general. Los mosaicos
+        # propios de la sección lo leen de `contexts`.
+        ingreso = section.ingreso_context(request.user, overview.procedure, request, overview)
+        contexts[INGRESO_KEY] = ingreso
+        context.update(ingreso)
     context.update({
         "section": section,
         "pending_rows": [(section, item) for item in section.pending_items],

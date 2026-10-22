@@ -1,8 +1,9 @@
-"""Vista mínima del indicador de avance del encabezado (REQ-140; plan 017, T-312).
+"""Indicador de avance del encabezado (REQ-140; plan 017, T-312 y T-330).
 
-Devuelve el fragmento `_avance_encabezado.html`: un anillo con el porcentaje de la cuenta gruesa
-del pedido en espera o en curso (`window_for(...)["main"]`), enlazado al primer panel. Sin pedido
-activo no dibuja nada. Solo lee (P3). La estética final y el cálculo general son de T-330."""
+Devuelve el fragmento `_avance_encabezado.html`: un anillo con el porcentaje global del pedido en
+curso (`window_for(...)["overall_percent"]`: ofertas hechas más el avance de la oferta en curso),
+enlazado al primer panel. En espera, o sin un total conocido (matriz, lectura, Portal), el anillo
+gira sin porcentaje. Sin pedido activo no dibuja nada. Solo lee (P3)."""
 
 from django.http import Http404
 from django.shortcuts import render
@@ -23,12 +24,12 @@ OPERATION = "evaluon.journey.views.avance.avance"
 
 def avance_of(procedure):
     """Lo que dibuja el indicador, o `None` si no hay un pedido en espera ni en curso.
-    `percent` es `None` mientras no se sabe (en espera, o sin cuenta): no se inventa (REQ-141)."""
+    `percent` es `None` mientras no se sabe (en espera, o un pedido sin total): no se inventa
+    (REQ-141); el anillo gira en ese caso."""
     window = window_for(procedure)
     if not window or not window.get("active"):
         return None
-    main = window.get("main")
-    percent = main["percent"] if main and window["state"] == "running" else None
+    percent = window["overall_percent"] if window["state"] == "running" else None
     return {"state": window["state"], "state_label": window["state_label"],
             "task": window["task"], "percent": percent,
             "url": reverse("expedientes:procedimiento", args=[procedure.pk])}

@@ -7,14 +7,21 @@
 
 {% block cuerpo %}
 <div class="seccion seccion-{{ section.key }}">
+  {% if section.ingreso_template %}
+  {# El primer panel (T-321): encabezado con la foto, Hay/Falta, ventana del proceso y pendiente general en un solo parcial. El lugar de Hay/Falta está marcado HAY_FALTA en _ingreso.html. #}
+  {% include section.ingreso_template %}
+  {% else %}
   <div class="encab-parte">
     <h2 id="seccion-titulo">{{ section.label }}</h2>
     {% include "journey/_cargas.html" %}
   </div>
+  {% endif %}
   {% if board %}
-  {# Línea Hay/Falta (T-312) y pendiente de la sección (T-318). #}
+  {% if not section.ingreso_template %}
+  {# Línea Hay/Falta (T-312) y pendiente de la sección (T-318); el primer panel los trae en _ingreso.html. #}
   {% block hay_falta %}{% include "journey/_hay_falta.html" %}{% endblock %}
   {% block pendientes %}{% include "journey/_pendientes.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False next_url=request.path %}{% endblock %}
+  {% endif %}
   {% include "journey/_tablero.html" %}
   {% else %}
   {% include "journey/_hay_falta.html" %}

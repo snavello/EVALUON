@@ -1,0 +1,14 @@
+{% comment %}Detalle «Avance por sección» del primer panel (T-321; ADR-0077, avance A). Variable: `avance` (tablero.ingreso.Avance). Cada sección con su estado (ícono y nombre), sus pendientes y lo que falta; sin porcentajes.{% endcomment %}<div class="avance-detalle">
+  <p class="sub">{{ avance.text }}. Cada sección se puede abrir en cualquier momento.</p>
+  <ul class="avance-lista">
+    {% for row in avance.rows %}
+    <li>
+      {% include "journey/_icono.html" with icon=row.icon name=row.state_label %}
+      <span class="renglon"><a class="que" href="{{ row.url }}">{{ row.label }}</a> <span class="estado">{{ row.state_label }}</span>
+        {% if row.pending %}<span class="sub">{{ row.pending }} por decidir</span>{% endif %}
+        {% if row.missing %}<span class="falta-lista">{% for text in row.missing %}<span class="sub">Falta: {{ text }}</span>{% endfor %}{% if row.more %}<span class="sub">y {{ row.more }} más</span>{% endif %}</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
