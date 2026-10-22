@@ -78,7 +78,7 @@ flowchart LR
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
-| [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 3 de 7 · Tareas | — | — |
+| [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 0/27 | ░░░░░░░░░░ 0% |
 
 <a id="001"></a>
 
@@ -1693,11 +1693,11 @@ flowchart TD
 
 ## 017 · Tableros de primer nivel y estética nueva
 
-**Etapa actual:** 3 de 7 · Tareas · [carpeta](../specs/017-tableros-y-estetica)
+**Etapa actual:** 4 de 7 · Desarrollo · [carpeta](../specs/017-tableros-y-estetica)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["▶ 3. Tareas"]:::active --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1707,30 +1707,147 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** El planificador desglosa el plan en `tasks.md`.
+- **Próximo paso:** Desarrollar: 27 tareas sin terminar.
+- ○ T-308 · Esquema y perfil: `User.theme`, tabla `Photo` con sus restricciones, migración reversible, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa con sus créditos y `.gitignore` (pendiente)
+- ○ T-309 · Tokens de los dos temas con alias de los viejos, estilos de `evaluon.css`, `recorrido.css` y `punto.css` en los dos temas, guía visual, test de contraste y test de direcciones externas (pendiente)
+- ○ T-310 · Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en `static/marca/` (pendiente)
+- ○ T-311 · Tema en `base.html`, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de usuario), vista del tema, pase de hoja, ingreso con el logotipo nuevo y retiro de los SVG viejos (pendiente)
+- ○ T-312 · Línea «Hay · Falta», portada que redirige al primer panel y vista mínima del indicador de avance (pendiente)
+- ○ T-313 · Componente de tablero: contrato `Tile`, mosaico, cuadrícula, detalle desplegable (`tablero.js` y `tablero.css`) y cuerpo común de las secciones (pendiente)
+- ○ T-314 · Siete gráficos SVG y orden económico (`charts.py`, `economico.py`, plantillas de gráficos) (pendiente)
+- ○ T-315 · Tablero de Ofertas con el detalle «Ofertas del acta» y el orden económico (corte vertical) (pendiente)
+- ○ T-316 · Medición del corte vertical: contraste, 2 s, 0,4 s y revisión visual en Edge, sin código (pendiente)
+- ○ T-317 · Correcciones de la medición del corte vertical, en una sola tarea y con re-medición de lo que cambió (se cierra sin cambios si no hay hallazgos) (pendiente)
+- ○ T-318 · Pendientes con acción a mano: `Item.why/open/post`, `_pendientes.html` y dictamen del Portal en Evaluación (pendiente)
+- ○ T-319 · Fotos: normalización por histograma, subida con sus límites y elección al azar sin repetir (pendiente)
+- ○ T-320 · Mis fotos: página del perfil, quitar, servido privado y enlace en el menú de usuario (pendiente)
+- ○ T-321 · Primer panel: foto de fondo, datos principales, pendiente general, avance y mosaicos que enlazan a Evaluación (pendiente)
+- ○ T-322 · Primer panel: orden económico, plazos importantes y vencimiento del mantenimiento (pendiente)
+- ○ T-323 · Mosaicos de la sección Procedimiento: Datos, Portal de Compras y Alta desde el pliego (pendiente)
+- ○ T-324 · Listado de procedimientos, alta y borrador del pliego con la estética nueva (pendiente)
+- ○ T-325 · Tablero de Pliego y matriz (pendiente)
+- ○ T-326 · Resto del tablero de Ofertas: hojas de compliance, documentación, circulares y fichas (pendiente)
+- ○ T-327 · Tablero de Evaluación, parte 1: resultado por oferta, no cumple, no determinado y cumplimiento por tipo (pendiente)
+- ○ T-328 · Tablero de Evaluación, parte 2: informe técnico, dictamen, descartes, preguntas y exportar (pendiente)
+- ○ T-329 · Tablero de Normativas y página general de normativas (pendiente)
+- ○ T-330 · Avance de procesos largos: porcentaje global, panel de avance e indicador del encabezado con la estética nueva (pendiente)
+- ○ T-331 · Cierre técnico: quitar alias y colores sueltos, retirar Barlow y la marca vieja, guía visual final y test final de tokens y de anclas (pendiente)
+- ○ T-332 · Runbook de despliegue `entorno.md`: reconstrucción de la imagen y migración con respaldo (pendiente)
+- ○ T-333 · Medición final: 2 s con el procedimiento real del piloto y revisión visual de las cinco secciones en los dos temas, sin código (pendiente)
+- ○ T-334 · Correcciones de la medición final, en una sola tarea (se cierra sin cambios si no hay hallazgos) (pendiente)
 
 ### Qué se hizo
 
-- Etapas completas: Spec, Plan.
+- Etapas completas: Spec, Plan, Tareas.
+
+### Mapa de tareas
+
+```mermaid
+flowchart TD
+  T308["○ T-308 · Esquema y perfil: User.theme, tabla Photo c…"]:::todo
+  T309["○ T-309 · Tokens de los dos temas con alias de los vi…"]:::todo
+  T310["○ T-310 · Tipografía Hanken Grotesk alojada con su li…"]:::todo
+  T311["○ T-311 · Tema en base.html, encabezado único (logoti…"]:::todo
+  T312["○ T-312 · Línea «Hay · Falta», portada que redirige a…"]:::todo
+  T313["○ T-313 · Componente de tablero: contrato Tile, mosai…"]:::todo
+  T314["○ T-314 · Siete gráficos SVG y orden económico (chart…"]:::todo
+  T315["○ T-315 · Tablero de Ofertas con el detalle «Ofertas…"]:::todo
+  T316["○ T-316 · Medición del corte vertical: contraste, 2 s…"]:::todo
+  T317["○ T-317 · Correcciones de la medición del corte verti…"]:::todo
+  T318["○ T-318 · Pendientes con acción a mano: Item.why/open…"]:::todo
+  T319["○ T-319 · Fotos: normalización por histograma, subida…"]:::todo
+  T320["○ T-320 · Mis fotos: página del perfil, quitar, servi…"]:::todo
+  T321["○ T-321 · Primer panel: foto de fondo, datos principa…"]:::todo
+  T322["○ T-322 · Primer panel: orden económico, plazos impor…"]:::todo
+  T323["○ T-323 · Mosaicos de la sección Procedimiento: Datos…"]:::todo
+  T324["○ T-324 · Listado de procedimientos, alta y borrador…"]:::todo
+  T325["○ T-325 · Tablero de Pliego y matriz"]:::todo
+  T326["○ T-326 · Resto del tablero de Ofertas: hojas de comp…"]:::todo
+  T327["○ T-327 · Tablero de Evaluación, parte 1: resultado p…"]:::todo
+  T328["○ T-328 · Tablero de Evaluación, parte 2: informe téc…"]:::todo
+  T329["○ T-329 · Tablero de Normativas y página general de n…"]:::todo
+  T330["○ T-330 · Avance de procesos largos: porcentaje globa…"]:::todo
+  T331["○ T-331 · Cierre técnico: quitar alias y colores suel…"]:::todo
+  T332["○ T-332 · Runbook de despliegue entorno.md: reconstru…"]:::todo
+  T333["○ T-333 · Medición final: 2 s con el procedimiento re…"]:::todo
+  T334["○ T-334 · Correcciones de la medición final, en una s…"]:::todo
+  T308 --> T311
+  T309 --> T311
+  T310 --> T311
+  T311 --> T312
+  T312 --> T313
+  T309 --> T314
+  T313 --> T315
+  T314 --> T315
+  T315 --> T316
+  T316 --> T317
+  T317 --> T318
+  T308 --> T319
+  T311 --> T320
+  T319 --> T320
+  T317 --> T321
+  T318 --> T321
+  T320 --> T321
+  T321 --> T322
+  T317 --> T323
+  T318 --> T323
+  T317 --> T324
+  T317 --> T325
+  T317 --> T326
+  T317 --> T327
+  T318 --> T327
+  T317 --> T328
+  T318 --> T328
+  T317 --> T329
+  T317 --> T330
+  T320 --> T331
+  T322 --> T331
+  T323 --> T331
+  T324 --> T331
+  T325 --> T331
+  T326 --> T331
+  T327 --> T331
+  T328 --> T331
+  T329 --> T331
+  T330 --> T331
+  T320 --> T332
+  T322 --> T332
+  T323 --> T332
+  T324 --> T332
+  T325 --> T332
+  T326 --> T332
+  T327 --> T332
+  T328 --> T332
+  T329 --> T332
+  T330 --> T332
+  T331 --> T333
+  T332 --> T333
+  T333 --> T334
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
 
 ### Requisitos
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-126 | Cada una de las cinco secciones abre con un tablero de primer nivel: mosaicos con información agregada (cifras grandes y gráficos), cada uno con un detalle. | — | — |
-| REQ-127 | Al tocar un mosaico, su detalle se despliega debajo de la fila del mosaico, en la misma pantalla; al tocarlo de nuevo se pliega. Solo un detalle abierto a la vez. | — | — |
-| REQ-128 | El primer panel (sección Procedimiento) es el ingreso a lo importante del procedimiento: sus datos principales (objeto, número, expediente, fecha de autorización, cantidad de ofertas, la oferta más alta y la más baja, avance, días hasta el vencimiento del mantenimiento y cantidad de pendientes), el pendiente general, el orden económico de las ofertas y los plazos importantes. La normativa no aparece en el primer panel: actúa como soporte estático y se consulta en su sección. Es el ingreso de un procedimiento, no una portada de todos los procedimientos. | — | — |
-| REQ-129 | Hay un pendiente general en el primer panel, con todo lo que falta hacer en las cinco secciones, y un pendiente propio en cada sección. Cada pendiente dice qué falta, por qué importa, en qué sección está y tiene su acción a mano (aprobar, tomar del Portal, subir, responder, decidir). | — | — |
-| REQ-130 | El orden económico muestra las ofertas de menor a mayor total, con la oferta más alta y la más baja como indicadores, y cuánto se aparta cada una de la más baja. No se usa monto estimado. Si todavía no se cargaron las ofertas, el cuadro muestra el día de la apertura y un indicador de pendiente. | — | — |
-| REQ-131 | Los plazos importantes muestran al menos la apertura, el día de hoy, el vencimiento del mantenimiento de las ofertas y el dictamen de la Comisión, con lo que ya pasó, lo de hoy y lo que viene. | — | — |
-| REQ-132 | Siempre se sabe el camino: un recorrido arriba (Procedimientos › procedimiento › sección) y, en cada sección, una línea con qué hay y qué falta completar. Las pestañas muestran cuántos pendientes tiene cada sección. | — | — |
-| REQ-133 | La estética sigue el modelo 2 de la ronda 3: negro, grises y blanco, verde lima solo para resaltar, cifras grandes, gráficos en colores levemente desaturados y pestañas en píldora. Los estados de cumplimiento siguen siendo íconos de color con forma propia y el nombre al pasar el mouse (guía visual, decisión del 2026-10-07). | — | — |
-| REQ-134 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda guardada en el perfil del usuario y vale en cualquier equipo. El tema de inicio es gris y blanco. | — | — |
-| REQ-135 | La foto aparece solo en el primer panel, como fondo muy suave, casi etéreo, pero que se note, detrás de los datos principales del procedimiento. Ocupa a lo sumo el 60 % del ancho que ocupaba en el modelo 2 (un 40 % menos) y se funde con el fondo del panel. | — | — |
-| REQ-136 | Cada usuario tiene en su perfil «Mis fotos»: sube, ve y quita hasta 10 fotos. Si no tiene fotos propias, se muestra la foto de la casa. Las fotos quedan en el equipo, las ve solo su dueño y nunca van al repositorio ni a un servicio externo. | — | — |
-| REQ-137 | Al subir una foto, el sistema la ajusta para que todas tengan el mismo tono, saturación, temperatura, brillo y contraste: todas quedan en blanco y negro, con el mismo brillo medio y el mismo contraste que la foto de la casa. | — | — |
-| REQ-138 | La foto se elige al azar entre las del usuario y cambia solo al cambiar de pantalla, nunca mientras se está en ella. Entra con una animación sutil. | — | — |
-| REQ-139 | Al cambiar de sección, la pantalla pasa con efecto de hoja que gira. Con «reducir movimiento» activado en el equipo, el paso es un fundido corto. | — | — |
-| REQ-140 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su avance con la estética nueva: porcentaje, dónde va (por ejemplo, oferta 2 de 3, requisito 14 de 23) y los últimos pasos en lenguaje llano, en el primer panel y como indicador chico en el encabezado de todas las secciones. | — | — |
-| REQ-141 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente», nunca con un valor inventado. Toda propuesta del sistema sigue mostrando su fundamento (P3). | — | — |
-| REQ-142 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el efecto vidrio y el halo, recoloreados a la estética nueva: en el tema gris y blanco, la placa EVALU en negro y la de ON en verde lima; en el tema negro, la placa EVALU en gris y la de ON en verde lima. El encabezado muestra la versión del tema elegido y la pestaña del navegador lleva el isotipo. Archivos: `docs/diseno/marca/017/`. | — | — |
+| REQ-126 | Cada una de las cinco secciones abre con un tablero de primer nivel: mosaicos con información agregada (cifras grandes y gráficos), cada uno con un detalle. | T-313, T-314, T-315, T-316, T-317, T-323, T-325, T-326, T-327, T-328, T-329, T-333, T-334 | ○ pendiente |
+| REQ-127 | Al tocar un mosaico, su detalle se despliega debajo de la fila del mosaico, en la misma pantalla; al tocarlo de nuevo se pliega. Solo un detalle abierto a la vez. | T-313, T-315, T-316, T-317 | ○ pendiente |
+| REQ-128 | El primer panel (sección Procedimiento) es el ingreso a lo importante del procedimiento: sus datos principales (objeto, número, expediente, fecha de autorización, cantidad de ofertas, la oferta más alta y la más baja, avance, días hasta el vencimiento del mantenimiento y cantidad de pendientes), el pendiente general, el orden económico de las ofertas y los plazos importantes. La normativa no aparece en el primer panel: actúa como soporte estático y se consulta en su sección. Es el ingreso de un procedimiento, no una portada de todos los procedimientos. | T-312, T-321, T-322 | ○ pendiente |
+| REQ-129 | Hay un pendiente general en el primer panel, con todo lo que falta hacer en las cinco secciones, y un pendiente propio en cada sección. Cada pendiente dice qué falta, por qué importa, en qué sección está y tiene su acción a mano (aprobar, tomar del Portal, subir, responder, decidir). | T-318, T-321, T-323, T-325, T-326, T-328, T-329 | ○ pendiente |
+| REQ-130 | El orden económico muestra las ofertas de menor a mayor total, con la oferta más alta y la más baja como indicadores, y cuánto se aparta cada una de la más baja. No se usa monto estimado. Si todavía no se cargaron las ofertas, el cuadro muestra el día de la apertura y un indicador de pendiente. | T-314, T-315, T-322 | ○ pendiente |
+| REQ-131 | Los plazos importantes muestran al menos la apertura, el día de hoy, el vencimiento del mantenimiento de las ofertas y el dictamen de la Comisión, con lo que ya pasó, lo de hoy y lo que viene. | T-322 | ○ pendiente |
+| REQ-132 | Siempre se sabe el camino: un recorrido arriba (Procedimientos › procedimiento › sección) y, en cada sección, una línea con qué hay y qué falta completar. Las pestañas muestran cuántos pendientes tiene cada sección. | T-311, T-312, T-321, T-324 | ○ pendiente |
+| REQ-133 | La estética sigue el modelo 2 de la ronda 3: negro, grises y blanco, verde lima solo para resaltar, cifras grandes, gráficos en colores levemente desaturados y pestañas en píldora. Los estados de cumplimiento siguen siendo íconos de color con forma propia y el nombre al pasar el mouse (guía visual, decisión del 2026-10-07). | T-309, T-310, T-311, T-316, T-317, T-324, T-331, T-333, T-334 | ○ pendiente |
+| REQ-134 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda guardada en el perfil del usuario y vale en cualquier equipo. El tema de inicio es gris y blanco. | T-308, T-311, T-332 | ○ pendiente |
+| REQ-135 | La foto aparece solo en el primer panel, como fondo muy suave, casi etéreo, pero que se note, detrás de los datos principales del procedimiento. Ocupa a lo sumo el 60 % del ancho que ocupaba en el modelo 2 (un 40 % menos) y se funde con el fondo del panel. | T-321 | ○ pendiente |
+| REQ-136 | Cada usuario tiene en su perfil «Mis fotos»: sube, ve y quita hasta 10 fotos. Si no tiene fotos propias, se muestra la foto de la casa. Las fotos quedan en el equipo, las ve solo su dueño y nunca van al repositorio ni a un servicio externo. | T-308, T-319, T-320, T-332 | ○ pendiente |
+| REQ-137 | Al subir una foto, el sistema la ajusta para que todas tengan el mismo tono, saturación, temperatura, brillo y contraste: todas quedan en blanco y negro, con el mismo brillo medio y el mismo contraste que la foto de la casa. | T-319 | ○ pendiente |
+| REQ-138 | La foto se elige al azar entre las del usuario y cambia solo al cambiar de pantalla, nunca mientras se está en ella. Entra con una animación sutil. | T-308, T-319, T-321 | ○ pendiente |
+| REQ-139 | Al cambiar de sección, la pantalla pasa con efecto de hoja que gira. Con «reducir movimiento» activado en el equipo, el paso es un fundido corto. | T-311, T-316, T-333 | ○ pendiente |
+| REQ-140 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su avance con la estética nueva: porcentaje, dónde va (por ejemplo, oferta 2 de 3, requisito 14 de 23) y los últimos pasos en lenguaje llano, en el primer panel y como indicador chico en el encabezado de todas las secciones. | T-312, T-330 | ○ pendiente |
+| REQ-141 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente», nunca con un valor inventado. Toda propuesta del sistema sigue mostrando su fundamento (P3). | T-313, T-314, T-315, T-318, T-322, T-323, T-325, T-326, T-327, T-328, T-329 | ○ pendiente |
+| REQ-142 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el efecto vidrio y el halo, recoloreados a la estética nueva: en el tema gris y blanco, la placa EVALU en negro y la de ON en verde lima; en el tema negro, la placa EVALU en gris y la de ON en verde lima. El encabezado muestra la versión del tema elegido y la pestaña del navegador lleva el isotipo. Archivos: `docs/diseno/marca/017/`. | T-310, T-311, T-331 | ○ pendiente |
