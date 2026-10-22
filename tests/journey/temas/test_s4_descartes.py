@@ -69,11 +69,13 @@ def rows_of(html):
 
 def test_the_blocks_follow_the_order_of_the_approved_mockup(
         client, proposed, procedure, operator_user):
-    """REQ-091: resultado y orden económico, descartes, propuesta, preguntas e informe, en ese
-    orden, con las anclas."""
+    """REQ-091: resultado y orden económico, descartes, preguntas, informe, dictamen y exportar,
+    en ese orden, con las anclas. Con el tablero (plan 017, T-328) cada bloque es el detalle de su
+    mosaico y el lugar de la propuesta lo decide su propio tablero (T-327), no este tema."""
     log_in(client, operator_user)
     html = page(client, procedure)
-    anchors = ["s4-resultado", "s4-descartes", "s4-propuesta", "s4-preguntas", "s4-informe"]
+    anchors = ["s4-resultado", "s4-descartes", "s4-preguntas", "s4-informe", "s4-dictamen",
+               "s4-exportar"]
     places = [html.index(f'id="{anchor}"') for anchor in anchors]
     assert places == sorted(places)
 
@@ -298,4 +300,6 @@ def test_the_missing_report_and_the_pending_list_name_the_same_offers(
     log_in(client, operator_user)
     html = page(client, procedure)
     assert "Sugerencias del sistema:" not in html
-    assert "2 descartes propuestos" in html
+    # El tablero reemplaza la línea de resumen (plan 017): los dos descartes por decidir se ven
+    # en su mosaico.
+    assert 'class="big">2<small>por decidir</small>' in html.split('id="m-descartes"')[1]

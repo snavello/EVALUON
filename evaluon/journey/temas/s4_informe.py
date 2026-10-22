@@ -32,6 +32,8 @@ from evaluon.assessment.services import technical, technical_report
 from evaluon.audit.models import Channel
 from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
+from evaluon.journey.tablero import charts
+from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.temas.s4_propuesta import when
 from evaluon.offers import vision
@@ -61,6 +63,8 @@ class ReportDoc:
     loaded: str
     state: str
     sha: str
+    code: str = ""  # el estado de lectura de `offers_service`, sin traducir
+    pages: int | None = None  # las páginas de la lectura, solo si ya se leyó
 
 
 @dataclass
@@ -123,6 +127,12 @@ def _pending_ok_offers(page):
                    if (status.offer.pk, row.requirement.pk) in page.cells)]
 
 
+# Por qué importa cada pendiente del informe (REQ-129, T-328): lo que el sistema hace y no hace.
+WHY_UPLOAD = ("El juicio técnico es del área: sin su informe el sistema no puede proponer apto "
+              "o no apto por renglón.")
+WHY_OK = ("El sistema solo propone lo que dice el informe; no vale para la evaluación hasta que "
+          "la Comisión le da su ok.")
+
 # --- Estado y pendientes -------------------------------------------------------------------------
 
 
@@ -136,12 +146,13 @@ def status(user, procedure):
         if reports_of[offer.pk]:
             pending.append(Item(f"Oferta {offer.number}: falta el ok del informe técnico",
                                 f"{base}{ANCHOR}", 1, "Resolver", kind="informe_ok", limit=3,
-                                noun="ofertas sin el ok del informe técnico",
+                                noun="ofertas sin el ok del informe técnico", why=WHY_OK,
                                 group_url=f"{base}{ANCHOR}"))
         else:  # sin informe, lo primero es subirlo: va al formulario de esa oferta
             pending.append(Item(f"Oferta {offer.number}: falta subir el informe técnico",
                                 f"{base}#informe-oferta-{offer.number}", 1, "Resolver",
                                 kind="informe_falta", limit=3, noun="ofertas sin informe técnico",
+                                why=WHY_UPLOAD,
                                 group_url=f"{base}{ANCHOR}", group_action="Subir"))
     # Mismas ofertas que los pendientes «falta subir el informe»: con filas técnicas ya
     # evaluadas y sin informe.
@@ -189,6 +200,15 @@ def _cell(row, block):
     return Cell(icon="pend", name="Sin propuesta todavía", row=row)
 
 
+def _pages(doc_row):
+    """Las páginas de un informe ya leído, o `None` si todavía no se conocen."""
+    if doc_row.state != offers_service.STATE_READ or doc_row.reading is None:
+        return None
+    data = doc_row.reading.pages
+    listed = data.get("pages", []) if isinstance(data, dict) else data
+    return len(listed) if isinstance(listed, list) and listed else None
+
+
 def _blocks(page):
     blocks = []
     for status_ in _with_rows(page):
@@ -198,7 +218,8 @@ def _blocks(page):
             doc_row = offers_service.document_row(document)
             block.docs.append(ReportDoc(
                 title=document.title, loaded=when(document.loaded_at),
-                state=READING_TEXT[doc_row.state], sha=document.file_sha256))
+                state=READING_TEXT[doc_row.state], sha=document.file_sha256,
+                code=doc_row.state, pages=_pages(doc_row)))
         block.approved = sum(1 for r in status_.technical if r.approved)
         block.to_decide = [(r.item, r.proposal.verdict if r.proposal else "")
                            for r in status_.technical if not r.approved]
@@ -226,11 +247,85 @@ def context(user, procedure, request):
     proposed = sum(1 for c in cells.values()
                    if c.row.proposal is not None and c.row.proposal.verdict)
     return {
+        "tablero": _figures(blocks, cells),
         "pid": procedure.pk, "blocks": blocks, "table": table,
         "is_evaluator": _is_evaluator(user), "total": len(cells), "proposed": proposed,
         "choices": list(TechnicalVerdict.choices),
         "all_reports": sum(len(b.docs) for b in blocks),
     }
+
+
+# --- Mosaico del tablero (plan 017, T-328) -------------------------------------------------------
+
+
+def _figures(blocks, cells):
+    """Lo que el mosaico necesita, de lo guardado: el estado de lectura del conjunto, cuántos
+    renglones propone el informe como aptos y no aptos (o ya tienen el ok de la Comisión) y
+    las páginas, solo si todos los informes distintos están leídos y se conocen."""
+    apto = no_apto = approved = 0
+    for cell in cells.values():
+        row = cell.row
+        verdict = row.verdict if row.approved else (row.proposal.verdict if row.proposal else "")
+        apto += verdict == technical_report.APTO
+        no_apto += verdict == technical_report.NO_APTO
+        approved += bool(row.approved)
+    docs = {d.sha: d for b in blocks for d in b.docs}.values()
+    codes = {d.code for d in docs}
+    for code, word in ((offers_service.STATE_FAILED, "No se pudo leer"),
+                       (offers_service.STATE_RUNNING, "Leyendo"),
+                       (offers_service.STATE_QUEUED, "En espera")):
+        if code in codes:
+            state = word
+            break
+    else:
+        state = "Leído" if codes else ""
+    pages = None
+    if docs and all(d.pages for d in docs):
+        pages = sum(d.pages for d in docs)
+    return {"blocks": len(blocks), "state": state, "pages": pages, "total": len(cells),
+            "apto": apto, "no_apto": no_apto, "approved": approved,
+            "absent": [b.offer for b in blocks if not b.docs]}
+
+
+def tiles(user, procedure, ctx):
+    """El mosaico «Informe técnico del área». Sin ofertas con renglones técnicos, «Pendiente»;
+    con renglones y sin informe, «Falta el informe» y en qué ofertas; con informe, su estado de
+    lectura y, ya leído, lo que PROPONE (apto y no apto: es una propuesta, el ok es de la
+    Comisión) y las páginas, solo cuando se conocen (REQ-141, P3)."""
+    ctx = ctx if ctx is not None else context(user, procedure, None)
+    fig = ctx["tablero"]
+    detail = detail_id(KEY)
+    if not fig["blocks"]:
+        return [Tile(key="informe", title="Informe técnico del área", detail=detail, width=2,
+                     sub="Ninguna oferta tiene renglones técnicos evaluados",
+                     missing="Pendiente")]
+    absent = (f"Falta en {_offers_text(fig['absent'])}." if fig["absent"] else "")
+    if not fig["state"]:
+        return [Tile(key="informe", title="Informe técnico del área", detail=detail, width=2,
+                     sub=f"{absent} Se sube en el detalle.", missing="Falta el informe")]
+    if fig["state"] != "Leído":
+        sub = {"En espera": "El sistema lo leerá y propondrá por renglón.",
+               "Leyendo": "El sistema lo está leyendo.",
+               "No se pudo leer": "Hay que subirlo de nuevo."}[fig["state"]]
+        return [Tile(key="informe", title="Informe técnico del área", detail=detail, width=2,
+                     big=fig["state"], sub=f"{sub} {absent}".strip())]
+    apto, no_apto = fig["apto"], fig["no_apto"]
+    without = fig["total"] - apto - no_apto
+    parts = [f"Propone {apto} {'apto' if apto == 1 else 'aptos'}, {no_apto} no "
+             f"{'apto' if no_apto == 1 else 'aptos'} y {without} sin propuesta; el ok es de la "
+             f"Comisión ({fig['approved']} de {fig['total']})"]
+    if fig["pages"]:
+        parts.append(f"{fig['pages']} págs.")
+    if absent:
+        parts.append(absent.rstrip("."))
+    chart = None
+    if apto + no_apto:
+        chart = charts.Stack(uid="s4-informe", title="Propuesta del informe técnico", parts=[
+            charts.StackPart("Apto", apto, tone="ok"),
+            charts.StackPart("No apto", no_apto, tone="no"),
+            charts.StackPart("Sin propuesta", without, tone="pe")])
+    return [Tile(key="informe", title="Informe técnico del área", detail=detail, width=2,
+                 big=fig["state"], sub=" · ".join(parts), chart=chart)]
 
 
 # --- Acciones ------------------------------------------------------------------------------------

@@ -153,7 +153,7 @@ def test_un_dictamen_subido_muestra_que_esta_cargado_y_quien_lo_subio(
     assert subir_dictamen(client, procedure).status_code == 302
     tile = mosaicos()["dictamen"]
     assert tile.has_data and tile.big == "Cargado"
-    assert "subido por la Comisión" in tile.sub.lower()
+    assert "Subido por la Comisión" in tile.sub
 
 
 def test_el_ancla_dictamen_subir_de_la_014_abre_su_detalle(client, procedure, operator_user):
