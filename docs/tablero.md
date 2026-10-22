@@ -24,6 +24,7 @@ flowchart LR
   F014["▶ 014 · Aplicación por secciones"]:::active
   F015["▶ 015 · Uso y elección del modelo"]:::active
   F016["▶ 016 · Calidad medible y modelos por…"]:::active
+  F017["▶ 017 · Tableros de primer nivel y es…"]:::active
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -51,6 +52,7 @@ flowchart LR
   F014 --> F015
   F004 --> F016
   F015 --> F016
+  F014 --> F017
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -76,6 +78,7 @@ flowchart LR
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
+| [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 1 de 7 · Spec | — | — |
 
 <a id="001"></a>
 
@@ -1685,3 +1688,53 @@ flowchart TD
 | REQ-123 | La matriz de cumplimiento se puede proponer con un modelo externo que lee el pliego completo, con las mismas medidas y la misma lista esperada que la local; se adopta por etapa solo si mejora según el ADR-0065 y, en empate, queda la local | T-291, T-292, T-293, T-294, T-295, T-296, T-297 | ✓ cubierto |
 | REQ-124 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma que la cita sostiene la conclusión y propone la redacción de la pregunta; si no la sostiene, la celda pasa a «no determinado» con pregunta; la verificación nunca convierte un «no determinado» en «cumple» | T-299, T-301, T-302, T-303, T-304, T-305 | ✕ bloqueado |
 | REQ-125 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral escrito antes, en la instancia clonada, y se integra solo si lo pasa; la elección local o externa de cada etapa queda en un ADR con su medición | T-270, T-276, T-283, T-284, T-286, T-287, T-293, T-295, T-296, T-298, T-301, T-303, T-304, T-306, T-307 | ✕ bloqueado |
+
+<a id="017"></a>
+
+## 017 · Tableros de primer nivel y estética nueva
+
+**Etapa actual:** 1 de 7 · Spec (spec en borrador, 6 dudas abiertas) · [carpeta](../specs/017-tableros-y-estetica)
+
+```mermaid
+flowchart LR
+  E0["▶ 1. Spec"]:::active --> E1["○ 2. Plan"]:::todo --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** Resolver 6 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+
+### Qué se hizo
+
+- Nada terminado todavía.
+
+### Requisitos
+
+| Requisito | Descripción | Tareas | Estado |
+|---|---|---|---|
+| REQ-126 | Cada una de las cinco secciones abre con un tablero de primer nivel: mosaicos con información agregada (cifras grandes y gráficos), cada uno con un detalle. | — | — |
+| REQ-127 | Al tocar un mosaico, su detalle se despliega debajo de la fila del mosaico, en la misma pantalla; al tocarlo de nuevo se pliega. Solo un detalle abierto a la vez. | — | — |
+| REQ-128 | El primer panel (sección Procedimiento) es el ingreso a lo importante de todo el procedimiento: la foto con datos, un resumen (objeto, número, expediente, régimen, monto estimado, cantidad de ofertas, avance), el pendiente general, el orden económico de las ofertas y los plazos importantes. `[A ACLARAR: «lo importante de todos» ¿es de las cinco secciones del procedimiento, o además una portada con todos los procedimientos?]` | — | — |
+| REQ-129 | Hay un pendiente general en el primer panel, con todo lo que falta hacer en las cinco secciones, y un pendiente propio en cada sección. Cada pendiente dice qué falta, por qué importa, en qué sección está y tiene su acción a mano (aprobar, tomar del Portal, subir, responder, decidir). | — | — |
+| REQ-130 | El orden económico muestra las ofertas de menor a mayor total, el monto estimado y cuánto se aparta cada una de la más baja y del estimado. | — | — |
+| REQ-131 | Los plazos importantes muestran al menos la apertura, el día de hoy, el vencimiento del mantenimiento de las ofertas y el dictamen de la Comisión, con lo que ya pasó, lo de hoy y lo que viene. | — | — |
+| REQ-132 | Siempre se sabe el camino: un recorrido arriba (Procedimientos › procedimiento › sección) y, en cada sección, una línea con qué hay y qué falta completar. Las pestañas muestran cuántos pendientes tiene cada sección. | — | — |
+| REQ-133 | La estética sigue el modelo 2 de la ronda 3: negro, grises y blanco, verde lima solo para resaltar, cifras grandes, gráficos en colores levemente desaturados y pestañas en píldora. Los estados de cumplimiento siguen siendo íconos de color con forma propia y el nombre al pasar el mouse (guía visual, decisión del 2026-10-07). | — | — |
+| REQ-134 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda guardada en el perfil del usuario y vale en cualquier equipo. El tema de inicio es gris y blanco. | — | — |
+| REQ-135 | La foto del primer panel ocupa un 40 % menos que en el modelo 2 y lleva encima un dato del procedimiento (por ejemplo, los días que faltan para el vencimiento del mantenimiento de las ofertas y la cantidad de pendientes), para que no sea solo decorativa. `[A ACLARAR: ¿la foto va solo en el primer panel o también en las otras secciones?]` | — | — |
+| REQ-136 | Cada usuario tiene en su perfil «Mis fotos»: sube, ve y quita hasta 10 fotos. Si no tiene fotos propias, se muestra la foto de la casa. Las fotos quedan en el equipo, las ve solo su dueño y nunca van al repositorio ni a un servicio externo. | — | — |
+| REQ-137 | Al subir una foto, el sistema la ajusta para que todas tengan el mismo tono, saturación, temperatura, brillo y contraste que la estética de la pantalla. `[A ACLARAR: ¿el tono común es blanco y negro, color papel, o lo elige cada usuario?]` | — | — |
+| REQ-138 | La foto se elige al azar entre las del usuario y cambia solo al cambiar de pantalla, nunca mientras se está en ella. Entra con una animación sutil. | — | — |
+| REQ-139 | Al cambiar de sección, la pantalla pasa con efecto de hoja que gira. Con «reducir movimiento» activado en el equipo, el paso es un fundido corto. | — | — |
+| REQ-140 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su avance con la estética nueva: porcentaje, dónde va (por ejemplo, oferta 2 de 3, requisito 14 de 23) y los últimos pasos en lenguaje llano, en el primer panel y como indicador chico en el encabezado de todas las secciones. | — | — |
+| REQ-141 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente», nunca con un valor inventado. Toda propuesta del sistema sigue mostrando su fundamento (P3). | — | — |
+| REQ-142 | La marca en el encabezado se adapta a la estética nueva. `[A ACLARAR: ¿se mantiene el logotipo aprobado el 2026-10-13 (EVALU ON con efecto vidrio) recoloreado a negro, gris y lima, o se adopta la versión de las maquetas (EVALU con ON en píldora lima)?]` | — | — |
+| REQ-128 | ¿«Lo importante de todos» es de las cinco secciones, o además una portada con todos los procedimientos? | — | — |
+| REQ-135 | ¿La foto va solo en el primer panel o también en las otras secciones? | — | — |
+| REQ-137 | ¿El tono común de las fotos es blanco y negro, color papel, o lo elige cada usuario? | — | — |
+| REQ-142 | ¿Se mantiene el logotipo aprobado recoloreado o se adopta la versión de las maquetas? | — | — |

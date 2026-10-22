@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EVALUON · Ronda 2</title>
+<script src="comun/mundos.js"></script>
+<style>
+  :root{--bg:#F3F3F1;--surface:#FFFFFF;--ink:#17181C;--muted:#55575F;--line:#E0DFDA;--e:cubic-bezier(.16,1,.3,1)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  ::selection{background:#D9E4F5}
+  header,main,footer{max-width:1440px;margin:0 auto;padding-left:28px;padding-right:28px}
+  header{padding-top:36px}
+  h1{font-size:2.25rem;line-height:1.1;letter-spacing:-.025em;margin:0 0 10px}
+  .lead{color:var(--muted);max-width:80ch;margin:0 0 10px}
+  .rules{margin:14px 0 0;padding:14px 18px;background:var(--surface);border:1px solid var(--line);border-radius:10px;max-width:980px;font-size:14px;color:var(--muted)}
+  .rules b{color:var(--ink)}
+  .rules ul{margin:6px 0 0;padding-left:18px}
+  .keys{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 0;padding:0;list-style:none;font-size:13.5px;color:var(--muted)}
+  kbd{display:inline-block;min-width:22px;text-align:center;font:600 12px ui-monospace,Consolas,monospace;padding:2px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;background:var(--surface);color:var(--ink)}
+  .back{font-size:14px}
+  .back a{color:#22508F}
+  main{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:22px;padding-top:24px;padding-bottom:40px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:transform .25s var(--e),box-shadow .25s ease}
+  @media (hover:hover){.card:hover{transform:translateY(-2px);box-shadow:0 16px 36px -22px rgba(0,0,0,.35)}}
+  .card:focus-visible{outline:3px solid #22508F;outline-offset:3px}
+  .thumb{position:relative;aspect-ratio:16/10;overflow:hidden;background:#ddd;border-bottom:1px solid var(--line)}
+  .thumb iframe{position:absolute;top:0;left:0;width:1440px;height:900px;border:0;transform-origin:0 0;pointer-events:none}
+  .info{padding:16px 18px 18px;display:flex;flex-direction:column;gap:8px}
+  .row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .n{font:600 12px ui-monospace,Consolas,monospace;color:var(--muted)}
+  h2{font-size:1.25rem;letter-spacing:-.015em;margin:0}
+  .pick{font-size:12px;font-weight:700;color:#7A4B00;background:#FCEFD2;padding:2px 8px;border-radius:6px}
+  .quiet{font-size:12px;font-weight:600;color:var(--muted);background:#EEEEEC;padding:2px 8px;border-radius:6px}
+  p{margin:0;font-size:14px}
+  .lab{font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:1px}
+  .sw{display:flex;gap:4px}
+  .sw i{width:24px;height:24px;border-radius:6px;border:1px solid rgba(0,0,0,.1)}
+  .meta{font-size:13px;color:var(--muted)}
+  .card.canon{opacity:.92}
+  footer{padding-bottom:48px;color:var(--muted);font-size:13px}
+  footer p{font-size:13px;margin:0 0 6px;max-width:100ch}
+</style>
+</head>
+<body>
+<header>
+  <p class="back"><a href="../index.html">← Ronda 1: las 20 propuestas</a> · <a href="../ronda3/index.html">Ronda 3 →</a></p>
+  <h1>EVALUON · Ronda 2, con impeccable</h1>
+  <p class="lead">Ocho versiones de la misma aplicación, con el mismo caso ficticio. Cada una sale de un mundo que la Comisión Evaluadora conoce de memoria. Ese mundo aporta solo la letra, la paleta, la densidad y un gesto propio. La navegación y los controles son los de cualquier aplicación de trabajo.</p>
+  <div class="rules"><b>Qué cambió respecto de la ronda 1, según las reglas de impeccable para pantallas de trabajo</b>
+    <ul>
+      <li>La portada es una lista de pendientes con su acción, en lugar de números grandes con etiqueta.</li>
+      <li>Sin rótulos sobre los títulos, sin anillos de progreso, sin sombras duras y sin filetes de color gruesos.</li>
+      <li>Letra de interfaz en pestañas y botones, escala de tamaños fija y cifras solo en letra de datos.</li>
+      <li>Las ofertas se comparan lado a lado en una tabla, no en tres tarjetas.</li>
+      <li>Movimiento solo donde explica algo: el pase de página, de 300 a 480 milésimas, y la respuesta a cada acción. Sin animación de entrada.</li>
+      <li>Todas claras: la escena de uso es una oficina con luz de día, jornadas largas y dictámenes que se imprimen.</li>
+    </ul>
+  </div>
+  <ul class="keys">
+    <li><kbd>[</kbd> <kbd>]</kbd> versión anterior o siguiente</li>
+    <li><kbd>T</kbd> probar otra transición</li>
+    <li><kbd>←</kbd> <kbd>→</kbd> pestañas, con el foco en ellas</li>
+    <li><kbd>G</kbd> volver acá</li>
+  </ul>
+</header>
+<main id="grid"></main>
+<footer>
+  <p>Mi recomendación es <b>Expediente foliado</b>. Citar «Pliego, art. 6.1 · fs. 7» es como la Comisión ya cita en un expediente, y refuerza que todo resultado muestre su fundamento. Su riesgo es que los folios tendrían que salir del expediente electrónico real.</p>
+  <p>«Estándar del Estado» es la opción conocida, hecha sin vueltas; está para comparar.</p>
+  <p>Las tipografías se toman de Google Fonts solo para esta exploración; la elegida se alojaría en el propio equipo.</p>
+</footer>
+<script>
+  const grid = document.getElementById('grid');
+  grid.innerHTML = MUNDOS.map((w, i) => {
+    const n = String(i + 1).padStart(2, '0'); const t = w.t;
+    const sw = [t.shell, t.ground, t.surface, t.brand, t.accent, t['rail-bg'] || t.band || t.sunken].filter(c => c && c.startsWith('#'));
+    const badge = w.id === 'expediente' ? '<span class="pick">Mi recomendación</span>' : w.id === 'canon' ? '<span class="quiet">La opción conocida</span>' : '';
+    return `<a class="card ${w.id === 'canon' ? 'canon' : ''}" href="v${n}.html">
+      <div class="thumb"><iframe src="v${n}.html?thumb" loading="lazy" tabindex="-1" aria-hidden="true" title="Vista previa de ${w.name}"></iframe></div>
+      <div class="info">
+        <div class="row"><span class="n">${n}</span><h2>${w.name}</h2>${badge}</div>
+        <p><span class="lab">El mundo</span>${w.world}</p>
+        <p><span class="lab">El gesto propio</span>${w.move}</p>
+        <p><span class="lab">El riesgo</span>${w.risk}</p>
+        <div class="sw">${sw.map(c => `<i style="background:${c}" title="${c}"></i>`).join('')}</div>
+        <span class="meta">Letra: ${w.fontNames}</span>
+      </div></a>`;
+  }).join('');
+  const fit = () => document.querySelectorAll('.thumb').forEach(t => { t.firstElementChild.style.transform = `scale(${t.clientWidth / 1440})`; });
+  new ResizeObserver(fit).observe(grid); fit();
+</script>
+</body>
+</html>

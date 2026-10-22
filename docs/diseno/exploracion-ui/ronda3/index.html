@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EVALUON · Ronda 3</title>
+<script src="comun/versiones.js"></script>
+<style>
+  :root{--ink:#171A20;--ink-2:#5C5E62;--tile:#F4F4F4;--lime:#C6F432;--e:cubic-bezier(.16,1,.3,1)}
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--lime)}
+  header,main,footer{max-width:1440px;margin:0 auto;padding-left:28px;padding-right:28px}
+  header{padding-top:36px}
+  .nav a{color:var(--ink-2);font-size:14px;margin-right:16px}
+  h1{font-size:2.5rem;font-weight:500;letter-spacing:-.03em;line-height:1.05;margin:14px 0 10px}
+  h1 .on{background:var(--lime);border-radius:999px;padding:0 .35em;font-size:.6em;vertical-align:.25em;letter-spacing:.08em}
+  .lead{color:var(--ink-2);max-width:82ch;margin:0}
+  .keys{display:flex;flex-wrap:wrap;gap:6px 18px;margin:16px 0 0;padding:0;list-style:none;font-size:13.5px;color:var(--ink-2)}
+  kbd{display:inline-block;min-width:22px;text-align:center;font:600 12px ui-monospace,Consolas,monospace;padding:2px 6px;border-radius:6px;background:var(--tile);color:var(--ink)}
+  main{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:22px;padding-top:28px;padding-bottom:36px}
+  .card{background:var(--tile);border-radius:18px;overflow:hidden;text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:transform .25s var(--e)}
+  @media (hover:hover){.card:hover{transform:translateY(-2px)}}
+  .card:focus-visible{outline:2px solid #9CCB10;outline-offset:3px}
+  .thumb{position:relative;aspect-ratio:16/10;overflow:hidden;background:#ddd}
+  .thumb iframe{position:absolute;top:0;left:0;width:1440px;height:900px;border:0;transform-origin:0 0;pointer-events:none}
+  .info{padding:18px 20px 20px;display:flex;flex-direction:column;gap:8px}
+  .row{display:flex;gap:10px;align-items:baseline}
+  .n{font:600 12px ui-monospace,Consolas,monospace;color:var(--ink-2)}
+  h2{font-size:1.25rem;font-weight:500;letter-spacing:-.02em;margin:0}
+  p{margin:0;font-size:14px}
+  .lab{display:block;font-size:12px;font-weight:600;color:var(--ink-2)}
+  .meta{font-size:13px;color:var(--ink-2)}
+  footer{padding-bottom:48px;color:var(--ink-2);font-size:13px}
+  footer p{font-size:13px;margin:0 0 6px;max-width:110ch}
+</style>
+</head>
+<body>
+<header>
+  <p class="nav"><a href="../index.html">Ronda 1</a><a href="../ronda2/index.html">Ronda 2</a></p>
+  <h1>EVALU<span class="on">ON</span> · Ronda 3</h1>
+  <p class="lead">Cinco versiones sobre la base de Jacarandá, en negro, grises y blanco con verde lima para resaltar. Los gráficos usan colores levemente apagados. Cada sección abre con un tablero de información agregada y cada mosaico lleva a su detalle. Las versiones cambian qué datos van al tablero, cómo se abre el detalle, la letra y la foto.</p>
+  <ul class="keys">
+    <li>Clic en un mosaico: abre el detalle</li>
+    <li><kbd>[</kbd> <kbd>]</kbd> versión anterior o siguiente</li>
+    <li><kbd>T</kbd> otra transición entre pestañas</li>
+    <li><kbd>←</kbd> <kbd>→</kbd> pestañas</li>
+    <li><kbd>G</kbd> volver acá</li>
+  </ul>
+</header>
+<main id="grid"></main>
+<footer>
+  <p><b>Para 8000:</b> todo se arma con las plantillas actuales, CSS propio y muy poco JavaScript. Los gráficos son SVG generados en la plantilla. El cajón y la ventana modal usan el elemento nativo de diálogo del navegador. El pase entre secciones se hace con transiciones entre páginas declaradas en CSS, en Edge y Chrome actuales. Las tipografías se alojarían en el equipo.</p>
+  <p><b>Foto:</b> biblioratos de Beatriz Pérez Moya en Unsplash (licencia Unsplash, uso libre), procesada en blanco y negro y en tono papel.</p>
+  <p>Datos del caso de muestra «Alimento balanceado para perros»: ficticios.</p>
+</footer>
+<script>
+  const grid = document.getElementById('grid');
+  const MODE = { drawer: 'Cajón lateral', window: 'Ventana nueva', inline: 'Expandir en el lugar', modal: 'Ventana modal', split: 'Panel dividido' };
+  grid.innerHTML = VERSIONES.map((v, i) => { const n = String(i + 1).padStart(2, '0'); return `<a class="card" href="v${n}.html">
+    <div class="thumb"><iframe src="v${n}.html?thumb" loading="lazy" tabindex="-1" aria-hidden="true" title="Vista previa de ${v.name}"></iframe></div>
+    <div class="info"><div class="row"><span class="n">${n}</span><h2>${v.name}</h2></div>
+      <p>${v.concept}</p>
+      <p><span class="lab">Qué va al tablero</span>${v.data}</p>
+      <p><span class="lab">Cómo se abre el detalle: ${MODE[v.detail]}</span>${v.impl.replace(/</g, '&lt;')}</p>
+      <span class="meta">Letra: ${v.fontNames}</span></div></a>`; }).join('');
+  const fit = () => document.querySelectorAll('.thumb').forEach(t => { t.firstElementChild.style.transform = `scale(${t.clientWidth / 1440})`; });
+  new ResizeObserver(fit).observe(grid); fit();
+</script>
+</body>
+</html>
