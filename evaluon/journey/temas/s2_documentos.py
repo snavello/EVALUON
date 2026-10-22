@@ -40,6 +40,7 @@ from django.views.decorators.http import require_POST
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Missing, TemaStatus
 from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.portal.models import ItemKind, ItemState, LoadedModel, PortalItem
@@ -111,7 +112,12 @@ def can_load(user):
 
 def documents_of(procedure):
     """Los documentos vigentes de esta pestaña: pliego, anexos y especificaciones, en orden de
-    carga. Lo retirado y lo reemplazado no figura (está en el historial)."""
+    carga. Lo retirado y lo reemplazado no figura (está en el historial). Una vez por pedido: el
+    estado, el resumen y el contexto de la sección lo piden en la misma carga (T-338)."""
+    return memo.once(("s2_documentos", procedure.pk), lambda: _documents_of(procedure))
+
+
+def _documents_of(procedure):
     return list(history_service.current_documents(procedure).filter(kind__in=KIND_VALUES)
                 .select_related("loaded_by").order_by("loaded_at", "pk"))
 
@@ -160,7 +166,12 @@ def rows_of(procedure):
 
 
 def missing_from_portal(procedure):
-    """Los documentos que el Portal lista para el procedimiento y todavía no se tomaron."""
+    """Los documentos que el Portal lista para el procedimiento y todavía no se tomaron. Una vez
+    por pedido (T-338)."""
+    return memo.once(("s2_absent", procedure.pk), lambda: _missing_from_portal(procedure))
+
+
+def _missing_from_portal(procedure):
     items = (PortalItem.objects.filter(proposal__link__procedure=procedure,
                                        kind=ItemKind.DOCUMENTO).order_by("pk"))
     taken, listed = set(), {}
@@ -183,7 +194,12 @@ _ANOMALY_DOCUMENT = re.compile(r"documento «(?P<name>.+)»")
 def not_downloaded(procedure):
     """Los documentos que el Portal lista para el procedimiento y no se pudieron bajar:
     `[(nombre, motivo)]`, de las anomalías de la última propuesta de cada enlace, sin los que ya
-    tienen en el procedimiento un documento con el mismo título (subido a mano)."""
+    tienen en el procedimiento un documento con el mismo título (subido a mano). Una vez por pedido
+    (T-338)."""
+    return memo.once(("s2_not_downloaded", procedure.pk), lambda: _not_downloaded(procedure))
+
+
+def _not_downloaded(procedure):
     titles = {" ".join(title.casefold().split())
               for title in procedure.documents.values_list("title", flat=True)}
     found = {}

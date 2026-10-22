@@ -338,7 +338,9 @@ def _readable(text):
         return text
     head, *rest = re.split(r"\s+-\s+", text)
     rest = [re.sub(r"^MARCA\s+", "", part).title() for part in rest]
-    head = head.capitalize()
+    words = [w if any(c.isdigit() for c in w) else w.lower() for w in head.split()]
+    head = " ".join(words)
+    head = head[:1].upper() + head[1:]
     return f"{head} — {' '.join(rest)}" if rest else head
 
 
@@ -442,8 +444,9 @@ def technical_views(rows, procedure_id):
             text = renglon_text(number, tables, {}, None)
             if text is None:
                 if lines is None:
-                    lines = {line.number: line
-                             for line in PortalLine.objects.filter(procedure_id=procedure_id)}
+                    lines = memo.once(("s2_lines", procedure_id), lambda: {
+                        line.number: line
+                        for line in PortalLine.objects.filter(procedure_id=procedure_id)})
                 text = renglon_text(number, tables, lines, row.lead)
             row.text = text
     return common
