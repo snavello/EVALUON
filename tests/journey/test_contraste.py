@@ -272,3 +272,16 @@ def test_el_lugar_para_el_texto_sobre_la_foto_existe():
     assert isinstance(PARES_FOTO, list)
     for entrada in PARES_FOTO:
         assert len(entrada) == 4 and entrada[3] >= TEXTO
+
+
+HOJAS_VIEJAS = ("css/evaluon.css", "journey/recorrido.css", "journey/punto.css")
+
+
+@pytest.mark.parametrize("hoja", HOJAS_VIEJAS)
+def test_las_hojas_viejas_usan_tokens_y_no_colores_sueltos(hoja):
+    """REQ-133: evaluon.css, recorrido.css y punto.css se leen en los dos temas porque sus colores
+    salen de los tokens (con los alias --ev-*), no de valores fijos."""
+    css = (TOKENS.parents[1] / hoja).read_text(encoding="utf-8")
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    sueltos = re.findall(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(", css)
+    assert sueltos == [], f"{hoja}: colores fijos {sueltos}"
