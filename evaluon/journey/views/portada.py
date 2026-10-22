@@ -6,7 +6,7 @@ import re
 from functools import wraps
 
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_GET
@@ -52,10 +52,12 @@ def shell(request, overview, active=""):
     }
 
 
-# Un formulario de acción (POST), salvo el de salir. Las acciones del usuario de lectura no se
-# dibujan: el servicio igual lo rechazaría (403), pero un botón que no funciona confunde.
+# Un formulario de acción (POST), salvo el de salir y los de preferencias (la clase `preferencia`:
+# el selector de tema, REQ-134; ADR-0074). Las acciones del usuario de lectura no se dibujan: el
+# servicio igual lo rechazaría (403), pero un botón que no funciona confunde.
 _ACTION_FORM = re.compile(
-    r'<form(?=[\s>])(?=[^>]*method="post")(?![^>]*logout-form)[^>]*>.*?</form>', re.S | re.I)
+    r'<form(?=[\s>])(?=[^>]*method="post")(?![^>]*(?:logout-form|preferencia))[^>]*>.*?</form>',
+    re.S | re.I)
 
 
 # Los enlaces «Subir …» llevan a un formulario que el usuario de lectura no tiene (D-3 de T-227).
@@ -93,19 +95,15 @@ def lista(request):
 
 
 @require_GET
-@memo.scoped
-@reading
 def portada(request, procedure_id):
-    overview = overview_of(request, procedure_id)
-    context = shell(request, overview)
-    context.update({
-        "window": window_for(overview.procedure),
-        "window_url": reverse("expedientes:ventana", args=[procedure_id]),
-        "pending_items": [(s, i) for s in overview.sections for i in s.pending_items],
-        "suggestion_items": [(s, i) for s in overview.sections for i in s.suggestion_items],
-    })
-    return inicio.remember(render(request, "journey/portada.html", context), request.user,
-                           procedure_id)
+    """La portada del procedimiento es el primer panel (REQ-128): redirige (302) a
+    `procedimiento/` conservando la consulta, así las anclas y los enlaces de la 014 siguen
+    andando. El procedimiento que no existe da 404."""
+    if not Procedure.objects.filter(pk=procedure_id).exists():
+        raise Http404("No hay un procedimiento con ese número.")
+    target = reverse("expedientes:procedimiento", args=[procedure_id])
+    query = request.META.get("QUERY_STRING", "")
+    return redirect(f"{target}?{query}" if query else target)
 
 
 @require_GET

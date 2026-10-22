@@ -21,7 +21,7 @@ def test_the_section_screens_have_no_inline_styles_or_scripts():
     """Plan 014: la política de contenido solo permite recursos propios, así que ni estilos
     ni scripts en línea; los archivos nuevos existen."""
     names = {p.name for p in FILES}
-    assert {"seccion_base.html", "portada.html", "secciones.css", "secciones.js"} <= names
+    assert {"seccion_base.html", "_hay_falta.html", "secciones.css", "secciones.js"} <= names
     for path in FILES:
         if path.suffix != ".html":
             continue

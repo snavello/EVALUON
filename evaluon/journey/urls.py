@@ -11,7 +11,7 @@ from django.urls import include, path
 from evaluon.journey import temas
 from evaluon.journey.sections import SECTIONS
 from evaluon.journey.temas import s1_pliego, s5_normas
-from evaluon.journey.views import index, normativas, nuevo, portada, procedure, stages
+from evaluon.journey.views import avance, index, normativas, nuevo, portada, procedure, stages
 
 app_name = "journey"
 
@@ -38,6 +38,7 @@ expedientes_urlpatterns = [
     path("<int:procedure_id>/", portada.portada, name="portada"),
     path("<int:procedure_id>/barra/", portada.barra, name="barra"),
     path("<int:procedure_id>/ventana/", portada.ventana, name="ventana"),
+    path("<int:procedure_id>/avance/", avance.avance, name="avance"),
     *[path(f"<int:procedure_id>/{module.SLUG}/", portada.seccion, {"key": module.KEY},
            name=module.KEY) for module in SECTIONS],
     *temas.url_patterns(),

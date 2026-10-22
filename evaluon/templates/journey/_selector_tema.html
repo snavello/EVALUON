@@ -1,0 +1,7 @@
+{% comment %}Selector de tema (REQ-134, ADR-0074): dos botones de un formulario que hace POST a `accounts:tema`. Funciona sin JavaScript; la clase `preferencia` lo deja pasar en la vista del usuario de lectura (`without_actions`). Vuelve a la página de origen: `next` va en la dirección del formulario, codificado por completo (solo la ruta: la página no cambia con la consulta ni suma campos, y el formulario no figura como una acción de `/expedientes/`) y la vista conserva la consulta con el Referer del mismo sitio.{% endcomment %}<form method="post" action="{% url 'accounts:tema' %}?next={{ request.path|urlencode:"" }}" class="preferencia">
+  {% csrf_token %}
+  <div class="theme" role="group" aria-label="Tema de la pantalla">
+    <button type="submit" name="tema" value="claro" aria-pressed="{% if user.theme == 'negro' %}false{% else %}true{% endif %}" aria-label="Gris y blanco" title="Gris y blanco"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg></button>
+    <button type="submit" name="tema" value="negro" aria-pressed="{% if user.theme == 'negro' %}true{% else %}false{% endif %}" aria-label="Negro" title="Negro"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5z"/></svg></button>
+  </div>
+</form>

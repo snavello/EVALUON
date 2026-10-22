@@ -1,1 +1,20 @@
-{% comment %}Tema s3_anexos (T-204, REQ-087, REQ-088, REQ-097). Desde T-202 el bloque de cada oferta (_s3_anexos_oferta.html) va dentro de la tabla de ofertas del tema s3_ofertas, en las columnas «Anexos técnicos» y «Hoja de compliance», y en el detalle de la oferta; el mensaje de lo hecho (#s3-aviso-anexos) lo muestra ese tema arriba de la tabla. Este parcial queda vacío para no repetirlo.{% endcomment %}
+{% comment %}Tema s3_anexos (T-204, REQ-087, REQ-088, REQ-097; T-326, REQ-126). El bloque de cada oferta (_s3_anexos_oferta.html) va dentro de la tabla de ofertas del tema s3_ofertas, en las columnas «Anexos técnicos» y «Hoja de compliance», y en el detalle de la oferta; el mensaje de lo hecho (#s3-aviso-anexos) lo muestra ese tema arriba de la tabla. Este parcial es el detalle del mosaico «Hojas de compliance»: una fila por oferta con su hoja, sin repetir los botones. Recibe `t` (ver evaluon/journey/temas/s3_anexos.py).{% endcomment %}
+{% if t.rows %}
+<div class="tabla-scroll"><table class="matriz lectura">
+  <caption class="sr-only">Hoja de compliance y anexos técnicos de cada oferta</caption>
+  <thead><tr><th scope="col">Oferta</th><th scope="col">Hoja de compliance</th><th scope="col" class="n">Anexos técnicos</th><th scope="col">Acciones</th></tr></thead>
+  <tbody>
+    {% for r in t.rows %}
+    <tr>
+      <th scope="row">{{ r.offer.number }} · {{ r.offer.bidder }}</th>
+      <td>{% if r.sheet %}{% include "journey/_icono.html" with icon="cumple" name="Hoja cargada" %} Cargada el {{ r.day }}{% else %}{% include "journey/_icono.html" with icon="nocumple" name="Falta la hoja de compliance" %} Sin cargar{% endif %}</td>
+      <td class="n">{{ r.annexes }}</td>
+      <td><a href="{{ r.url }}">{% if r.sheet %}Ver la oferta{% else %}Subir la hoja{% endif %}</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+<p class="suave chica">La hoja la sube un evaluador, desde la oferta. Mientras falte, los requisitos externos de esa oferta quedan «no determinado».</p>
+{% else %}
+<p class="suave chica">Todavía no hay ofertas: cuando se carguen, cada una muestra acá si tiene su hoja de compliance.</p>
+{% endif %}

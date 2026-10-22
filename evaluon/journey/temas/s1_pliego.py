@@ -33,6 +33,7 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import AuditEvent, Channel, EventType, Outcome
 from evaluon.journey.sections.base import TemaStatus
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.journey.temas import s1_portal
 from evaluon.journey.window import plain_reason
 from evaluon.norms.models import ProposalState
@@ -304,6 +305,27 @@ def context(user, procedure, request):
         "messages": messages, "waiting": waiting_drafts() if loads else [],
         "origin": origin_of(procedure) if procedure is not None else None,
     }
+
+
+# --- Mosaico del tablero (T-323, REQ-126, REQ-141) ---------------------------------------------------
+
+
+def tiles(user, procedure, ctx):
+    """«Alta desde el pliego»: los pliegos leídos que esperan aprobación. Sin ninguno no hay
+    cifra. Si el procedimiento nació de un pliego, el apoyo dice de cuál."""
+    waiting = ctx["waiting"]
+    origin = ctx["origin"]
+    sub = f"Nació del pliego {origin['file_name']}" if origin else "Se puede subir el pliego"
+    if waiting:
+        return [Tile(key="pliego", title="Alta desde el pliego", detail="d-s1-pliego",
+                     big=len(waiting), unit="por aprobar", sub=sub)]
+    return [Tile(key="pliego", title="Alta desde el pliego", detail="d-s1-pliego",
+                 missing="Nada por aprobar", sub=sub)]
+
+
+def opens(request):
+    """Al volver de una acción (`?pliego=`) se abre el detalle del alta desde el pliego."""
+    return "d-s1-pliego" if request.GET.get("pliego") else None
 
 
 # --- Las acciones (vuelven a la pantalla con un aviso) -----------------------------------------------

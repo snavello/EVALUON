@@ -604,7 +604,7 @@ def context(user, procedure, request):
 # --- Tablero (REQ-126, REQ-127, REQ-130, REQ-141; plan 017, T-315) ------------------------------------
 
 DETAIL_ORDER = "d-s3-orden"
-MODE_PARAMS = ("oferta", "ficha", "historial", "borrador", "alta", PARAM, s3_anexos.PARAM)
+MODE_PARAMS = ("oferta", "historial", "borrador", "alta", PARAM, s3_anexos.PARAM)
 MILLION = Decimal("1000000")
 
 
@@ -682,13 +682,42 @@ def _tile_orden(view):
                 chart=view.chart if view.chart.has_data else None)
 
 
+def _documents_by_offer(procedure):
+    """`[(oferta, cantidad de documentos propios vigentes)]`, calculado una vez por pedido."""
+    return memo.once(("s3_ofertas", "documentos", procedure.pk),
+                     lambda: [(o, len(own_current(o))) for o in offers_of(procedure)])
+
+
+def _tile_docs(procedure):
+    """«Documentación de las ofertas» (D-11 del plan): cuántos documentos hay por oferta y qué
+    falta de lo que el sistema conoce (la hoja de compliance). No hay «de N»: el sistema no sabe
+    cuántos documentos debe presentar cada oferta."""
+    found = _documents_by_offer(procedure)
+    if not found:
+        return Tile(key="docs", title="Documentación de las ofertas", detail="d-s3-ofertas",
+                    width=2, missing="Falta cargar las ofertas")
+    total = sum(count for _, count in found)
+    lacking = [r.offer.number for r in s3_anexos.sheet_rows(procedure) if r.sheet is None]
+    sub = (f"Falta la hoja de compliance de {s3_anexos.numbers_text(lacking)}" if lacking
+           else "Todas las ofertas tienen su hoja de compliance")
+    chart = charts.Bars(uid="docs", title="Documentos de cada oferta", rows=[
+        charts.BarRow(label=f"Oferta {o.number}", value=count, text=str(count))
+        for o, count in found])
+    return Tile(key="docs", title="Documentación de las ofertas", detail="d-s3-ofertas", width=2,
+                big=total, unit="documento" if total == 1 else "documentos", sub=sub,
+                chart=chart if total and chart.has_data else None)
+
+
 def tiles(user, procedure, ctx):
-    """Los mosaicos de la sección Ofertas: «Ofertas del acta», «La más baja», «La más alta» y
-    «Orden económico». Lo que el sistema no tiene se dice (REQ-141)."""
+    """Los mosaicos de la sección Ofertas que son de este tema: «Ofertas del acta», «La más
+    baja», «La más alta», «Documentación de las ofertas» y «Orden económico». Los de hojas de
+    compliance, fichas y circulares los declaran sus temas. Lo que el sistema no tiene se dice
+    (REQ-141)."""
     view = _economic(procedure)
     return [_tile_acta(view),
             _extreme(view, view.low, "baja", "La más baja", "dark"),
             _extreme(view, view.high, "alta", "La más alta", ""),
+            _tile_docs(procedure),
             _tile_orden(view)]
 
 
@@ -699,8 +728,9 @@ def details(user, procedure, ctx):
 
 
 def opens(request):
-    """Cualquier modo de la pestaña (la oferta, su ficha, su historial, una propuesta, el alta o el
-    resultado de una acción) abre «Ofertas del acta»."""
+    """Cualquier modo de la pestaña (la oferta, su historial, una propuesta, el alta o el
+    resultado de una acción) abre «Ofertas del acta». La ficha (`?ficha=`) tiene desde T-326 su
+    propio detalle, `d-s3-ficha`, que abre `s3_ficha.opens`."""
     return "d-s3-ofertas" if any(request.GET.get(name) for name in MODE_PARAMS) else None
 
 

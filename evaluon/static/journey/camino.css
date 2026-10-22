@@ -1,0 +1,14 @@
+/* Línea «Hay: … · Falta: …» de cada sección (REQ-132; T-312). Solo tokens de diseno/tokens.css.
+   El indicador de avance del encabezado vive en avance.css (REQ-140; T-330). */
+
+.hay-falta { display: grid; gap: .375rem; margin: .75rem 0 1rem; font-size: var(--ev-t-sm); color: var(--ink-2); }
+.hay-falta .hf-fila { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: .5rem; align-items: baseline; }
+.hay-falta .hf-et { display: inline-flex; align-items: center; gap: .4375rem; font-weight: 600; color: var(--ink); }
+.hay-falta .hf-punto { width: .5rem; height: .5rem; border-radius: 50%; background: var(--ok); flex: none; }
+.hay-falta .hf-punto-falta { background: var(--nd); }
+.hay-falta p { margin: 0; max-width: 90ch; }
+.hay-falta .resumen-linea { color: var(--ink-2); }
+.hay-falta .falta { font-size: inherit; color: var(--ink); }
+.hay-falta .sin-falta { color: var(--ink-2); }
+.hay-falta a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.hay-falta a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }

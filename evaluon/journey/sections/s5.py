@@ -8,7 +8,9 @@ KEY = "normativas"
 LABEL = "Normativas"
 SLUG = "normativas"
 STAGE_KEYS = ()
-TEMA_KEYS = ("s5_normas", "s5_rigen", "s5_consulta")
+# El orden es el del tablero (maqueta aprobada): las normas que rigen y sus citas primero, después la
+# consulta y, al final, las normas cargadas con su subida y su validación.
+TEMA_KEYS = ("s5_rigen", "s5_consulta", "s5_normas")
 
 
 def legacy_links(procedure):

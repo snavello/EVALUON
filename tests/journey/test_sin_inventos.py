@@ -18,7 +18,12 @@ pytestmark = pytest.mark.django_db
 
 # Mosaicos cuyo dato es de la instalación y no del procedimiento (por ejemplo, las normas
 # cargadas en toda la base). Cada uno entra con su razón escrita; por omisión no hay ninguno.
-DATO_DE_LA_INSTALACION: dict[str, str] = {}
+RAZON_NORMAS = ("Normas cargadas cuenta las normas de toda la base, comunes a todos los "
+                "procedimientos; sin ninguna dice «Falta cargar normas» (T-329, "
+                "tests/journey/temas/test_s5_tiles.py)")
+# Se declara con la clave del mosaico y con su id en la página (`m-…`): el primer test mira el id y
+# el segundo, la clave.
+DATO_DE_LA_INSTALACION: dict[str, str] = {"cargadas": RAZON_NORMAS, "m-cargadas": RAZON_NORMAS}
 
 
 @pytest.fixture
@@ -109,6 +114,10 @@ def instalar_mosaicos_que_cuentan(monkeypatch):
                 Tile(key="orden", title="Orden económico", detail="d-s3-ofertas", big=None)]
 
     monkeypatch.setattr(tema, "tiles", tiles, raising=False)
+    # Desde T-326 los otros temas de Ofertas declaran sus mosaicos; acá se apagan para probar el
+    # tema de prueba solo (los reales los cubre `test_con_un_procedimiento_vacio_...`).
+    for clave in ("s3_ficha", "s3_anexos", "s3_circulares"):
+        monkeypatch.setattr(temas.by_key(clave), "tiles", lambda user, proc, ctx: [], raising=False)
 
 
 def test_la_pagina_de_un_procedimiento_vacio_no_muestra_cifras(client, vacio, operator_user,

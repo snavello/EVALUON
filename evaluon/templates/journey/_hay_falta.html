@@ -1,0 +1,13 @@
+{% comment %}Línea «Hay: … · Falta: …» de una sección (REQ-132; maqueta aprobada de la 017). Parcial autónomo: pide solo `section` (con `summary` y `tema_missing`). «Hay» es el resumen de la sección y «Falta» lleva cada faltante con su acción directa. Conserva el `id="seccion-resumen"` y el `<p class="falta">` de la 014. Sin estilos en línea.{% endcomment %}<div class="hay-falta" id="hay-falta">
+  <div class="hf-fila hf-hay">
+    <span class="hf-et"><i class="hf-punto" aria-hidden="true"></i>Hay:</span>
+    <p class="resumen-linea" id="seccion-resumen">
+      {% if section.summary %}{% for label, detail in section.summary %}{{ detail }} {% endfor %}{% else %}Esta sección no tiene todavía datos que resumir.{% endif %}
+    </p>
+  </div>
+  <div class="hf-fila hf-falta">
+    <span class="hf-et"><i class="hf-punto hf-punto-falta" aria-hidden="true"></i>Falta:</span>
+    {% if section.tema_missing %}<p class="falta">{% for item in section.tema_missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% else %}<p class="sin-falta">Ningún faltante registrado.</p>{% endif %}
+  </div>
+</div>
+<!-- /hay-falta -->

@@ -14,6 +14,6 @@ El primer panel de la sección Procedimiento (T-321, T-322; REQ-128, REQ-129, RE
     <div class="acts">{% include "journey/_cargas.html" %}</div>
   </div>
 </section>
-{# HAY_FALTA: acá se incluye la línea «Hay · Falta» (_hay_falta.html, T-312). #}
+{% include "journey/_hay_falta.html" %}
 <div id="ventana-proceso" data-poll-url="{{ window_url }}" data-login-url="{{ login_url }}">{% include "journey/_window.html" %}</div>
 {% include "journey/_pendientes.html" with pending_total=overview.pending suggestion_total=overview.suggestions pending_rows=pending_items suggestion_rows=suggestion_items show_section=True next_url=request.path %}

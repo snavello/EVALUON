@@ -35,6 +35,7 @@ from evaluon.audit.models import Channel
 from evaluon.journey.sections import SECTIONS
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages import portal as stage_portal
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.journey.temas import s1_datos
 from evaluon.journey.window import plain_reason
 from evaluon.portal.importers import discover
@@ -270,6 +271,12 @@ def _counts(procedure):
     return len(items) - news, news, counted
 
 
+WHY_PROPOSAL = ("Hasta que una persona de la Comisión la apruebe, lo que leyó el sistema del "
+                "Portal no se carga en el procedimiento.")
+WHY_NEWS = ("El Portal publicó cambios después de la carga; no se aplican hasta que se "
+            "aprueban, y el procedimiento sigue con lo anterior.")
+
+
 def status(user, procedure):
     """Lo sin aprobar del Portal, en dos renglones (la propuesta y las novedades) que reemplazan al
     genérico de la etapa. La etapa del Portal ya cuenta los ítems de la última propuesta de cada
@@ -279,10 +286,10 @@ def status(user, procedure):
     pending_items = []
     if proposal:
         pending_items.append(Item(f"Propuesta del Portal: {proposal} sin aprobar",
-                                  f"{base}#s1-propuesta", proposal, "Aprobar"))
+                                  f"{base}#s1-propuesta", proposal, "Aprobar", why=WHY_PROPOSAL))
     if news:
         pending_items.append(Item(f"Novedades del Portal: {news} sin aprobar",
-                                  f"{base}#s1-novedades", news, "Aprobar"))
+                                  f"{base}#s1-novedades", news, "Aprobar", why=WHY_NEWS))
     return TemaStatus(pending=proposal + news - counted, pending_items=tuple(pending_items),
                       detailed_stages=("portal",))
 
@@ -528,3 +535,30 @@ def context(user, procedure, request):
         "can_load": can_load(user), "messages": messages_for(request.GET.get("portal"), procedure),
         "new_url": reverse("expedientes:nuevo"), "confirm_kinds": CIRCULAR_CHOICES,
     }
+
+
+# --- Mosaico del tablero (T-323, REQ-126, REQ-141) ---------------------------------------------------
+
+
+def _plural(n, one, many):
+    return f"{n} {one if n == 1 else many}"
+
+
+def tiles(user, procedure, ctx):
+    """«Portal de Compras»: lo que el Portal propuso y todavía no se aprobó. Sin un proceso del
+    Portal vinculado no hay cifra (la carga fue a mano): dice que falta, y el detalle ofrece
+    tomarlo. El cero con el Portal vinculado es un dato (REQ-141)."""
+    if not ctx["links"]:
+        return [Tile(key="portal", title="Portal de Compras", detail="d-s1-portal",
+                     missing="Sin Portal vinculado", sub="Se puede tomar de un enlace")]
+    proposal, news, _ = _counts(procedure)
+    total = proposal + news
+    sub = (f"{proposal} de la propuesta · {_plural(news, 'novedad', 'novedades')}" if total
+           else "Todo lo del Portal está resuelto")
+    return [Tile(key="portal", title="Portal de Compras", detail="d-s1-portal",
+                 tone="dark" if total else "", big=total, unit="sin aprobar", sub=sub)]
+
+
+def opens(request):
+    """Al volver de una acción (`?portal=`) se abre el detalle del Portal."""
+    return "d-s1-portal" if request.GET.get("portal") else None

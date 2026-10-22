@@ -158,7 +158,7 @@ def test_a_reader_sees_the_five_tabs_without_action_buttons_and_every_post_is_re
         log_in(client, reader)
         for url in (reverse("expedientes:index"),
                     reverse("expedientes:portada", args=[case.procedure.pk])):
-            assert client.get(url).status_code == 200, (moment, url)
+            assert client.get(url, follow=True).status_code == 200, (moment, url)
         for key in KEYS:
             response = client.get(reverse(f"expedientes:{key}", args=[case.procedure.pk]))
             assert response.status_code == 200, (moment, key)
@@ -254,7 +254,7 @@ def test_the_reader_is_offered_no_upload_link_in_any_section(client, case, reade
     pages = [reverse("expedientes:portada", args=[case.procedure.pk])] + [
         reverse(f"expedientes:{key}", args=[case.procedure.pk]) for key in KEYS]
     for url in pages:
-        html = client.get(url).content.decode()
+        html = client.get(url, follow=True).content.decode()
         assert not re.search(r"<a\s[^>]*>\s*Subir", html, re.I), url
 
 
