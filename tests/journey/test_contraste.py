@@ -191,10 +191,59 @@ PARES_POR_TEMA: dict[str, list[tuple[str, str, str, float]]] = {
     "negro": [(f"marca lima / {s}", "--lime", s, GRAFICO) for s in SUPERFICIES],
 }
 
-# Lugar para el texto sobre la foto del primer panel (lo agrega T-321, REQ-135): mismo formato
-# (nombre, primer plano, fondo, mínimo), con el peor píxel de la foto de la casa a máxima
-# opacidad como fondo literal (#RRGGBB) o una mezcla `color-mix(...)`.
-PARES_FOTO: list[tuple[str, str, str, float]] = []
+# Texto sobre la foto del primer panel (T-321, REQ-135): mismo formato (nombre, primer plano,
+# fondo, mínimo). El fondo es el peor píxel de la foto de la casa (el más oscuro y el más claro: el
+# texto cambia de color con el tema) a la máxima opacidad que declara `ingreso.css`, mezclado con
+# el mosaico del panel. Los datos del primer panel se dibujan con --ink (el plan descarta --ink-2
+# sobre la foto). Es la mezcla normal; `test_texto_sobre_la_foto_con_el_modo_de_mezcla_real` repite
+# la cuenta con el modo (multiplicar o pantalla) y el filtro de cada tema.
+FOTO = TOKENS.parents[1] / "diseno" / "casa" / "biblioratos-bn.jpg"
+INGRESO_CSS = TOKENS.parents[1] / "journey" / "ingreso.css"
+
+
+def _extremos_de_la_foto() -> tuple[int, int]:
+    """El nivel de gris más oscuro y el más claro de la foto de la casa."""
+    from PIL import Image
+    with Image.open(FOTO) as imagen:
+        bajo, alto = imagen.convert("L").getextrema()
+    return bajo, alto
+
+
+def _regla_de_la_foto(tema: str) -> dict[str, str]:
+    """`opacity`, `filter` y `mix-blend-mode` de la imagen de la foto en el tema (el negro pisa al
+    claro), leídos de `ingreso.css`."""
+    css = re.sub(r"/\*.*?\*/", "", INGRESO_CSS.read_text(encoding="utf-8"), flags=re.S)
+    reglas: dict[str, str] = {}
+    for selector, cuerpo in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        for uno in selector.split(","):
+            uno = " ".join(uno.split())
+            if not uno.endswith(".photo-bg img") or (".enter" in uno):
+                continue
+            if '[data-theme="negro"]' in uno and tema != "negro":
+                continue
+            reglas.update({k.strip(): v.strip() for k, v in re.findall(r"([\w-]+)\s*:\s*([^;]+)", cuerpo)})
+    return reglas
+
+
+def _opacidad_maxima() -> float:
+    """La mayor opacidad de la foto en los dos temas (1 si la hoja todavía no existe)."""
+    if not INGRESO_CSS.exists():
+        return 1.0
+    return max(float(_regla_de_la_foto(t).get("opacity", 1)) for t in TEMAS)
+
+
+def _pares_foto() -> list[tuple[str, str, str, float]]:
+    bajo, alto = _extremos_de_la_foto()
+    alfa = round(_opacidad_maxima() * 100, 2)
+    pares = []
+    for nombre, nivel in (("píxel más oscuro", bajo), ("píxel más claro", alto)):
+        pixel = "#" + f"{nivel:02X}" * 3
+        pares.append((f"texto --ink sobre la foto ({nombre}, opacidad máxima)", "--ink",
+                      f"color-mix(in srgb, {pixel} {alfa}%, --tile)", TEXTO))
+    return pares
+
+
+PARES_FOTO: list[tuple[str, str, str, float]] = _pares_foto()
 
 # Tokens de color que no llevan par propio, con la razón. Todo lo demás tiene que figurar en un par.
 EXENTOS = {
@@ -277,9 +326,46 @@ def test_un_amarillo_claro_en_el_icono_no_determinado_hace_fallar_el_test():
 
 def test_el_lugar_para_el_texto_sobre_la_foto_existe():
     """REQ-135 (lo llena T-321): cada entrada trae nombre, primer plano, fondo y mínimo."""
-    assert isinstance(PARES_FOTO, list)
+    assert isinstance(PARES_FOTO, list) and len(PARES_FOTO) == 2
     for entrada in PARES_FOTO:
         assert len(entrada) == 4 and entrada[3] >= TEXTO
+
+
+def _filtro(valor: str, nombre: str, defecto: float = 1.0) -> float:
+    encontrado = re.search(nombre + r"\(\s*([\d.]+)\s*\)", valor or "")
+    return float(encontrado.group(1)) if encontrado else defecto
+
+
+def _fondo_real(tema: str, nivel: int) -> tuple[float, float, float]:
+    """El color detrás del texto donde la foto está más opaca: el nivel de gris `nivel` con el
+    filtro del tema (contraste y brillo), mezclado con el mosaico según la opacidad y el modo."""
+    regla = _regla_de_la_foto(tema)
+    v = variables(_css(), tema)
+    contraste, brillo = _filtro(regla.get("filter"), "contrast"), _filtro(regla.get("filter"), "brightness")
+    alfa = float(regla.get("opacity", 1))
+    foto = min(max(((nivel / 255 - 0.5) * contraste + 0.5) * brillo, 0.0), 1.0)
+    modo = regla.get("mix-blend-mode", "normal")
+    fondo = [c / 255 for c in color("--tile", v)]
+    if modo == "multiply":
+        mezcla = [b * foto for b in fondo]
+    elif modo == "screen":
+        mezcla = [1 - (1 - b) * (1 - foto) for b in fondo]
+    else:
+        mezcla = [foto] * 3
+    return tuple(255 * ((1 - alfa) * b + alfa * m) for b, m in zip(fondo, mezcla))
+
+
+@pytest.mark.parametrize("tema", TEMAS)
+def test_texto_sobre_la_foto_con_el_modo_de_mezcla_real(tema):
+    """REQ-135: el texto --ink se lee con 4,5:1 o más sobre el peor píxel de la foto de la casa,
+    con el filtro, la opacidad y el modo de mezcla que `ingreso.css` declara para el tema."""
+    v = variables(_css(), tema)
+    ink = luminancia(color("--ink", v))
+    peor = 99.0
+    for nivel in _extremos_de_la_foto():
+        fondo = luminancia(_fondo_real(tema, nivel))
+        peor = min(peor, (max(ink, fondo) + 0.05) / (min(ink, fondo) + 0.05))
+    assert peor >= TEXTO, f"[{tema}] texto sobre la foto: {peor:.2f}:1 < {TEXTO}:1"
 
 
 HOJAS_VIEJAS = ("css/evaluon.css", "journey/recorrido.css", "journey/punto.css")
