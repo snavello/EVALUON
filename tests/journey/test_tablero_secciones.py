@@ -136,6 +136,11 @@ def con_mosaicos(monkeypatch, procedure):
     monkeypatch.setattr(tema, "tiles", tiles, raising=False)
     monkeypatch.setattr(tema, "details", details, raising=False)
     monkeypatch.setattr(tema, "opens", opens, raising=False)
+    # Desde T-326 los otros temas de Ofertas declaran sus mosaicos; acá se apagan para probar el
+    # componente solo con los de prueba.
+    for clave in ("s3_ficha", "s3_anexos", "s3_circulares"):
+        monkeypatch.setattr(temas.by_key(clave), "tiles", lambda user, proc, ctx: [], raising=False)
+        monkeypatch.setattr(temas.by_key(clave), "opens", lambda request: None, raising=False)
 
 
 def pedir(client, procedure, user, clave="ofertas", consulta=""):

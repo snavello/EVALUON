@@ -30,7 +30,9 @@ from django.views.decorators.http import require_POST
 from evaluon.accounts.models import CommissionRole
 from evaluon.assessment.services import compliance
 from evaluon.audit.models import Channel
+from evaluon.journey import external, memo
 from evaluon.journey.sections.base import Missing, TemaStatus
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.offers.models import DocumentKind, Offer
 from evaluon.offers.services import document_history
 from evaluon.offers.services import offers as offers_service
@@ -181,8 +183,84 @@ def offer_block(user, offer, externals=()):
 
 def context(user, procedure, request):
     """El bloque de cada oferta y el mensaje de lo hecho los muestra la tabla de ofertas
-    (s3_ofertas, T-202): el parcial propio ya no repite nada."""
-    return {}
+    (s3_ofertas, T-202). El parcial propio, el detalle de «Hojas de compliance», solo resume qué
+    oferta tiene su hoja y cuál no (T-326)."""
+    return {"pid": procedure.pk, "rows": sheet_rows(procedure)}
+
+
+# --- Tablero (REQ-126, REQ-141; plan 017, T-326) ---------------------------------------------------
+
+DETAIL = "d-s3-anexos"
+
+
+@dataclass
+class SheetRow:
+    """Una oferta con su hoja de compliance (o sin ella) y sus anexos técnicos."""
+
+    offer: object
+    sheet: object  # el documento de la última hoja, o `None`
+    day: str = ""
+    annexes: int = 0
+    url: str = ""
+
+
+def sheet_rows(procedure):
+    """Una fila por oferta, calculada una sola vez por pedido (la usan el mosaico y el detalle)."""
+    def compute():
+        offers = list(procedure.offers.order_by("number"))
+        sheets_of = compliance.sheets_by_offer(offers)
+        annexes_of = document_history.current_documents_by_offer(offers,
+                                                                  DocumentKind.ANEXO_TECNICO)
+        rows = []
+        for offer in offers:
+            sheets = sheets_of[offer.pk]
+            rows.append(SheetRow(
+                offer=offer, sheet=sheets[-1] if sheets else None,
+                day=_day(sheets[-1].loaded_at) if sheets else "",
+                annexes=len(annexes_of.get(offer.pk, [])),
+                url=f"{tab_url(procedure.pk)}?oferta={offer.pk}#s3-anexos-oferta-{offer.number}"))
+        return rows
+    return memo.once(("s3_anexos", "filas", procedure.pk), compute)
+
+
+def numbers_text(numbers):
+    """«la oferta 2», «las ofertas 2 y 3» o «las ofertas 1, 2 y 4»."""
+    if len(numbers) == 1:
+        return f"la oferta {numbers[0]}"
+    head = ", ".join(str(n) for n in numbers[:-1])
+    return f"las ofertas {head} y {numbers[-1]}"
+
+
+def _waiting(user, procedure):
+    """Cuántos requisitos externos esperan la hoja (los que la matriz marca como externos)."""
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    return len(external.requirements_of_page(page))
+
+
+def tiles(user, procedure, ctx):
+    """«Hojas de compliance»: cuántas ofertas tienen su hoja, de las que el sistema conoce. Sin
+    ofertas, dice que faltan (REQ-141)."""
+    rows = sheet_rows(procedure)
+    if not rows:
+        return [Tile(key="compliance", title="Hojas de compliance", detail=DETAIL,
+                     missing="Falta cargar las ofertas")]
+    lacking = [r.offer.number for r in rows if r.sheet is None]
+    have = len(rows) - len(lacking)
+    if not lacking:
+        sub = "Todas las ofertas tienen su hoja"
+    else:
+        sub = f"Falta la hoja de {numbers_text(lacking)}"
+        waiting = _waiting(user, procedure)
+        if waiting:
+            sub += (f". {waiting} {'requisito externo espera' if waiting == 1 else 'requisitos externos esperan'}"
+                    " la hoja")
+    return [Tile(key="compliance", title="Hojas de compliance", detail=DETAIL, big=have,
+                 unit=f"de {len(rows)}", sub=sub)]
+
+
+def opens(request):
+    """El mensaje de una acción de anexos o de hojas se muestra arriba de la tabla de ofertas."""
+    return "d-s3-ofertas" if request.GET.get(PARAM) else None
 
 
 # --- Acciones ------------------------------------------------------------------------------------

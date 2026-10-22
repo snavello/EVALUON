@@ -26,6 +26,7 @@ viene cargada con la ficha: la marca no suma consultas.
 """
 
 from collections import defaultdict
+from dataclasses import dataclass
 
 from django.core import signing
 from django.http import Http404
@@ -37,7 +38,9 @@ from django.views.decorators.http import require_POST
 from evaluon.accounts.models import CommissionRole
 from evaluon.audit import services as audit
 from evaluon.audit.models import AuditEvent, Channel, EventType, Outcome
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, TemaStatus
+from evaluon.journey.tablero.tiles import Tile
 from evaluon.journey.stages.ofertas import _pending_sheets
 from evaluon.offers import vision
 from evaluon.offers.models import (
@@ -288,7 +291,66 @@ def context(user, procedure, request):
     offer = procedure.offers.filter(pk=wanted).first() if wanted.isdigit() else None
     return {"pid": procedure.pk, "aviso": unpack(request.GET.get(PARAM)),
             "detail": _sheet_detail(user, offer, request) if offer else None,
+            "rows": [] if offer else sheet_rows(procedure),
             "is_evaluator": user.commission_role == CommissionRole.EVALUATOR}
+
+
+# --- Tablero (REQ-126, REQ-141; plan 017, T-326) ---------------------------------------------------
+
+DETAIL = "d-s3-ficha"
+
+
+@dataclass
+class CardRow:
+    """Una oferta con su ficha (o sin ella), para el detalle del mosaico."""
+
+    offer: object
+    built: str = ""  # cuándo se armó la última ficha, o vacío si no tiene
+    version: int | None = None
+    proposed: int = 0  # filas propuestas por confirmar
+    url: str = ""
+
+
+def sheet_rows(procedure):
+    """Una fila por oferta, calculada una sola vez por pedido (la usan el mosaico y el detalle)."""
+    def compute():
+        offers = list(procedure.offers.order_by("number"))
+        latest = _latest_sheets(offers)
+        pending = {offer.pk: count for offer, _, count in _pending_sheets(offers)}
+        rows = []
+        for offer in offers:
+            sheet = latest.get(offer.pk)
+            rows.append(CardRow(
+                offer=offer, built=_when(sheet.built_at) if sheet else "",
+                version=sheet.matrix_version.number if sheet else None,
+                proposed=pending.get(offer.pk, 0),
+                url=tab_url(procedure.pk, offer.pk) + "#s3-ficha"))
+        return rows
+    return memo.once(("s3_ficha", "filas", procedure.pk), compute)
+
+
+def tiles(user, procedure, ctx):
+    """«Fichas de las ofertas»: cuántas ofertas tienen su ficha, de las que el sistema conoce. La
+    ficha es opcional: no se la presenta como una falta."""
+    rows = sheet_rows(procedure)
+    if not rows:
+        return [Tile(key="fichas", title="Fichas de las ofertas", detail=DETAIL,
+                     missing="Falta cargar las ofertas")]
+    have = sum(1 for r in rows if r.built)
+    proposed = sum(r.proposed for r in rows)
+    if proposed:
+        sub = f"{proposed} {'fila' if proposed == 1 else 'filas'} por confirmar"
+    elif have:
+        sub = "Opcionales: sirven para revisar con el original a mano"
+    else:
+        sub = "Opcionales: ninguna armada todavía"
+    return [Tile(key="fichas", title="Fichas de las ofertas", detail=DETAIL, big=have,
+                 unit=f"de {len(rows)}", sub=sub)]
+
+
+def opens(request):
+    """La ficha de una oferta (`?ficha=`) o el mensaje de una acción sobre ella abren su detalle."""
+    return DETAIL if request.GET.get("ficha") or request.GET.get(PARAM) else None
 
 
 # --- Acciones ------------------------------------------------------------------------------------

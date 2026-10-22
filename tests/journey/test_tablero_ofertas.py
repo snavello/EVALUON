@@ -48,12 +48,15 @@ def clases(html, clave):
 # --- El tablero abre con sus mosaicos ---------------------------------------------------------------
 
 
-def test_el_tablero_de_ofertas_abre_con_sus_cuatro_mosaicos(client, procedure, matrix, tres,
+def test_el_tablero_de_ofertas_abre_con_sus_mosaicos(client, procedure, matrix, tres,
                                                            operator_user):
     """REQ-126: la sección Ofertas abre con su tablero; cada mosaico abre un detalle que existe."""
     pagina = revisar(pedir(client, procedure, operator_user))
-    assert [t["id"] for t in pagina.tiles] == ["m-acta", "m-baja", "m-alta", "m-orden"]
-    assert [t["data-detail"] for t in pagina.tiles] == [ACTA, ORDEN, ORDEN, ORDEN]
+    por_id = {t["id"]: t["data-detail"] for t in pagina.tiles}
+    # T-326 suma los de documentación, fichas, hojas y circulares; los cuatro de T-315 siguen.
+    assert [i for i in por_id if i in ("m-acta", "m-baja", "m-alta", "m-orden")] == [
+        "m-acta", "m-baja", "m-alta", "m-orden"]
+    assert [por_id[i] for i in ("m-acta", "m-baja", "m-alta", "m-orden")] == [ACTA, ORDEN, ORDEN, ORDEN]
     assert ACTA in pagina.details and ORDEN in pagina.details
 
 
@@ -160,10 +163,11 @@ def test_los_ids_de_los_cuadros_no_se_repiten(client, procedure, matrix, tres, o
 # --- Modos y temas sin mosaico ----------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("consulta", ["?oferta={o}", "?ficha={o}", "?oferta={o}&historial=1"])
+@pytest.mark.parametrize("consulta", ["?oferta={o}", "?oferta={o}&historial=1"])
 def test_los_parametros_de_modo_abren_el_detalle_de_las_ofertas(client, procedure, matrix, tres,
                                                                operator_user, consulta):
-    """REQ-127: `?oferta=`, `?ficha=` y `?historial=` abren el detalle «Ofertas del acta»."""
+    """REQ-127: `?oferta=` y `?historial=` abren el detalle «Ofertas del acta»; `?ficha=` abre el
+    de la ficha desde T-326 (la ficha vive en su propio detalle)."""
     html = pedir(client, procedure, operator_user, consulta.format(o=tres[0].pk))
     assert Pagina(html).root["data-abre"] == ACTA
 
@@ -179,13 +183,16 @@ def test_opens_reconoce_el_historial_aunque_venga_solo():
     assert s3_ofertas.opens(SimpleNamespace(GET={})) is None
 
 
-def test_los_parciales_de_los_temas_sin_mosaico_siguen_accesibles(client, procedure, matrix, tres,
-                                                                  operator_user):
-    """T-315: circulares, anexos y ficha (aún sin mosaico) se ven como hoy, debajo del tablero."""
+def test_los_parciales_de_circulares_anexos_y_ficha_son_detalles_del_tablero(
+        client, procedure, matrix, tres, operator_user):
+    """T-326: con sus mosaicos, circulares, anexos y ficha ya no van sueltos debajo del tablero:
+    cada parcial es el detalle de su mosaico y el ancla `#s3-circulares` está dentro."""
     html = pedir(client, procedure, operator_user)
-    assert 'id="seccion-detalle"' in html and 'id="s3-circulares"' in html
-    assert html.index('id="seccion-detalle"') > html.index('class="detalles"')
-    assert {t.KEY for t in temas.TEMAS if t.SECTION == "ofertas"} >= {"s3_circulares"}
+    pagina = Pagina(html)
+    assert 'id="seccion-detalle"' not in html
+    for detalle in ("d-s3-circulares", "d-s3-anexos", "d-s3-ficha"):
+        assert detalle in pagina.details
+    assert "s3-circulares" in pagina.details["d-s3-circulares"]["ids"]
 
 
 # --- Tiempo -----------------------------------------------------------------------------------------
