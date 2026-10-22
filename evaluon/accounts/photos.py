@@ -14,6 +14,8 @@ original. Nada de esto usa IA ni sale del equipo (P4).
 import hashlib
 import io
 import random
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -22,7 +24,7 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.templatetags.static import static
 from django.urls import NoReverseMatch, reverse
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageFile, ImageOps, UnidentifiedImageError
 
 from evaluon.accounts.models import PHOTO_MAX_BYTES, PHOTO_SLOTS, Photo
 
@@ -48,6 +50,26 @@ SMOOTHING_WINDOW = 2  # y solo se promedian los que caen a 2 niveles de salida o
 SLOT_CONSTRAINT = "accounts_photo_user_slot_unique"
 MIN_SPREAD = 3  # con menos desvío de entrada (imagen casi lisa) no se amplifica
 LINEAR_ROUNDS = 3  # la corrección lineal y, si el recorte la corre, hasta 2 repeticiones
+
+
+_STRICT = threading.Lock()
+
+
+@contextmanager
+def _strict_decoding():
+    """Mientras dura la decodificación, Pillow rechaza las imágenes truncadas.
+
+    `weasyprint` (el PDF de la exportación) deja `ImageFile.LOAD_TRUNCATED_IMAGES = True` en todo
+    el proceso; con eso un JPEG cortado se aceptaría a medias (P4: nada dañado entra). Se fuerza
+    a falso alrededor de la carga, con un candado porque el valor es global, y se devuelve como
+    estaba."""
+    with _STRICT:
+        previous = ImageFile.LOAD_TRUNCATED_IMAGES
+        ImageFile.LOAD_TRUNCATED_IMAGES = False
+        try:
+            yield
+        finally:
+            ImageFile.LOAD_TRUNCATED_IMAGES = previous
 
 
 class PhotoRejected(ValueError):
@@ -133,7 +155,8 @@ def upload(user, file):
     data = _read(file)
     if Photo.objects.filter(user=user).count() >= PHOTO_SLOTS:
         raise _full()
-    content, width, height = _normalize(data)
+    with _strict_decoding():
+        content, width, height = _normalize(data)
     return _store(user, content, width, height)
 
 
