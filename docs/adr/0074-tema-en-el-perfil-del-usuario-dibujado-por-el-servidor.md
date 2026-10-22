@@ -1,6 +1,6 @@
 # ADR-0074 · Tema claro u oscuro: se guarda en el usuario y lo dibuja el servidor
 
-Estado: propuesto · Fecha: 2026-10-21 · Propuso: Planificador (plan 017) · Decidió: —
+Estado: aceptado · Fecha: 2026-10-21 · Propuso: Planificador (plan 017) · Decidió: responsable del proyecto (2026-10-21 21:57, «Apruebo el plan 017 con sus decisiones. Seguí con las tareas.»)
 
 ## Contexto
 

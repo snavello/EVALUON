@@ -1,10 +1,10 @@
 # Plan 017 · Tableros de primer nivel y estética nueva
 
-Estado: borrador · Fecha: 2026-10-21 · Aprobó: —
+Estado: aprobado · Fecha: 2026-10-21 · Aprobó: responsable del proyecto (2026-10-21 21:57, «Apruebo el plan 017 con sus decisiones. Seguí con las tareas.»)
 
 Spec: `specs/017-tableros-y-estetica/spec.md` (aprobada el 2026-10-21)
 
-ADR de este plan, **propuestos**: `docs/adr/0073-fotos-personales-en-la-base-y-servidas-a-su-dueno.md`, `docs/adr/0074-tema-en-el-perfil-del-usuario-dibujado-por-el-servidor.md`, `docs/adr/0075-pase-de-pagina-con-transiciones-entre-documentos.md`, `docs/adr/0076-tablero-de-mosaicos-con-html-del-servidor-y-poco-javascript.md` y `docs/adr/0077-datos-del-tablero-que-hoy-no-existen.md`. Se apoya en 0045 (estado calculado y sondeo), 0047 (cinco secciones) y 0065 (datos y servicios externos). REQ-133 reemplaza a REQ-100 y REQ-142 enmienda a REQ-108.
+ADR de este plan, **aceptados**: `docs/adr/0073-fotos-personales-en-la-base-y-servidas-a-su-dueno.md`, `docs/adr/0074-tema-en-el-perfil-del-usuario-dibujado-por-el-servidor.md`, `docs/adr/0075-pase-de-pagina-con-transiciones-entre-documentos.md`, `docs/adr/0076-tablero-de-mosaicos-con-html-del-servidor-y-poco-javascript.md` y `docs/adr/0077-datos-del-tablero-que-hoy-no-existen.md`. Se apoya en 0045 (estado calculado y sondeo), 0047 (cinco secciones) y 0065 (datos y servicios externos). REQ-133 reemplaza a REQ-100 y REQ-142 enmienda a REQ-108.
 
 ## Resumen del enfoque
 
@@ -285,7 +285,7 @@ No usa IA. La normalización de fotos es procesamiento de imagen local con Pillo
 
 ## Decisiones
 
-Cinco ADR, todos «propuesto»: 0073 (dónde y cómo se guardan las fotos), 0074 (cómo se guarda y se aplica el tema), 0075 (cómo se hace el pase de página), 0076 (cómo se construye el tablero sin marco de interfaz) y 0077 (qué hacer con los datos que el sistema no tiene).
+Cinco ADR, aceptados por el responsable el 2026-10-21: 0073 (dónde y cómo se guardan las fotos), 0074 (cómo se guarda y se aplica el tema), 0075 (cómo se hace el pase de página), 0076 (cómo se construye el tablero sin marco de interfaz) y 0077 (qué hacer con los datos que el sistema no tiene).
 
 ## Corte vertical y orden de trabajo
 

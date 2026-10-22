@@ -1,6 +1,6 @@
 # ADR-0073 · Fotos personales: se guardan en la base, ajustadas, y las sirve una vista que solo responde a su dueño
 
-Estado: propuesto · Fecha: 2026-10-21 · Propuso: Planificador (plan 017) · Decidió: —
+Estado: aceptado · Fecha: 2026-10-21 · Propuso: Planificador (plan 017) · Decidió: responsable del proyecto (2026-10-21 21:57, «Apruebo el plan 017 con sus decisiones. Seguí con las tareas.»)
 
 ## Contexto
 

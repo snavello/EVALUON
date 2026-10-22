@@ -1,6 +1,6 @@
 # ADR-0077 · Datos que la maqueta usa y el sistema no tiene: monto estimado, vencimiento del mantenimiento y avance
 
-Estado: propuesto · Fecha: 2026-10-21 · Propuso: Planificador (plan 017) · Decidió: —
+Estado: aceptado · Fecha: 2026-10-21 · Propuso: Planificador (plan 017) · Decidió: responsable del proyecto (2026-10-21 21:57, «Apruebo el plan 017 con sus decisiones. Seguí con las tareas.»)
 
 ## Contexto
 
