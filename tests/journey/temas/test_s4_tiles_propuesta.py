@@ -340,6 +340,7 @@ def test_opens_abre_el_detalle_con_los_filtros_de_la_propuesta(rf, operator_user
     assert tema().opens(pedido(rf, operator_user)) is None
     assert tema().opens(pedido(rf, operator_user, "?ver=abiertas")) == DETALLE
     assert tema().opens(pedido(rf, operator_user, "?tipo=formal")) == DETALLE
+    assert tema().opens(pedido(rf, operator_user, "?ver=inventado")) is None
     html = pagina(client, operator_user, procedure, "?ver=nocumple")
     assert Pagina(html).root["data-abre"] == DETALLE
 

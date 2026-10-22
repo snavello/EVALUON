@@ -636,8 +636,10 @@ def tiles(user, procedure, ctx):
 
 
 def opens(request):
-    """Los filtros de la tabla de la propuesta (`?ver=`, `?tipo=`) abren su detalle."""
-    if request.GET.get("ver") or request.GET.get("tipo"):
+    """Los filtros de la tabla de la propuesta (`?ver=`, `?tipo=`) abren su detalle. Un valor
+    desconocido se ignora, igual que en la tabla (`_select`)."""
+    show, kind = request.GET.get("ver", ""), request.GET.get("tipo", "")
+    if (show and show in dict(SHOW_OPTIONS)) or (kind and kind in dict(TYPE_OPTIONS)):
         return DETAIL
     return None
 
