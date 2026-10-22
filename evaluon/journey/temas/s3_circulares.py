@@ -412,9 +412,9 @@ def tiles(user, procedure, ctx):
         notes.append(f"{waiting} {'espera' if waiting == 1 else 'esperan'} una versión de la matriz")
     sub = " · ".join(notes)
     if not loaded:
-        return [Tile(key="circulares", title="Circulares", detail=DETAIL,
+        return [Tile(key="circulares", title="Circulares", detail=DETAIL, width=2,
                      missing="Ninguna cargada", sub=sub)]
-    return [Tile(key="circulares", title="Circulares", detail=DETAIL, big=loaded,
+    return [Tile(key="circulares", title="Circulares", detail=DETAIL, width=2, big=loaded,
                  unit="cargada" if loaded == 1 else "cargadas", sub=sub)]
 
 
