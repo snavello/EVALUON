@@ -1,6 +1,6 @@
 {% comment %}Tema s1_datos (T-194, REQ-078, REQ-097): datos del procedimiento con su origen, renglones, apertura, cronograma, garantías y ofertas del acta. Solo lectura. Recibe `t` (ver evaluon/journey/temas/s1_datos.py).{% endcomment %}
 <div class="bloque" id="s1-datos">
-  <div class="bloque-cab"><h3>Datos del procedimiento</h3>{% if t.portal_number %}<span class="linea-portal">Proceso en el Portal: <a href="{{ t.portal_url }}">{{ t.portal_number }}</a></span>{% endif %}</div>
+  <div class="bloque-cab"><h3 class="repite">Datos del procedimiento</h3>{% if t.portal_number %}<span class="linea-portal">Proceso en el Portal: <a href="{{ t.portal_url }}">{{ t.portal_number }}</a></span>{% endif %}</div>
   <div class="tabla-scroll"><table class="matriz lectura">
     <caption class="sr-only">Datos del procedimiento y de dónde salió cada uno</caption>
     <thead><tr><th scope="col">Dato</th><th scope="col">Valor</th><th scope="col">De dónde salió</th></tr></thead>

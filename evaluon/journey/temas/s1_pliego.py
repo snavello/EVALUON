@@ -320,7 +320,7 @@ def tiles(user, procedure, ctx):
         return [Tile(key="pliego", title="Alta desde el pliego", detail="d-s1-pliego",
                      big=len(waiting), unit="por aprobar", sub=sub)]
     return [Tile(key="pliego", title="Alta desde el pliego", detail="d-s1-pliego",
-                 missing="Sin pliegos por aprobar", sub=sub)]
+                 missing="Nada por aprobar", sub=sub)]
 
 
 def opens(request):
