@@ -1,7 +1,19 @@
-{% load static %}{% comment %}Encabezado único de la aplicación (en todas las páginas) (maqueta aprobada de la 014). Los desplegables son `details`: funcionan sin scripts.{% endcomment %}<header class="top"><div class="wrap">
-  <a class="nombre" href="{% url 'inicio' %}"><img src="{% static 'marca/logotipo-encabezado.svg' %}" alt="EVALUON" width="131" height="38"></a>
-  {% if user.is_authenticated and user.commission_role %}<details class="sel-proc">
-    <summary class="btn-menu" aria-label="Cambiar de procedimiento"><span class="b-txt"><small>Procedimiento</small>{% if procedure %}{{ procedure.number }} · {{ procedure.subject }}{% elif header_label %}{{ header_label }}{% elif tabs %}Nuevo procedimiento (sin crear){% else %}Elegir procedimiento{% endif %}</span><span aria-hidden="true">▾</span></summary>
+{% load static %}{% comment %}Encabezado único de la aplicación (en todas las páginas), estética de la 017 (REQ-132, REQ-133, REQ-134, REQ-142). Primera fila: logotipo (los dos `<img>`, la hoja muestra el del tema), pestañas en píldora (si `con_pestanas`), selector de tema y menú del usuario. Segunda fila: el recorrido «Procedimientos › procedimiento › sección», donde el procedimiento es el menú para cambiar de procedimiento. Los desplegables son `details`: funcionan sin scripts. Todo el color sale de tokens.{% endcomment %}<header class="top"><div class="top-in{% if not con_pestanas %} sin-pestanas{% endif %}">
+  <a class="nombre" href="{% url 'inicio' %}"><img class="logo-claro" src="{% static 'marca/logotipo-claro.svg' %}" alt="EVALUON" width="117" height="34"><img class="logo-negro" src="{% static 'marca/logotipo-negro.svg' %}" alt="" width="117" height="34"></a>
+  {% if con_pestanas %}<nav class="tabs" aria-label="Secciones del procedimiento">
+    {% if procedure %}<div id="barra-secciones" data-poll-url="{{ bar_url }}?activa={{ active }}" data-login-url="{{ login_url }}">{% include "journey/_barra.html" %}</div>{% else %}<div id="barra-secciones">{% include "journey/_barra_nueva.html" %}</div>{% endif %}
+    <p id="journey-status" class="journey-status sr-only" role="status" aria-live="polite"></p>
+  </nav>{% endif %}
+  {% if user.is_authenticated %}<div class="right">
+    {% include "journey/_selector_tema.html" %}
+    {% include "journey/_menu_usuario.html" %}
+  </div>{% endif %}
+</div>
+{% if user.is_authenticated %}<nav class="camino" aria-label="Recorrido">
+  <a href="{% url 'expedientes:index' %}">Procedimientos</a>
+  {% if user.commission_role %}<span class="sep" aria-hidden="true">›</span>
+  <details class="sel-proc">
+    <summary aria-label="Cambiar de procedimiento"><span class="b-txt">{% if procedure %}{{ procedure.number }} · {{ procedure.subject|truncatechars:60 }}{% elif header_label %}{{ header_label }}{% elif tabs %}Nuevo procedimiento (sin crear){% else %}Elegir procedimiento{% endif %}</span><span aria-hidden="true">▾</span></summary>
     <div class="menu" role="menu">
       <p class="menu-tit">Cambiar de procedimiento</p>
       {% for p in procedures %}
@@ -11,11 +23,8 @@
       <a role="menuitem" href="{% url 'expedientes:nuevo' %}"{% if not procedure and tabs and not header_label %} class="actual" aria-current="true"{% endif %}>+ Nuevo procedimiento</a>
       <a role="menuitem" href="{% url 'expedientes:normativas_general' %}"{% if header_label %} class="actual" aria-current="true"{% endif %}>Normativas<small>Comunes a todos los procedimientos</small></a>
     </div>
-  </details>{% endif %}
-  <span class="espacio"></span>
-  {% if user.is_authenticated %}<span class="sel-user"><strong>{{ user.username }}</strong>{% if role_label %}<small>{{ role_label }}</small>{% endif %}</span>
-  <form method="post" action="{% url 'accounts:logout' %}" class="logout-form">
-    {% csrf_token %}
-    <button class="btn secundario" type="submit">Salir</button>
-  </form>{% endif %}
-</div></header>
+  </details>{% elif procedure %}<span class="sep" aria-hidden="true">›</span><span>{{ procedure.number }}</span>{% endif %}
+  {% if procedure and overview %}{% for s in overview.sections %}{% if s.key == active %}<span class="sep" aria-hidden="true">›</span><b aria-current="page">{{ s.label }}</b>{% endif %}{% endfor %}{% endif %}
+</nav>{% endif %}
+<p id="journey-connection" class="journey-connection" role="status" hidden></p>
+</header>

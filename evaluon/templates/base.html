@@ -1,13 +1,18 @@
 {% load static tenders_tags %}<!doctype html>
-<html lang="es">
+<html lang="es"{% if user.theme == "negro" %} data-theme="negro"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}EVALUON{% endblock %}</title>
-  <link rel="icon" type="image/svg+xml" href="{% static 'marca/isotipo.svg' %}">
+  {% comment %}El tema lo dibuja el servidor desde el perfil del usuario (REQ-134, ADR-0074); el visitante sin sesión ve el de inicio. La pestaña lleva el isotipo de la versión del tema (REQ-142).{% endcomment %}
+  <link rel="icon" type="image/svg+xml" href="{% if user.theme == 'negro' %}{% static 'marca/isotipo-negro.svg' %}{% else %}{% static 'marca/isotipo-claro.svg' %}{% endif %}">
   <link rel="stylesheet" href="{% static 'css/evaluon.css' %}">
   <link rel="stylesheet" href="{% static 'diseno/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'journey/secciones.css' %}">
+  <link rel="stylesheet" href="{% static 'journey/tablero.css' %}">
+  <link rel="stylesheet" href="{% static 'journey/pase.css' %}">
+  <link rel="stylesheet" href="{% static 'journey/avance.css' %}">
+  <script src="{% static 'journey/pase.js' %}"></script>
   {% block head %}{% endblock %}
 </head>
 <body class="app {% block body_class %}{% endblock %}">

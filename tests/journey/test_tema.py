@@ -157,7 +157,7 @@ def test_the_read_only_user_still_loses_the_action_forms(client, procedure, no_c
     de acción; «Salir» sigue."""
     log_in(client, no_commission_user)
     html = client.get(reverse("expedientes:pliego", args=[procedure.pk])).content.decode()
-    actions = re.findall(r'<form[^>]*action="([^"]+)"', html)
+    actions = [m.group(1) for m in re.finditer(r'<form[^>]*method="post"[^>]*action="([^"]+)"', html)]
     assert sorted(actions) == sorted([reverse(TEMA), reverse("accounts:logout")]), actions
 
 
@@ -215,7 +215,7 @@ def test_the_header_uses_only_tokens_for_color():
     tokens transitorios `--hdr*` ni los alias `--ev-azul-200/800`; todo sale de los tokens."""
     css = open(finders.find("journey/secciones.css"), encoding="utf-8").read()
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-    assert not re.search(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(|\b(?:white|black)\b", css)
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(|(?<![\w-])(?:white|black)(?![\w-])", css)
     assert "--hdr" not in css and "--ev-azul-200" not in css and "--ev-azul-800" not in css
 
 

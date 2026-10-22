@@ -28,12 +28,12 @@ def test_reglas_para_1100_px_en_el_css_servido():
 
 
 def test_reglas_para_640_px_en_el_css_servido():
-    """REQ-133: a 640 px el recorrido y el encabezado se achican, el nombre del usuario sale y
+    """REQ-133: a 640 px el recorrido y el encabezado se achican, el logotipo baja de tamaño y
     el menú del procedimiento se acota al ancho de la pantalla."""
     bloque = _bloque(_css(), 640)
     assert re.search(r"header\.top \.top-in \{[^}]*padding", bloque)
     assert re.search(r"\.camino \{[^}]*padding", bloque)
-    assert re.search(r"header\.top \.sel-user \{[^}]*display: none", bloque)
+    assert re.search(r"header\.top \.nombre img \{[^}]*height", bloque)
     assert re.search(r"header\.top \.sel-proc \.menu \{[^}]*max-width", bloque)
 
 
