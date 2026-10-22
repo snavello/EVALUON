@@ -15,6 +15,7 @@ models/
 *.safetensors
 pgdata/
 backups/
+*.dump
 
 # Claude Code: configuración personal
 .claude/settings.local.json
