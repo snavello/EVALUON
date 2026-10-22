@@ -149,6 +149,11 @@ def _pares() -> list[tuple[str, str, str, float]]:
         for t in ("--ev-texto", "--ev-texto-suave", "--ev-enlace"):
             add(f"alias {t} / {f}", t, f, TEXTO)
     add("alias encabezado", "--ev-encabezado-texto", "--ev-encabezado-fondo", TEXTO)
+    # Encabezado viejo (transitorio hasta T-311): secciones.css fija el blanco del usuario, «Salir»
+    # y el selector, así que el fondo tiene que ser oscuro en los dos temas (H-2 de T-309).
+    add("encabezado viejo: blanco fijo de secciones.css", "#FFFFFF", "--ev-encabezado-fondo", TEXTO)
+    add("encabezado viejo: blanco fijo sobre el hover", "#FFFFFF", "--ev-azul-800", TEXTO)
+    add("encabezado viejo: texto tenue sobre el hover", "--ev-azul-200", "--ev-azul-800", TEXTO)
     add("alias encabezado, texto tenue", "--ev-azul-200", "--ev-encabezado-fondo", TEXTO)
     add("alias botón", "--ev-boton-texto", "--ev-boton-fondo", TEXTO)
     add("alias botón (hover)", "--ev-boton-texto", "--ev-boton-hover", TEXTO)
@@ -285,3 +290,51 @@ def test_las_hojas_viejas_usan_tokens_y_no_colores_sueltos(hoja):
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
     sueltos = re.findall(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(", css)
     assert sueltos == [], f"{hoja}: colores fijos {sueltos}"
+
+
+RAIZ_APP = TOKENS.parents[2]
+
+
+def _declarados(texto: str) -> set[str]:
+    return set(re.findall(r"(--[\w-]+)\s*:", texto))
+
+
+def _sin_definir(archivos, tokens_css: str) -> list[str]:
+    """['archivo: --nombre', ...] de cada var(--x) sin definir en tokens.css ni en el mismo archivo."""
+    globales = _declarados(re.sub(r"/\*.*?\*/", "", tokens_css, flags=re.S))
+    faltan = []
+    for ruta in archivos:
+        texto = ruta.read_text(encoding="utf-8")
+        propios = _declarados(texto)
+        for nombre in sorted(set(re.findall(r"var\(\s*(--[\w-]+)", texto))):
+            if nombre not in globales and nombre not in propios:
+                faltan.append(f"{ruta.relative_to(RAIZ_APP).as_posix()}: {nombre}")
+    return faltan
+
+
+def test_todo_var_usado_esta_definido():
+    """REQ-133: cada `var(--x)` de las hojas y plantillas está definido en tokens.css o en su
+    propio archivo; un token borrado deja las pantallas sin tamaño o sin color (H-1 de T-309)."""
+    archivos = [p for carpeta in ("static", "templates") for p in (RAIZ_APP / carpeta).rglob("*")
+                if p.suffix in {".css", ".html"}]
+    assert len(archivos) > 100
+    assert _sin_definir(archivos, _css()) == []
+
+
+def test_el_detector_de_var_sin_definir_encuentra_un_token_borrado(tmp_path):
+    """REQ-133 (prueba de alteración): sin `--ev-icono-tam` en tokens.css el detector lo marca."""
+    hoja = tmp_path / "evaluon" / "x.css"
+    hoja.parent.mkdir()
+    hoja.write_text(".i { width: var(--ev-icono-tam); color: var(--propio); } .j { --propio: red; }")
+    sin_el = re.sub(r"--ev-icono-tam:[^;]*;", "", _css())
+    global RAIZ_APP
+    anterior, RAIZ_APP = RAIZ_APP, tmp_path / "evaluon"
+    try:
+        assert _sin_definir([hoja], sin_el) == ["x.css: --ev-icono-tam"]
+    finally:
+        RAIZ_APP = anterior
+
+
+def test_el_icono_tam_esta_en_tokens():
+    """REQ-133: `--ev-icono-tam` (16 px) lo usan recorrido.css y secciones.css."""
+    assert variables(_css(), "claro")["--ev-icono-tam"] == "16px"
