@@ -36,6 +36,7 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
+from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.journey.stages.portal import DICTAMEN
 from evaluon.journey.temas import s1_portal
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
@@ -184,6 +185,8 @@ def status(user, procedure):
 
 
 def context(user, procedure, request):
+    # `request` puede faltar cuando otro llamador arma los mosaicos sin pedido.
+    aviso = acciones.unpack(request.GET.get("aviso")) if request is not None else None
     portal = portal_dictamen(procedure)
     view = _portal_view(portal) if portal is not None else None
     uploaded = [{"document": d, "loaded": when(d.loaded_at),
@@ -202,11 +205,45 @@ def context(user, procedure, request):
     else:
         cta = "no cargado"
     return {
-        "pid": procedure.pk, "aviso": acciones.unpack(request.GET.get("aviso")),
+        "pid": procedure.pk, "aviso": aviso,
         "portal": view, "uploaded": uploaded, "withdrawn": withdrawn, "loaded": loaded,
         "cta": cta,
         "can_load": can_load(user), "waiting": waiting,
     }
+
+
+# --- Mosaico del tablero (plan 017, T-328) -------------------------------------------------------
+
+
+def tiles(user, procedure, ctx):
+    """El mosaico «Dictamen». Solo cuenta como dictamen lo que está cargado: el subido por la
+    Comisión o el del Portal ya aprobado. Uno que el Portal publicó y nadie aprobó es
+    «Pendiente» (REQ-141) y dice que falta aprobar la carga: tomarlo es una decisión de una
+    persona (P6) y se hace en el detalle o desde el pendiente, nunca desde el mosaico."""
+    ctx = ctx if ctx is not None else context(user, procedure, None)
+    portal, uploaded = ctx["portal"], ctx["uploaded"]
+    taken = portal is not None and portal.state in TAKEN
+    detail = detail_id(KEY)
+    if not (taken or uploaded):
+        if portal is not None and portal.state == ItemState.PROPUESTO:
+            sub = f"El Portal publicó uno el {portal.published}; falta aprobar la carga"
+        elif portal is not None:
+            sub = f"{portal.icon_name}. Se puede subir el archivo"
+        else:
+            sub = "No hay dictamen cargado ni publicado en el Portal"
+        return [Tile(key="dictamen", title="Dictamen", detail=detail, sub=sub,
+                     missing="Pendiente")]
+    parts = []
+    if taken:
+        text = f"Del Portal, publicado el {portal.published}"
+        if portal.decided:
+            text += f", aprobado por {portal.decided}"
+        parts.append(text)
+    if uploaded:
+        last = max(uploaded, key=lambda u: (u["document"].loaded_at, u["document"].pk))
+        parts.append(f"Subido por la Comisión, el último el {last['loaded']}")
+    return [Tile(key="dictamen", title="Dictamen", detail=detail, big="Cargado",
+                 sub=". ".join(parts))]
 
 
 # --- Acciones ------------------------------------------------------------------------------------

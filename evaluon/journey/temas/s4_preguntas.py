@@ -39,6 +39,7 @@ from evaluon.assessment.services import remedy as remedy_service
 from evaluon.audit.models import Channel
 from evaluon.journey import basis, memo, points, reading_note
 from evaluon.journey.sections.base import TemaStatus
+from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.journey.temas import s4_preguntas_acciones as acciones
 from evaluon.offers.services import offers as offers_service
 
@@ -273,7 +274,9 @@ def context(user, procedure, request):
     answered = questions_service.answered_pairs(procedure)
     blocked = questions_service.blocked_notice(procedure, answered) if len(answered) else ""
     first = len(answered.groups[0]) if len(answered) else 0
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     return {
+        "evaluated": any(s.evaluated for s in page.statuses),
         "only_open": only_open,
         # El botón solo si el pedido no se va a rechazar; si no, el aviso dice qué hacer (D-2).
         "reevaluate_count": 0 if blocked else first, "reevaluate_blocked": blocked,
@@ -282,6 +285,28 @@ def context(user, procedure, request):
         "resolved": total - to_decide, "is_evaluator": is_evaluator,
         "scopes": AnswerScope.choices, "default_scope": AnswerScope.REQUISITO,
     }
+
+
+def tiles(user, procedure, ctx):
+    """El mosaico «Preguntas a la Comisión» (plan 017, T-328): lo que espera una respuesta o una
+    decisión de la Comisión (preguntas abiertas y subsanaciones por decidir) y cuántas ya se
+    resolvieron. Sin evaluación no hay preguntas y dice «Pendiente»: un «0» sería un dato
+    inventado (REQ-141). Responder o decidir se hace en el detalle (P6)."""
+    ctx = ctx if ctx is not None else context(user, procedure, None)
+    detail = detail_id(KEY)
+    if not ctx["evaluated"]:
+        return [Tile(key="preguntas", title="Preguntas a la Comisión", detail=detail,
+                     sub="Todavía no hay una evaluación", missing="Pendiente")]
+    resolved = ctx["resolved"]
+    return [Tile(key="preguntas", title="Preguntas a la Comisión", detail=detail,
+                 big=ctx["to_decide"], unit="por resolver",
+                 sub=f"{resolved} {'resuelta' if resolved == 1 else 'resueltas'} · preguntas y "
+                     "pedidos de subsanación")]
+
+
+def opens(request):
+    """El filtro de preguntas abiertas (`?preg=abiertas`) abre su detalle."""
+    return detail_id(KEY) if request.GET.get("preg") == "abiertas" else None
 
 
 urlpatterns = acciones.urlpatterns

@@ -18,6 +18,7 @@ from django.views.decorators.http import require_GET
 from evaluon.assessment.services import export as service
 from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import TemaStatus
+from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.tenders.models import Procedure
 
 KEY = "s4_exportar"
@@ -46,6 +47,21 @@ def context(user, procedure, request):
     } for document, label in DOCUMENTS]
     return {"pid": procedure.pk, "rows": rows,
             "has_offers": procedure.offers.exists()}
+
+
+def tiles(user, procedure, ctx):
+    """El mosaico «Exportar la evaluación» (plan 017, T-328): con ofertas cargadas hay dos
+    documentos para bajar (planilla y cuadro, cada uno en Excel y PDF); sin ofertas no hay qué
+    exportar y dice «Pendiente» (REQ-141). Es un enlace al detalle: bajar un archivo se hace ahí."""
+    ctx = ctx if ctx is not None else context(user, procedure, None)
+    detail = detail_id(KEY)
+    if not ctx["has_offers"]:
+        return [Tile(key="exportar", title="Exportar la evaluación", detail=detail,
+                     sub="Todavía no hay ofertas cargadas", missing="Pendiente")]
+    formats = " y ".join(label for _, label in FORMATS)
+    names = " y ".join(label.lower() if i else label for i, (_, label) in enumerate(DOCUMENTS))
+    return [Tile(key="exportar", title="Exportar la evaluación", detail=detail,
+                 big=len(DOCUMENTS), unit="documentos", sub=f"{names}, en {formats}")]
 
 
 @require_GET
