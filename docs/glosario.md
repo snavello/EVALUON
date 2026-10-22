@@ -57,7 +57,7 @@ Qué significa cada prefijo:
 | **010** | 010 | Asistente técnico: Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por… |  |
 | **011** | 011 | Pautas para documentos legibles por IA: Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y… |  |
 
-## Tareas (341)
+## Tareas (343)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -378,30 +378,32 @@ Qué significa cada prefijo:
 | **T-308** | 017 | Esquema y perfil: User.theme, tabla Photo con sus restricciones, migración reversible, photos.py con pick_for (por… | terminada |
 | **T-309** | 017 | Tokens de los dos temas con alias de los viejos, estilos de evaluon.css, recorrido.css y punto.css en los dos temas… | terminada |
 | **T-310** | 017 | Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en static/marca/ | terminada |
-| **T-311** | 017 | Tema en base.html, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de… | en curso |
-| **T-312** | 017 | Línea «Hay · Falta», portada que redirige al primer panel y vista mínima del indicador de avance | pendiente |
-| **T-313** | 017 | Componente de tablero: contrato Tile, mosaico, cuadrícula, detalle desplegable (tablero.js y tablero.css) y cuerpo… | pendiente |
-| **T-314** | 017 | Siete gráficos SVG y orden económico (charts.py, economico.py, plantillas de gráficos) | en verificación |
-| **T-315** | 017 | Tablero de Ofertas con el detalle «Ofertas del acta» y el orden económico (corte vertical) | pendiente |
+| **T-311** | 017 | Tema en base.html, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de… | terminada |
+| **T-312** | 017 | Línea «Hay · Falta», portada que redirige al primer panel y vista mínima del indicador de avance | terminada |
+| **T-313** | 017 | Componente de tablero: contrato Tile, mosaico, cuadrícula, detalle desplegable (tablero.js y tablero.css) y cuerpo… | terminada |
+| **T-314** | 017 | Siete gráficos SVG y orden económico (charts.py, economico.py, plantillas de gráficos) | terminada |
+| **T-315** | 017 | Tablero de Ofertas con el detalle «Ofertas del acta» y el orden económico (corte vertical) | terminada |
 | **T-316** | 017 | Medición del corte vertical: contraste, 2 s, 0,4 s y revisión visual en Edge, sin código | pendiente |
 | **T-317** | 017 | Correcciones de la medición del corte vertical, en una sola tarea y con re-medición de lo que cambió (se cierra sin… | pendiente |
-| **T-318** | 017 | Pendientes con acción a mano: Item.why/open/post, _pendientes.html y dictamen del Portal en Evaluación | pendiente |
-| **T-319** | 017 | Fotos: normalización por histograma, subida con sus límites y elección al azar sin repetir | en verificación |
-| **T-320** | 017 | Mis fotos: página del perfil, quitar, servido privado y enlace en el menú de usuario | pendiente |
-| **T-321** | 017 | Primer panel: foto de fondo, datos principales, pendiente general, avance y mosaicos que enlazan a Evaluación | pendiente |
-| **T-322** | 017 | Primer panel: orden económico, plazos importantes y vencimiento del mantenimiento | pendiente |
-| **T-323** | 017 | Mosaicos de la sección Procedimiento: Datos, Portal de Compras y Alta desde el pliego | pendiente |
-| **T-324** | 017 | Listado de procedimientos, alta y borrador del pliego con la estética nueva | pendiente |
-| **T-325** | 017 | Tablero de Pliego y matriz | pendiente |
-| **T-326** | 017 | Resto del tablero de Ofertas: hojas de compliance, documentación, circulares y fichas | pendiente |
-| **T-327** | 017 | Tablero de Evaluación, parte 1: resultado por oferta, no cumple, no determinado y cumplimiento por tipo | pendiente |
-| **T-328** | 017 | Tablero de Evaluación, parte 2: informe técnico, dictamen, descartes, preguntas y exportar | pendiente |
-| **T-329** | 017 | Tablero de Normativas y página general de normativas | pendiente |
-| **T-330** | 017 | Avance de procesos largos: porcentaje global, panel de avance e indicador del encabezado con la estética nueva | pendiente |
+| **T-318** | 017 | Pendientes con acción a mano: Item.why/open/post, _pendientes.html y dictamen del Portal en Evaluación | terminada |
+| **T-319** | 017 | Fotos: normalización por histograma, subida con sus límites y elección al azar sin repetir | terminada |
+| **T-320** | 017 | Mis fotos: página del perfil, quitar, servido privado y enlace en el menú de usuario | terminada |
+| **T-321** | 017 | Primer panel: foto de fondo, datos principales, pendiente general, avance y mosaicos que enlazan a Evaluación | terminada |
+| **T-322** | 017 | Primer panel: orden económico, plazos importantes y vencimiento del mantenimiento | terminada |
+| **T-323** | 017 | Mosaicos de la sección Procedimiento: Datos, Portal de Compras y Alta desde el pliego | terminada |
+| **T-324** | 017 | Listado de procedimientos, alta y borrador del pliego con la estética nueva | terminada |
+| **T-325** | 017 | Tablero de Pliego y matriz | terminada |
+| **T-326** | 017 | Resto del tablero de Ofertas: hojas de compliance, documentación, circulares y fichas | terminada |
+| **T-327** | 017 | Tablero de Evaluación, parte 1: resultado por oferta, no cumple, no determinado y cumplimiento por tipo | terminada |
+| **T-328** | 017 | Tablero de Evaluación, parte 2: informe técnico, dictamen, descartes, preguntas y exportar | terminada |
+| **T-329** | 017 | Tablero de Normativas y página general de normativas | terminada |
+| **T-330** | 017 | Avance de procesos largos: porcentaje global, panel de avance e indicador del encabezado con la estética nueva | terminada |
 | **T-331** | 017 | Cierre técnico: quitar alias y colores sueltos, retirar Barlow y la marca vieja, guía visual final y test final de… | pendiente |
 | **T-332** | 017 | Runbook de despliegue entorno.md: reconstrucción de la imagen y migración con respaldo | pendiente |
 | **T-333** | 017 | Medición final: 2 s con el procedimiento real del piloto y revisión visual de las cinco secciones en los dos temas, sin… | pendiente |
 | **T-334** | 017 | Correcciones de la medición final, en una sola tarea (se cierra sin cambios si no hay hallazgos) | pendiente |
+| **T-335** | 017 | Ajuste de integración de la 017 para la demo: #seccion-detalle siempre, consultas de Ofertas, fotos truncadas… | terminada |
+| **T-336** | 017 | Correcciones del recorrido en 8000: anillo sin pedido, «Venció» en plazos, «Falta:» siempre, documentos propios en… | terminada |
 
 ## Requisitos (133)
 

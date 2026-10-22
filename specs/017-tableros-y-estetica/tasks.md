@@ -68,30 +68,35 @@ Los del plan, «Criterio de aceptación numérico y umbrales». Se repiten acá 
 | T-308 | Esquema y perfil: `User.theme`, tabla `Photo` con sus restricciones, migración reversible, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa con sus créditos y `.gitignore` | REQ-134, REQ-136, REQ-138 | — | terminada |
 | T-309 | Tokens de los dos temas con alias de los viejos, estilos de `evaluon.css`, `recorrido.css` y `punto.css` en los dos temas, guía visual, test de contraste y test de direcciones externas | REQ-133 | — | terminada |
 | T-310 | Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en `static/marca/` | REQ-133, REQ-142 | — | terminada |
-| T-311 | Tema en `base.html`, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de usuario), vista del tema, pase de hoja, ingreso con el logotipo nuevo y retiro de los SVG viejos | REQ-132, REQ-133, REQ-134, REQ-139, REQ-142 | T-308, T-309, T-310 | en curso |
-| T-312 | Línea «Hay · Falta», portada que redirige al primer panel y vista mínima del indicador de avance | REQ-128, REQ-132, REQ-140 | T-311 | pendiente |
-| T-313 | Componente de tablero: contrato `Tile`, mosaico, cuadrícula, detalle desplegable (`tablero.js` y `tablero.css`) y cuerpo común de las secciones | REQ-126, REQ-127, REQ-141 | T-312 | pendiente |
-| T-314 | Siete gráficos SVG y orden económico (`charts.py`, `economico.py`, plantillas de gráficos) | REQ-126, REQ-130, REQ-141 | T-309 | en verificación |
-| T-315 | Tablero de Ofertas con el detalle «Ofertas del acta» y el orden económico (corte vertical) | REQ-126, REQ-127, REQ-130, REQ-141 | T-313, T-314 | pendiente |
+| T-311 | Tema en `base.html`, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de usuario), vista del tema, pase de hoja, ingreso con el logotipo nuevo y retiro de los SVG viejos | REQ-132, REQ-133, REQ-134, REQ-139, REQ-142 | T-308, T-309, T-310 | terminada |
+| T-312 | Línea «Hay · Falta», portada que redirige al primer panel y vista mínima del indicador de avance | REQ-128, REQ-132, REQ-140 | T-311 | terminada |
+| T-313 | Componente de tablero: contrato `Tile`, mosaico, cuadrícula, detalle desplegable (`tablero.js` y `tablero.css`) y cuerpo común de las secciones | REQ-126, REQ-127, REQ-141 | T-312 | terminada |
+| T-314 | Siete gráficos SVG y orden económico (`charts.py`, `economico.py`, plantillas de gráficos) | REQ-126, REQ-130, REQ-141 | T-309 | terminada |
+| T-315 | Tablero de Ofertas con el detalle «Ofertas del acta» y el orden económico (corte vertical) | REQ-126, REQ-127, REQ-130, REQ-141 | T-313, T-314 | terminada |
 | T-316 | Medición del corte vertical: contraste, 2 s, 0,4 s y revisión visual en Edge, sin código | REQ-126, REQ-127, REQ-133, REQ-139 | T-315 | pendiente |
 | T-317 | Correcciones de la medición del corte vertical, en una sola tarea y con re-medición de lo que cambió (se cierra sin cambios si no hay hallazgos) | REQ-126, REQ-127, REQ-133 | T-316 | pendiente |
-| T-318 | Pendientes con acción a mano: `Item.why/open/post`, `_pendientes.html` y dictamen del Portal en Evaluación | REQ-129, REQ-141 | T-317 | pendiente |
-| T-319 | Fotos: normalización por histograma, subida con sus límites y elección al azar sin repetir | REQ-136, REQ-137, REQ-138 | T-308 | en verificación |
-| T-320 | Mis fotos: página del perfil, quitar, servido privado y enlace en el menú de usuario | REQ-136 | T-311, T-319 | pendiente |
-| T-321 | Primer panel: foto de fondo, datos principales, pendiente general, avance y mosaicos que enlazan a Evaluación | REQ-128, REQ-129, REQ-132, REQ-135, REQ-138 | T-317, T-318, T-320 | pendiente |
-| T-322 | Primer panel: orden económico, plazos importantes y vencimiento del mantenimiento | REQ-128, REQ-130, REQ-131, REQ-141 | T-321 | pendiente |
-| T-323 | Mosaicos de la sección Procedimiento: Datos, Portal de Compras y Alta desde el pliego | REQ-126, REQ-129, REQ-141 | T-317, T-318 | pendiente |
-| T-324 | Listado de procedimientos, alta y borrador del pliego con la estética nueva | REQ-132, REQ-133 | T-317 | pendiente |
-| T-325 | Tablero de Pliego y matriz | REQ-126, REQ-129, REQ-141 | T-317 | pendiente |
-| T-326 | Resto del tablero de Ofertas: hojas de compliance, documentación, circulares y fichas | REQ-126, REQ-129, REQ-141 | T-317 | pendiente |
-| T-327 | Tablero de Evaluación, parte 1: resultado por oferta, no cumple, no determinado y cumplimiento por tipo | REQ-126, REQ-141 | T-317, T-318 | pendiente |
-| T-328 | Tablero de Evaluación, parte 2: informe técnico, dictamen, descartes, preguntas y exportar | REQ-126, REQ-129, REQ-141 | T-317, T-318 | pendiente |
-| T-329 | Tablero de Normativas y página general de normativas | REQ-126, REQ-129, REQ-141 | T-317 | pendiente |
-| T-330 | Avance de procesos largos: porcentaje global, panel de avance e indicador del encabezado con la estética nueva | REQ-140 | T-317 | pendiente |
+| T-318 | Pendientes con acción a mano: `Item.why/open/post`, `_pendientes.html` y dictamen del Portal en Evaluación | REQ-129, REQ-141 | T-317 | terminada |
+| T-319 | Fotos: normalización por histograma, subida con sus límites y elección al azar sin repetir | REQ-136, REQ-137, REQ-138 | T-308 | terminada |
+| T-320 | Mis fotos: página del perfil, quitar, servido privado y enlace en el menú de usuario | REQ-136 | T-311, T-319 | terminada |
+| T-321 | Primer panel: foto de fondo, datos principales, pendiente general, avance y mosaicos que enlazan a Evaluación | REQ-128, REQ-129, REQ-132, REQ-135, REQ-138 | T-317, T-318, T-320 | terminada |
+| T-322 | Primer panel: orden económico, plazos importantes y vencimiento del mantenimiento | REQ-128, REQ-130, REQ-131, REQ-141 | T-321 | terminada |
+| T-323 | Mosaicos de la sección Procedimiento: Datos, Portal de Compras y Alta desde el pliego | REQ-126, REQ-129, REQ-141 | T-317, T-318 | terminada |
+| T-324 | Listado de procedimientos, alta y borrador del pliego con la estética nueva | REQ-132, REQ-133 | T-317 | terminada |
+| T-325 | Tablero de Pliego y matriz | REQ-126, REQ-129, REQ-141 | T-317 | terminada |
+| T-326 | Resto del tablero de Ofertas: hojas de compliance, documentación, circulares y fichas | REQ-126, REQ-129, REQ-141 | T-317 | terminada |
+| T-327 | Tablero de Evaluación, parte 1: resultado por oferta, no cumple, no determinado y cumplimiento por tipo | REQ-126, REQ-141 | T-317, T-318 | terminada |
+| T-328 | Tablero de Evaluación, parte 2: informe técnico, dictamen, descartes, preguntas y exportar | REQ-126, REQ-129, REQ-141 | T-317, T-318 | terminada |
+| T-329 | Tablero de Normativas y página general de normativas | REQ-126, REQ-129, REQ-141 | T-317 | terminada |
+| T-330 | Avance de procesos largos: porcentaje global, panel de avance e indicador del encabezado con la estética nueva | REQ-140 | T-317 | terminada |
 | T-331 | Cierre técnico: quitar alias y colores sueltos, retirar Barlow y la marca vieja, guía visual final y test final de tokens y de anclas | REQ-133, REQ-142 | T-320, T-322, T-323, T-324, T-325, T-326, T-327, T-328, T-329, T-330 | pendiente |
 | T-332 | Runbook de despliegue `entorno.md`: reconstrucción de la imagen y migración con respaldo | REQ-134, REQ-136 | T-320, T-322, T-323, T-324, T-325, T-326, T-327, T-328, T-329, T-330 | pendiente |
 | T-333 | Medición final: 2 s con el procedimiento real del piloto y revisión visual de las cinco secciones en los dos temas, sin código | REQ-126, REQ-133, REQ-139 | T-331, T-332 | pendiente |
 | T-334 | Correcciones de la medición final, en una sola tarea (se cierra sin cambios si no hay hallazgos) | REQ-126, REQ-133 | T-333 | pendiente |
+| T-335 | Ajuste de integración de la 017 para la demo: `#seccion-detalle` siempre, consultas de Ofertas, fotos truncadas rechazadas aunque `weasyprint` cambie Pillow, trato de usted, aviso de cada acción en su detalle, singulares, «Sin resultado», `why` | REQ-126, REQ-127, REQ-129, REQ-132, REQ-136, REQ-141 | T-311 a T-330 | terminada |
+| T-336 | Correcciones del recorrido en 8000: anillo sin pedido, «Venció» en plazos, «Falta:» siempre, documentos propios en Ofertas | REQ-131, REQ-132, REQ-140, REQ-141 | T-335 | terminada |
+
+> **Demo del 2026-10-22.** Por decisión del responsable (2026-10-21 23:25, «puedo resignar auditoria y controles finos»), las tareas T-311 a T-330 se verificaron con nivel liviano y se relajó la dependencia de T-317. T-316 y T-317 (medición del corte vertical) y T-333 y T-334 (medición final) quedan pendientes y se reemplazaron, para la demo, por el recorrido del Coordinador en 8000; T-331 (cierre técnico) y T-332 (runbook; hay una versión provisoria en `entorno.md`) quedan para después de la demo. T-335 y T-336 se agregaron en la integración.
+
 
 ## Detalle
 
