@@ -43,7 +43,7 @@
 .run .pw-empty { color: var(--ink-2); font-size: .8125rem; }
 .pw-last { margin: 0 0 var(--gap); color: var(--ink-2); font-size: .8125rem; }
 .pw-sprite { position: absolute; }
-.pw-sprite .sy { stroke: var(--ev-icono-simbolo); }
+.run .pw-icon svg { stroke: var(--ev-icono-simbolo); }
 
 /* Barra: lima con contorno --ink en el tema gris y blanco. Con valor es <progress>; sin valor,
    un tramo que va y viene (la barra no sabe cuánto falta). */
