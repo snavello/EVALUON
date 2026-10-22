@@ -95,8 +95,8 @@ def test_the_total_of_each_moment_is_the_sum_of_the_sections(client, case, opera
         want = TABLE["momentos"][moment]
         assert overview.pending == sum(c["pendientes"] for c in want.values()), moment
         assert overview.suggestions == sum(c["sugerencias"] for c in want.values()), moment
-        html = client.get(reverse("expedientes:portada", args=[case.procedure.pk])
-                          ).content.decode()
+        html = client.get(reverse("expedientes:portada", args=[case.procedure.pk]),
+                          follow=True).content.decode()
         assert html.index('id="pendientes"') < html.index('id="sugerencias"'), moment
         assert "Pendientes de decidir" in html and "Sugerencias del sistema" in html, moment
 

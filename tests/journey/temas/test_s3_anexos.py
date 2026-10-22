@@ -156,7 +156,7 @@ def test_an_offer_without_a_sheet_is_missing_with_its_button_and_the_upload_clea
     html = block(page(client, procedure))
     assert html.count("Falta la hoja de compliance") >= 2
     assert url("s3_anexos_hoja", procedure, a) in html
-    portada = client.get(reverse("expedientes:portada", args=[procedure.pk])).content.decode()
+    portada = client.get(reverse("expedientes:ofertas", args=[procedure.pk])).content.decode()
     assert f"Oferta {a.number} ({a.bidder}): falta la hoja de compliance" in portada
     ok, text = notice(client, client.post(url("s3_anexos_hoja", procedure, a),
                                           {"file": sheet_pdf()}))
