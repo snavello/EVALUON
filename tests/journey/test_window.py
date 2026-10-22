@@ -205,3 +205,155 @@ def test_window_has_no_inline_styles_or_handlers(client, procedure, two_offers, 
     html = block(client, procedure)
     assert not re.search(r"\sstyle\s*=", html) and "<style" not in html
     assert not re.search(r"\son[a-z]+\s*=", html)
+
+
+# --- T-330 (REQ-140): porcentaje global y panel con la estética nueva -----------------------
+
+def make_job(procedure, user, kind, status=JobStatus.RUNNING, progress=None):
+    """Un pedido de otro tipo (sin evaluación detrás), en el estado pedido."""
+    now = timezone.now()
+    fields = {"status": status, "progress": progress or {}}
+    if status != JobStatus.QUEUED:
+        fields["started_at"] = now - timedelta(seconds=40)
+    job = Job.objects.create(kind=kind, procedure=procedure, requested_by=user)
+    Job.objects.filter(pk=job.pk).update(**fields)
+    job.refresh_from_db()
+    return job
+
+
+def test_overall_percent_counts_the_offer_in_progress():
+    """REQ-140: (ofertas hechas + requisitos hechos / requisitos de la oferta en curso) / ofertas.
+    Oferta 2 de 3 con 14 de 23 requisitos: (1 + 14/23) / 3 = 53,6 %, se redondea a 54."""
+    from evaluon.journey.window import overall_percent
+    from evaluon.tenders.models import JobKind
+    kind = JobKind.EVALUATE_OFFERS
+    main = {"done": 1, "total": 3}
+    assert overall_percent(kind, "running", main, {"done": 14, "total": 23}) == 54
+    # Con dos ofertas hechas y la tercera en el requisito 14 de 23: (2 + 14/23) / 3 = 87 %.
+    assert overall_percent(kind, "running", {"done": 2, "total": 3},
+                           {"done": 14, "total": 23}) == 87
+    # Sin cuenta fina todavía, solo cuentan las ofertas hechas.
+    assert overall_percent(kind, "running", main, None) == 33
+    assert overall_percent(kind, "running", {"done": 0, "total": 3}, None) == 0
+
+
+def test_overall_percent_never_reaches_100_while_running():
+    """REQ-140: mientras corre, el tope es 99; al terminar con todo hecho, 100."""
+    from evaluon.journey.window import overall_percent
+    from evaluon.tenders.models import JobKind
+    kind = JobKind.EVALUATE_OFFERS
+    assert overall_percent(kind, "running", {"done": 2, "total": 2},
+                           {"done": 23, "total": 23}) == 99
+    assert overall_percent(kind, "running", {"done": 3, "total": 3}, None) == 99
+    assert overall_percent(kind, "done", {"done": 3, "total": 3}, None) == 100
+    assert overall_percent(kind, "done", {"done": 2, "total": 3}, None) is None
+
+
+def test_overall_percent_of_a_sheet_is_requirements_done_over_total():
+    """REQ-140 (D-10): armar la ficha también reporta un total (requisitos): da porcentaje."""
+    from evaluon.journey.window import overall_percent
+    from evaluon.tenders.models import JobKind
+    assert overall_percent(JobKind.BUILD_SHEET, "running", {"done": 6, "total": 24}, None) == 25
+
+
+def test_overall_percent_is_none_without_a_known_total():
+    """REQ-140, REQ-141 (D-10): matriz, lectura de documentos y Portal no tienen total: ningún
+    porcentaje inventado, aunque traigan una cuenta de pasos. En espera tampoco hay."""
+    from evaluon.journey.window import overall_percent
+    from evaluon.tenders.models import JobKind
+    for kind in (JobKind.PROPOSE_MATRIX, JobKind.READ_DOCUMENT, JobKind.READ_OFFER_DOCUMENT,
+                 JobKind.PORTAL_EXPLORE, JobKind.PORTAL_REVIEW):
+        assert overall_percent(kind, "running", {"done": 3, "total": 4}, None) is None, kind
+    assert overall_percent(JobKind.EVALUATE_OFFERS, "waiting", {"done": 0, "total": 2},
+                           None) is None
+    assert overall_percent(JobKind.EVALUATE_OFFERS, "running", None, None) is None
+
+
+def test_running_evaluation_shows_the_big_percent_and_where_it_is(
+        client, procedure, two_offers, simulate, progress_steps, operator_user):
+    """REQ-140: oferta 2 de 2 con el requisito 14 de 23: (1 + 14/23) / 2 = 80 %, «oferta 2 de 2 ·
+    requisito 14 de 23», barra con ese valor y los últimos 3 pasos, del más nuevo al más viejo."""
+    log_in(client, operator_user)
+    made = simulate(two_offers, JobStatus.RUNNING, done=1)
+    steps = [f"Evaluando el requisito {n} de 23" for n in range(9, 15)]
+    progress_steps(made.job, steps, done=14, total=23, scope="Oferta 2 de 2")
+    data = window_for(procedure)
+    assert data["overall_percent"] == 80
+    assert data["where"] == "oferta 2 de 2 · requisito 14 de 23"
+    assert len(data["steps"]) == 3
+    html = block(client, procedure)
+    assert re.search(r'class="pw-pct[^"]*">\s*80 %\s*<', html)
+    assert "oferta 2 de 2 · requisito 14 de 23" in html
+    assert '<progress class="pw-barra" max="100" value="80"' in html
+    assert len(re.findall(r'class="pw-time pw-num">', html)) == 3
+    assert html.index("requisito 14 de 23") < html.index("requisito 13 de 23") \
+        < html.index("requisito 12 de 23")
+    assert "requisito 11 de 23" not in html
+
+
+def test_the_start_of_an_offer_does_not_take_the_offer_count_for_requirements(
+        client, procedure, two_offers, simulate, progress_steps, operator_user):
+    """REQ-140: al empezar una oferta, el sistema anota «Empezando la oferta 2 de 2» con la
+    cuenta de ofertas (1 de 2): eso no es el avance de requisitos, así que no se cuenta dos veces."""
+    log_in(client, operator_user)
+    made = simulate(two_offers, JobStatus.RUNNING, done=1)
+    progress_steps(made.job, ["Empezando la oferta 2 de 2"], done=1, total=2,
+                   scope="Oferta 2 de 2")
+    data = window_for(procedure)
+    assert data["overall_percent"] == 50 and data["detail"] is None
+    assert "requisito" not in data["where"]
+    assert "En esta oferta" not in block(client, procedure)
+
+
+@pytest.mark.parametrize("kind_name", ["PROPOSE_MATRIX", "READ_DOCUMENT", "PORTAL_EXPLORE"])
+def test_long_requests_without_a_total_show_step_time_and_an_indeterminate_bar(
+        client, procedure, operator_user, kind_name):
+    """REQ-140 (D-10): matriz, lectura y Portal muestran el paso y el tiempo transcurrido con una
+    barra sin valor, y ninguna cifra de porcentaje."""
+    from evaluon.tenders.models import JobKind
+    log_in(client, operator_user)
+    make_job(procedure, operator_user, getattr(JobKind, kind_name))
+    data = window_for(procedure)
+    assert data["overall_percent"] is None and data["indeterminate"] is True
+    html = block(client, procedure)
+    assert "%" not in html and "<progress" not in html
+    assert 'class="pw-barra pw-indet"' in html and 'role="progressbar"' in html
+    assert "aria-valuenow" not in html
+    assert "lleva" in html and 'class="pw-num"' in html
+
+
+def test_waiting_request_has_an_indeterminate_bar_and_no_percent(
+        client, procedure, two_offers, simulate, operator_user):
+    """REQ-140, REQ-141: en espera no se sabe cuánto falta: barra sin valor y sin porcentaje."""
+    log_in(client, operator_user)
+    simulate(two_offers, JobStatus.QUEUED)
+    data = window_for(procedure)
+    assert data["overall_percent"] is None and data["indeterminate"] is True
+    html = block(client, procedure)
+    assert "%" not in html and 'class="pw-barra pw-indet"' in html
+
+
+def test_finished_evaluation_shows_100_and_failed_keeps_the_error(
+        client, procedure, two_offers, simulate, operator_user):
+    """REQ-140: terminada con todas las ofertas, 100 % sin barra animada; fallida, el motivo en
+    una alerta y la barra donde quedó (nunca 100)."""
+    log_in(client, operator_user)
+    simulate(two_offers, JobStatus.DONE, done=2)
+    done = block(client, procedure)
+    assert re.search(r'class="pw-pct[^"]*">\s*100 %\s*<', done)
+    assert "pw-indet" not in done
+    simulate(two_offers, JobStatus.FAILED, done=1, error="timeout: x")
+    failed = block(client, procedure)
+    assert 'role="alert"' in failed and "el motor de IA no respondió a tiempo" in failed
+    assert "100 %" not in failed and re.search(r'class="pw-pct[^"]*">\s*50 %\s*<', failed)
+
+
+def test_window_styles_live_in_avance_css_with_tokens_only():
+    """REQ-140: el panel y el indicador se dibujan desde `avance.css`, con tokens (sin
+    hexadecimales), la barra con acento lima y sin animar con «reducir movimiento»."""
+    root = Path(__file__).resolve().parents[2] / "evaluon" / "static" / "journey"
+    css = (root / "avance.css").read_text(encoding="utf-8")
+    sin_comentarios = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", sin_comentarios)
+    assert "var(--lime)" in css and ".pw-barra" in css and ".pw-pct" in css
+    assert "prefers-reduced-motion" in css
