@@ -129,4 +129,4 @@ def test_con_ofertas_el_mosaico_muestra_la_cifra(client, procedure, offer, opera
     instalar_mosaicos_que_cuentan(monkeypatch)
     assert client.login(username=operator_user.username, password=TEST_PASSWORD)
     html = client.get(reverse("expedientes:ofertas", args=[procedure.pk])).content.decode()
-    assert 'class="big num">1<small>ofertas</small>' in mosaicos_html(html)[0]
+    assert 'class="big">1<small>ofertas</small>' in mosaicos_html(html)[0]
