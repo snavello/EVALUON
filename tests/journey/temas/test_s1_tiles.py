@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from evaluon.journey.sections import sections_for
 from evaluon.journey.temas import s1_datos, s1_pliego, s1_portal
@@ -92,11 +93,13 @@ def test_a_mano_y_sin_nada_ningun_mosaico_muestra_cifra(procedure, operator_user
             assert tile.missing
 
 
-def test_el_cero_es_un_dato_en_el_mosaico_del_portal(loaded, operator_user, rf):  # noqa: F811
+def test_el_cero_es_un_dato_en_el_mosaico_del_portal(loaded, operator_user, evaluator_user,  # noqa: F811
+                                                     rf):
     """REQ-141: con el Portal vinculado y todo resuelto, «sin aprobar» vale 0 y se dibuja."""
     antes = tiles_de(s1_portal, operator_user, loaded, rf)["portal"]
     assert antes.has_data and antes.big > 0
-    PortalItem.objects.filter(state=ItemState.PROPUESTO).update(state=ItemState.APROBADO)
+    PortalItem.objects.filter(state=ItemState.PROPUESTO).update(
+        state=ItemState.APROBADO, decided_by=evaluator_user, decided_at=timezone.now())
     despues = tiles_de(s1_portal, operator_user, loaded, rf)["portal"]
     assert despues.has_data and despues.big == 0
 
@@ -128,7 +131,7 @@ def test_el_mosaico_del_portal_cuenta_lo_sin_aprobar_igual_que_la_seccion(
     propuesta, novedades, _ = s1_portal._counts(loaded)
     assert tile.big == propuesta + novedades and tile.detail == "d-s1-portal"
     assert tile.unit == "sin aprobar"
-    assert str(novedades) in tile.sub or "novedad" in tile.sub
+    assert f"{propuesta} de la propuesta" in tile.sub and f"{novedades} novedades" in tile.sub
 
 
 def test_el_mosaico_del_pliego_cuenta_los_borradores_que_esperan(client, procedure, operator_user,
