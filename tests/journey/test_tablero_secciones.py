@@ -181,8 +181,7 @@ def test_el_detalle_trae_el_parcial_del_tema_ya_renderizado(client, procedure, m
                                                             operator_user, con_mosaicos):
     """REQ-127: el parcial del tema (con sus formularios) está dentro de su detalle."""
     pagina = revisar(pedir(client, procedure, operator_user))
-    assert "s3-oferta" in pagina.details[DETALLES]["ids"] or \
-        "s3-aviso-ofertas" in pagina.details[DETALLES]["ids"]
+    assert {"s3-ofertas", "s3-alta-portal"} <= set(pagina.details[DETALLES]["ids"])
     assert "Ofertas del acta" in pagina.text_of(DETALLES)
 
 

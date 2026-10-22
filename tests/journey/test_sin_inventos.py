@@ -95,3 +95,38 @@ def test_ningun_tema_declara_mosaicos_sin_el_contrato_completo():
         if hasattr(tema, "opens"):
             assert list(inspect.signature(tema.opens).parameters) == ["request"], tema.KEY
     assert temas.TEMAS
+
+
+def instalar_mosaicos_que_cuentan(monkeypatch):
+    """Un tema de prueba cuyos mosaicos calculan su cifra desde la base y la dejan en `None` si
+    no hay dato, como tienen que hacer los temas reales."""
+    tema = temas.by_key("s3_ofertas")
+
+    def tiles(user, procedure, ctx):
+        cantidad = procedure.offers.count() or None
+        return [Tile(key="acta", title="Ofertas del acta", detail="d-s3-ofertas", width=2,
+                     big=cantidad, unit="ofertas", missing="Falta cargar las ofertas"),
+                Tile(key="orden", title="Orden económico", detail="d-s3-ofertas", big=None)]
+
+    monkeypatch.setattr(tema, "tiles", tiles, raising=False)
+
+
+def test_la_pagina_de_un_procedimiento_vacio_no_muestra_cifras(client, vacio, operator_user,
+                                                                monkeypatch):
+    """REQ-141: de punta a punta, un procedimiento sin ofertas dice «Falta …» y «Pendiente»."""
+    instalar_mosaicos_que_cuentan(monkeypatch)
+    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
+    html = client.get(reverse("expedientes:ofertas", args=[vacio.pk])).content.decode()
+    tarjetas = mosaicos_html(html)
+    assert len(tarjetas) == 2
+    assert all('class="big' not in t and 'class="missing"' in t for t in tarjetas)
+    assert "Falta cargar las ofertas" in tarjetas[0] and "Pendiente" in tarjetas[1]
+
+
+def test_con_ofertas_el_mosaico_muestra_la_cifra(client, procedure, offer, operator_user,
+                                                  monkeypatch):
+    """REQ-126: el mismo tema, con un dato que existe, dibuja la cifra (no es siempre «falta»)."""
+    instalar_mosaicos_que_cuentan(monkeypatch)
+    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
+    html = client.get(reverse("expedientes:ofertas", args=[procedure.pk])).content.decode()
+    assert 'class="big num">1<small>ofertas</small>' in mosaicos_html(html)[0]
