@@ -35,7 +35,7 @@ Qué significa cada prefijo:
 | **P10** |  | Simplicidad |  |
 | **P11** |  | Compuertas humanas |  |
 
-## Features (16)
+## Features (17)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -47,6 +47,7 @@ Qué significa cada prefijo:
 | **014** | 014 | Aplicación por secciones: La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas… |  |
 | **015** | 015 | Uso y elección del modelo: Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal… |  |
 | **016** | 016 | Calidad medible y modelos por clase de dato: Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un… |  |
+| **017** | 017 | Tableros de primer nivel y estética nueva: Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico… |  |
 | **004** | 004 | Evaluación asistida de ofertas: Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su… |  |
 | **005** | 005 | Hojas de compliance: La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no… |  |
 | **009** | 009 | Validación continua con la Comisión: Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus… |  |
@@ -56,7 +57,7 @@ Qué significa cada prefijo:
 | **010** | 010 | Asistente técnico: Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por… |  |
 | **011** | 011 | Pautas para documentos legibles por IA: Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y… |  |
 
-## Tareas (314)
+## Tareas (341)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -374,8 +375,35 @@ Qué significa cada prefijo:
 | **T-305** | 016 | Segunda comparación del verificador con claude-opus-5-5, solo si Sonnet no pasó el umbral 17 y la etapa pasó la puerta… | pendiente |
 | **T-306** | 016 | Cierre del paso 4: ADR-0073 (verificador: con o sin, y por qué) con las cifras, gasto real por etapa, registro del paso… | pendiente |
 | **T-307** | 016 | Verificación transversal con el uso externo apagado y encendido: suite completa sobre la combinación; caso-00 completo… | pendiente |
+| **T-308** | 017 | Esquema y perfil: User.theme, tabla Photo con sus restricciones, migración reversible, photos.py con pick_for (por… | terminada |
+| **T-309** | 017 | Tokens de los dos temas con alias de los viejos, estilos de evaluon.css, recorrido.css y punto.css en los dos temas… | terminada |
+| **T-310** | 017 | Tipografía Hanken Grotesk alojada con su licencia y los cuatro SVG de la marca 017 en static/marca/ | terminada |
+| **T-311** | 017 | Tema en base.html, encabezado único (logotipo por tema, camino, pestañas en píldora con contador, selector, menú de… | en curso |
+| **T-312** | 017 | Línea «Hay · Falta», portada que redirige al primer panel y vista mínima del indicador de avance | pendiente |
+| **T-313** | 017 | Componente de tablero: contrato Tile, mosaico, cuadrícula, detalle desplegable (tablero.js y tablero.css) y cuerpo… | pendiente |
+| **T-314** | 017 | Siete gráficos SVG y orden económico (charts.py, economico.py, plantillas de gráficos) | en verificación |
+| **T-315** | 017 | Tablero de Ofertas con el detalle «Ofertas del acta» y el orden económico (corte vertical) | pendiente |
+| **T-316** | 017 | Medición del corte vertical: contraste, 2 s, 0,4 s y revisión visual en Edge, sin código | pendiente |
+| **T-317** | 017 | Correcciones de la medición del corte vertical, en una sola tarea y con re-medición de lo que cambió (se cierra sin… | pendiente |
+| **T-318** | 017 | Pendientes con acción a mano: Item.why/open/post, _pendientes.html y dictamen del Portal en Evaluación | pendiente |
+| **T-319** | 017 | Fotos: normalización por histograma, subida con sus límites y elección al azar sin repetir | en verificación |
+| **T-320** | 017 | Mis fotos: página del perfil, quitar, servido privado y enlace en el menú de usuario | pendiente |
+| **T-321** | 017 | Primer panel: foto de fondo, datos principales, pendiente general, avance y mosaicos que enlazan a Evaluación | pendiente |
+| **T-322** | 017 | Primer panel: orden económico, plazos importantes y vencimiento del mantenimiento | pendiente |
+| **T-323** | 017 | Mosaicos de la sección Procedimiento: Datos, Portal de Compras y Alta desde el pliego | pendiente |
+| **T-324** | 017 | Listado de procedimientos, alta y borrador del pliego con la estética nueva | pendiente |
+| **T-325** | 017 | Tablero de Pliego y matriz | pendiente |
+| **T-326** | 017 | Resto del tablero de Ofertas: hojas de compliance, documentación, circulares y fichas | pendiente |
+| **T-327** | 017 | Tablero de Evaluación, parte 1: resultado por oferta, no cumple, no determinado y cumplimiento por tipo | pendiente |
+| **T-328** | 017 | Tablero de Evaluación, parte 2: informe técnico, dictamen, descartes, preguntas y exportar | pendiente |
+| **T-329** | 017 | Tablero de Normativas y página general de normativas | pendiente |
+| **T-330** | 017 | Avance de procesos largos: porcentaje global, panel de avance e indicador del encabezado con la estética nueva | pendiente |
+| **T-331** | 017 | Cierre técnico: quitar alias y colores sueltos, retirar Barlow y la marca vieja, guía visual final y test final de… | pendiente |
+| **T-332** | 017 | Runbook de despliegue entorno.md: reconstrucción de la imagen y migración con respaldo | pendiente |
+| **T-333** | 017 | Medición final: 2 s con el procedimiento real del piloto y revisión visual de las cinco secciones en los dos temas, sin… | pendiente |
+| **T-334** | 017 | Correcciones de la medición final, en una sola tarea (se cierra sin cambios si no hay hallazgos) | pendiente |
 
-## Requisitos (116)
+## Requisitos (133)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -495,8 +523,25 @@ Qué significa cada prefijo:
 | **REQ-123** | 016 | La matriz de cumplimiento se puede proponer con un modelo externo que lee el pliego completo, con las mismas medidas y… |  |
 | **REQ-124** | 016 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma… |  |
 | **REQ-125** | 016 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral… |  |
+| **REQ-126** | 017 | Cada una de las cinco secciones abre con un tablero de primer nivel: mosaicos con información agregada (cifras grandes… |  |
+| **REQ-127** | 017 | Al tocar un mosaico, su detalle se despliega debajo de la fila del mosaico, en la misma pantalla; al tocarlo de nuevo… |  |
+| **REQ-128** | 017 | El primer panel (sección Procedimiento) es el ingreso a lo importante del procedimiento: sus datos principales (objeto… |  |
+| **REQ-129** | 017 | Hay un pendiente general en el primer panel, con todo lo que falta hacer en las cinco secciones, y un pendiente propio… |  |
+| **REQ-130** | 017 | El orden económico muestra las ofertas de menor a mayor total, con la oferta más alta y la más baja como indicadores, y… |  |
+| **REQ-131** | 017 | Los plazos importantes muestran al menos la apertura, el día de hoy, el vencimiento del mantenimiento de las ofertas y… |  |
+| **REQ-132** | 017 | Siempre se sabe el camino: un recorrido arriba (Procedimientos › procedimiento › sección) y, en cada sección, una línea… |  |
+| **REQ-133** | 017 | La estética sigue el modelo 2 de la ronda 3: negro, grises y blanco, verde lima solo para resaltar, cifras grandes… |  |
+| **REQ-134** | 017 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda… |  |
+| **REQ-135** | 017 | La foto aparece solo en el primer panel, como fondo muy suave, casi etéreo, pero que se note, detrás de los datos… |  |
+| **REQ-136** | 017 | Cada usuario tiene en su perfil «Mis fotos»: sube, ve y quita hasta 10 fotos. Si no tiene fotos propias, se muestra la… |  |
+| **REQ-137** | 017 | Al subir una foto, el sistema la ajusta para que todas tengan el mismo tono, saturación, temperatura, brillo y… |  |
+| **REQ-138** | 017 | La foto se elige al azar entre las del usuario y cambia solo al cambiar de pantalla, nunca mientras se está en ella.… |  |
+| **REQ-139** | 017 | Al cambiar de sección, la pantalla pasa con efecto de hoja que gira. Con «reducir movimiento» activado en el equipo, el… |  |
+| **REQ-140** | 017 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su… |  |
+| **REQ-141** | 017 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente»… |  |
+| **REQ-142** | 017 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el… |  |
 
-## Decisiones (ADR) (72)
+## Decisiones (ADR) (77)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -572,6 +617,11 @@ Qué significa cada prefijo:
 | **ADR-0070** |  | Instrucciones y reglas simples: largo máximo, sin ejemplos de casos, desempate a la corta y tres salidas por… | aceptado |
 | **ADR-0071** |  | Cierre del paso 2: las instrucciones cortas y las reglas a tres salidas quedan en el modelo local | aceptado |
 | **ADR-0072** |  | Matriz de requisitos: queda en el modelo local; la etapa externa no pasa a aceptación | aceptado |
+| **ADR-0073** |  | Fotos personales: se guardan en la base, ajustadas, y las sirve una vista que solo responde a su dueño | aceptado |
+| **ADR-0074** |  | Tema claro u oscuro: se guarda en el usuario y lo dibuja el servidor | aceptado |
+| **ADR-0075** |  | Pase de página entre secciones: transiciones entre documentos declaradas en CSS | aceptado |
+| **ADR-0076** |  | Tablero de mosaicos: HTML dibujado por el servidor, gráficos en SVG y un script de unas 60 líneas | aceptado |
+| **ADR-0077** |  | Datos que la maqueta usa y el sistema no tiene: monto estimado, vencimiento del mantenimiento y avance | aceptado |
 
 ## Decisiones y definiciones de las instrucciones (D-NN) (68)
 
