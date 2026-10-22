@@ -1,11 +1,16 @@
-/* Hoja de estilos de EVALUON. Tipografías del sistema y nada externo (plan 001,
-   "Pantalla, acceso y comandos"). Las pantallas la completan en las etapas siguientes. */
+/* Hoja de estilos de EVALUON. Nada externo (plan 001, "Pantalla, acceso y comandos"). Los colores
+   salen de los tokens de diseno/tokens.css (feature 017, REQ-133): se leen en los dos temas. */
 
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--ev-fuente);
   line-height: 1.5;
-  color: #1a1a1a;
-  background: #ffffff;
+  color: var(--ev-texto);
+  background: var(--ev-fondo);
+}
+
+a {
+  color: var(--ev-enlace);
+  text-underline-offset: 0.2em;
 }
 
 body {
@@ -21,7 +26,7 @@ body {
   align-items: center;
   gap: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #c8c8c8;
+  border-bottom: 1px solid var(--ev-borde);
 }
 
 .site-name {
@@ -59,9 +64,9 @@ button {
 
 .form-error {
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid #b00020;
-  background: #fdecee;
-  color: #6b0013;
+  border-left: 4px solid var(--no);
+  background: var(--no-bg);
+  color: var(--no-ink);
 }
 
 /* Pantalla de consulta (T-016). */
@@ -109,34 +114,34 @@ button {
   border-radius: 50%;
   text-align: center;
   font-weight: bold;
-  color: #ffffff;
+  color: var(--ev-icono-simbolo);
 }
 
 .result-answer {
-  border-color: #1b6e3a;
-  background: #eef7f1;
+  border-color: var(--ok);
+  background: var(--ok-bg);
 }
 
 .result-answer .result-icon {
-  background: #1b6e3a;
+  background: var(--ok);
 }
 
 .result-no-answer {
-  border-color: #8a5a00;
-  background: #fff6e0;
+  border-color: var(--nd);
+  background: var(--nd-bg);
 }
 
 .result-no-answer .result-icon {
-  background: #8a5a00;
+  background: var(--nd);
 }
 
 .result-failure {
-  border-color: #b00020;
-  background: #fdecee;
+  border-color: var(--no);
+  background: var(--no-bg);
 }
 
 .result-failure .result-icon {
-  background: #b00020;
+  background: var(--no);
 }
 
 .regime-line {
@@ -144,7 +149,7 @@ button {
 }
 
 .result-question {
-  color: #444444;
+  color: var(--ev-texto-suave);
 }
 
 .statement {
@@ -174,35 +179,35 @@ button {
 .applicable {
   margin-left: 0.25rem;
   padding: 0 0.4rem;
-  border: 1px solid #1b6e3a;
+  border: 1px solid var(--ok);
   border-radius: 0.25rem;
-  color: #1b6e3a;
+  color: var(--ok-ink);
 }
 
 .change-mark {
   margin-left: 0.25rem;
   font-style: italic;
-  color: #8a5a00;
+  color: var(--nd-ink);
 }
 
 .regime-conflict {
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid #8a5a00;
-  background: #fff6e0;
+  border-left: 4px solid var(--nd);
+  background: var(--nd-bg);
 }
 
 /* Aviso de modificatorias sin cargar (REQ-021): recuadro propio, uno por norma. */
 .pending-notice {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #8a5a00;
+  border: 1px solid var(--nd);
   border-left-width: 4px;
-  background: #fff6e0;
+  background: var(--nd-bg);
 }
 
 .recognition-note {
   margin-left: 1rem;
   font-style: italic;
-  color: #6b4500;
+  color: var(--nd-ink);
 }
 
 .original-link,
@@ -213,7 +218,7 @@ button {
 .change {
   margin: 0.5rem 0 0.5rem 1rem;
   padding-left: 0.75rem;
-  border-left: 3px dashed #8a5a00;
+  border-left: 3px dashed var(--nd);
 }
 
 .change-note {
@@ -223,8 +228,8 @@ button {
 .literal {
   margin: 0.5rem 0 0.5rem 1rem;
   padding: 0.5rem 0.75rem;
-  border-left: 3px solid #c8c8c8;
-  background: #ffffff;
+  border-left: 3px solid var(--ev-borde);
+  background: var(--ev-fondo);
   white-space: pre-wrap;
 }
 
@@ -233,7 +238,7 @@ button {
 .search-form {
   margin-top: 2rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #c8c8c8;
+  border-top: 1px solid var(--ev-borde);
 }
 
 .search-form h2 {
@@ -259,13 +264,13 @@ button {
 .field-help {
   display: block;
   font-size: 0.9rem;
-  color: #444444;
+  color: var(--ev-texto-suave);
 }
 
 .search-results {
   margin-top: 1.5rem;
   padding: 0.75rem 1rem;
-  border: 1px solid #1f4e79;
+  border: 1px solid var(--pe);
   border-left-width: 6px;
 }
 
@@ -285,15 +290,15 @@ button {
 .repealed-mark {
   margin-left: 0.25rem;
   padding: 0 0.4rem;
-  border: 1px solid #b00020;
+  border: 1px solid var(--no);
   border-radius: 0.25rem;
-  color: #b00020;
+  color: var(--no-ink);
 }
 
 .repeal-note {
   margin-left: 1rem;
   font-weight: bold;
-  color: #b00020;
+  color: var(--no-ink);
 }
 
 .links {
@@ -328,13 +333,13 @@ button {
 .finished-notice .notice {
   margin: 0.5rem 0;
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid #1b6e3a;
-  background: #eef7f1;
+  border-left: 4px solid var(--ok);
+  background: var(--ok-bg);
 }
 
 .finished-notice .notice-failed {
-  border-left-color: #b00020;
-  background: #fdecee;
+  border-left-color: var(--no);
+  background: var(--no-bg);
 }
 
 /* Con navegación, es ella la que empuja el usuario a la derecha. */
