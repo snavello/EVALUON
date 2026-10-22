@@ -5,6 +5,7 @@
 
 {% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'accounts/fotos.css' %}">{% endblock %}
 
+{% comment %}Los formularios de subir y quitar llevan la clase `preferencia`: el usuario de lectura sí puede subir y quitar sus fotos y `without_actions` no debe ocultárselos.{% endcomment %}
 {% block content %}
 <section class="fotos">
   <h1>Mis fotos</h1>
@@ -15,14 +16,14 @@
     {% for photo in photos %}
     <div class="slot">
       <img src="{% url 'accounts:foto' photo.pk %}" alt="Foto {{ forloop.counter }} de su perfil" loading="lazy">
-      <form method="post" action="{% url 'accounts:foto_quitar' photo.pk %}" class="quitar">
+      <form method="post" action="{% url 'accounts:foto_quitar' photo.pk %}" class="quitar preferencia">
         {% csrf_token %}
         <button class="del" type="submit" aria-label="Quitar la foto {{ forloop.counter }}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </form>
     </div>
     {% endfor %}
     {% if can_add %}
-    <form method="post" action="{% url 'accounts:fotos' %}" enctype="multipart/form-data" class="slot add">
+    <form method="post" action="{% url 'accounts:fotos' %}" enctype="multipart/form-data" class="slot add preferencia">
       {% csrf_token %}
       <label for="foto-nueva">Subir una foto</label>
       <input id="foto-nueva" type="file" name="foto" accept="image/jpeg,image/png,image/webp" required>
