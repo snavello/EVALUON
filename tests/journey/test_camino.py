@@ -63,16 +63,26 @@ def test_hay_comes_from_the_summary_and_falta_from_the_missing_with_their_action
         return
     assert falta is not None
     for item in section.tema_missing:
-        assert str(item.text).strip() in falta.group(1)
+        assert shown(item.text) in falta.group(1)
         if item.url:
             assert f'href="{item.url}"' in falta.group(1)
             assert (item.action or "Ver") in falta.group(1)
 
 
-def test_the_label_does_not_repeat_the_word_when_the_missing_text_starts_with_it(
-        client, procedure, operator_user):
-    """T-335, REQ-132: si el primer faltante ya empieza con «Falta», la etiqueta no repite la
-    palabra («Falta: Falta el expediente…»); el texto de cada faltante sigue entero."""
+def shown(text):
+    """Cómo se muestra un faltante (T-336): sin el «Falta » o «Faltan » del comienzo y con la
+    primera letra en mayúscula."""
+    text = str(text).strip()
+    for start in ("Faltan ", "Falta "):
+        if text.startswith(start):
+            text = text[len(start):]
+            break
+    return text[:1].upper() + text[1:]
+
+
+def test_the_label_is_always_there_and_the_word_is_not_repeated(client, procedure, operator_user):
+    """T-336, REQ-132: la etiqueta «Falta:» va siempre; el texto de cada faltante pierde el
+    «Falta »/«Faltan » del comienzo y sigue entero, con su acción."""
     log_in(client, operator_user)
     visto = False
     for key in KEYS:
@@ -82,13 +92,12 @@ def test_the_label_does_not_repeat_the_word_when_the_missing_text_starts_with_it
         block = hay_falta(client.get(url(key, procedure)).content.decode())
         etiqueta = re.search(r'<span class="hf-et"><i class="hf-punto hf-punto-falta"[^>]*></i>'
                              r'(.*?)</span>', block, re.S).group(1).strip()
-        primero = str(section.tema_missing[0].text).strip()
-        if primero.startswith("Falta"):
-            assert etiqueta == "", (key, etiqueta)
+        assert etiqueta == "Falta:", (key, etiqueta)
+        falta = re.search(r'<p class="falta">(.*?)</p>', block, re.S).group(1)
+        assert shown(section.tema_missing[0].text) in falta
+        if str(section.tema_missing[0].text).strip().startswith("Falta"):
+            assert str(section.tema_missing[0].text).strip() not in falta
             visto = True
-        else:
-            assert etiqueta == "Falta:", (key, etiqueta)
-        assert primero in block
     assert visto, "ningun caso de prueba tiene un faltante que empiece con Falta"
 
 

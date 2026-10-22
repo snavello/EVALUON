@@ -97,3 +97,20 @@ def test_the_poll_script_reads_the_poll_url_of_the_indicator():
     """REQ-140: `recorrido.js` sondea todo `[data-poll-url]`, también el indicador."""
     js = (ROOT / "static" / "journey" / "recorrido.js").read_text(encoding="utf-8")
     assert "[data-poll-url]" in js
+
+
+def test_no_ring_in_any_section_without_a_request_in_progress(client, procedure, two_offers,
+                                                             simulate, operator_user):
+    """REQ-140, REQ-141 (T-336): sin pedidos en espera ni en curso (ninguno o solo terminados),
+    ninguna página de sección trae el anillo; con un pedido en curso, sí."""
+    log_in(client, operator_user)
+    for status in (None, JobStatus.DONE):
+        if status:
+            simulate(two_offers, status, done=2)
+        for key in ("procedimiento", "ofertas"):
+            html = client.get(reverse(f"expedientes:{key}", args=[procedure.pk])).content.decode()
+            assert 'id="avance-encabezado"' in html and "avance-anillo" not in html, (key, status)
+    simulate(two_offers, JobStatus.RUNNING, done=1)
+    for key in ("procedimiento", "ofertas"):
+        html = client.get(reverse(f"expedientes:{key}", args=[procedure.pk])).content.decode()
+        assert "avance-anillo" in html, key

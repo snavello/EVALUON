@@ -107,6 +107,18 @@ def test_documentacion_cuenta_los_documentos_sin_denominador_inventado(
         assert f"Oferta {oferta.number}" in plano
 
 
+def test_documentacion_dice_que_cuenta_solo_los_documentos_propios(
+        client, procedure, matrix, two_offers, evaluator_user, fake_ai):
+    """REQ-141 (T-336): el mosaico dice «documentos propios» y «sin anexos técnicos ni hojas», para
+    que no se lea como el total de la línea «Hay» (que cuenta también anexos y hojas)."""
+    assert client.login(username=evaluator_user.username, password=TEST_PASSWORD)
+    client.post(annex_url("s3_anexos_hoja", procedure, two_offers[0]), {"file": sheet_pdf()})
+    propios = sum(len(s3_ofertas.own_current(o)) for o in two_offers)
+    plano = texto(mosaico(pedir(client, procedure, evaluator_user), "docs"))
+    assert re.search(rf"\b{propios}\s+documentos propios", plano), plano
+    assert "Sin anexos técnicos ni hojas" in plano
+
+
 # --- Fichas -----------------------------------------------------------------------------------------
 
 

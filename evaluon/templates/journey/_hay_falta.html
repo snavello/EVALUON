@@ -1,4 +1,4 @@
-{% comment %}Línea «Hay: … · Falta: …» de una sección (REQ-132; maqueta aprobada de la 017). Parcial autónomo: pide solo `section` (con `summary` y `tema_missing`). «Hay» es el resumen de la sección y «Falta» lleva cada faltante con su acción directa. Conserva el `id="seccion-resumen"` y el `<p class="falta">` de la 014. Sin estilos en línea.{% endcomment %}<div class="hay-falta" id="hay-falta">
+{% comment %}Línea «Hay: … · Falta: …» de una sección (REQ-132; maqueta aprobada de la 017). Parcial autónomo: pide solo `section` (con `summary` y `tema_missing`). «Hay» es el resumen de la sección y «Falta» lleva cada faltante con su acción directa. La etiqueta «Falta:» va siempre; a cada faltante se le quita el «Falta » o «Faltan » del comienzo, con mayúscula inicial (T-336). Conserva el `id="seccion-resumen"` y el `<p class="falta">` de la 014. Sin estilos en línea.{% endcomment %}<div class="hay-falta" id="hay-falta">
   <div class="hf-fila hf-hay">
     <span class="hf-et"><i class="hf-punto" aria-hidden="true"></i>Hay:</span>
     <p class="resumen-linea" id="seccion-resumen">
@@ -6,8 +6,8 @@
     </p>
   </div>
   <div class="hf-fila hf-falta">
-    <span class="hf-et"><i class="hf-punto hf-punto-falta" aria-hidden="true"></i>{% if section.tema_missing.0.text|slice:":5" != "Falta" %}Falta:{% endif %}</span>
-    {% if section.tema_missing %}<p class="falta">{% for item in section.tema_missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% else %}<p class="sin-falta">Ningún faltante registrado.</p>{% endif %}
+    <span class="hf-et"><i class="hf-punto hf-punto-falta" aria-hidden="true"></i>Falta:</span>
+    {% if section.tema_missing %}<p class="falta">{% for item in section.tema_missing %}{% with t=item.text %}{% if t|slice:":6" == "Falta " %}{{ t|slice:"6:"|capfirst }}{% elif t|slice:":7" == "Faltan " %}{{ t|slice:"7:"|capfirst }}{% else %}{{ t }}{% endif %}{% endwith %}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% else %}<p class="sin-falta">Ningún faltante registrado.</p>{% endif %}
   </div>
 </div>
 <!-- /hay-falta -->

@@ -220,6 +220,27 @@ def test_el_mosaico_de_plazos_cuenta_los_dias_hasta_el_vencimiento(
     assert "d-s1-plazos" in html
 
 
+def test_el_mosaico_de_plazos_con_el_mantenimiento_vencido_dice_vencio(
+        client, procedure, matrix, tres, opening, pagina, operator_user,  # noqa: F811
+        monkeypatch):
+    """REQ-131 (T-336): el 25/11/2026 el vencimiento (21/11) pasó hace 4 días: la cifra grande es
+    «Venció», sin «días» ni «faltan», y el apoyo dice hace cuánto y cuándo fue."""
+    pagina()
+    monkeypatch.setattr(ingreso, "today", lambda: date(2026, 11, 25))
+    plazos = texto(mosaico(abrir(client, procedure, operator_user), "plazos"))
+    assert "Venció" in plazos and "hace 4 días · el 21/11" in plazos
+    assert "faltan" not in plazos and "4 días vence" not in plazos
+
+
+def test_el_mosaico_de_plazos_sin_vencer_sigue_con_los_dias_que_faltan(
+        client, procedure, matrix, tres, opening, pagina, operator_user):  # noqa: F811
+    """REQ-131 (T-336): antes del vencimiento, «31 días» y la fecha con «vence …»."""
+    pagina()
+    plazos = texto(mosaico(abrir(client, procedure, operator_user), "plazos"))
+    assert "31" in plazos and "días" in plazos and "21/11 · vence el mantenimiento" in plazos
+    assert "Venció" not in plazos
+
+
 def test_sin_cronograma_el_mosaico_de_plazos_dice_falta(client, procedure, matrix, tres,
                                                         operator_user):
     """REQ-141: sin apertura ni vencimiento no hay cifra: «Falta»."""
