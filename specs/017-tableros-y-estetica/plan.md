@@ -16,7 +16,7 @@ Seis ideas ordenan el plan:
 2. **El tema vive en el servidor**: una columna en el usuario; la página sale ya dibujada en el tema elegido (sin parpadeo y sin JavaScript).
 3. **Las fotos se guardan en la base**, normalizadas al subir, y se sirven por una vista que solo responde a su dueño. No hay carpeta de fotos que pueda llegar al repositorio.
 4. **El pase de página es CSS** (`@view-transition`), con fundido corto para «reducir movimiento». En los navegadores que no lo implementan (hoy Firefox) la navegación es la de siempre, sin animación.
-5. **Los tableros solo muestran datos que el sistema tiene**. Lo que no existe se muestra como «Falta» o «Pendiente» (REQ-141). Los cuatro datos que la maqueta usa y el sistema no tiene (monto estimado, vencimiento del mantenimiento, avance y denominadores de documentos) se resuelven en el ADR-0077 y en la tabla «Datos que faltan hoy».
+5. **Los tableros solo muestran datos que el sistema tiene**. Lo que no existe se muestra como «Falta» o «Pendiente» (REQ-141). Los datos que la maqueta usa y el sistema no tiene (vencimiento del mantenimiento, avance y denominadores de documentos) se resuelven en el ADR-0077 y en la tabla «Datos que faltan hoy». El monto estimado **no se usa** (enmienda del responsable del 2026-10-21): los indicadores son la oferta más alta y la más baja.
 6. **Los bloques de trabajo se pueden repartir**: después de la base, cada sección es un bloque con sus archivos y sin archivos compartidos con los demás.
 
 ## Lo que se reutiliza y lo que se cambia
@@ -82,7 +82,7 @@ Una vista de sección arma `Overview` (`sections_for`, ya memoizada por pedido c
 ### Tablero: mosaicos y detalle (REQ-126, REQ-127)
 
 - **Contrato `Tile`** (`journey/tablero/tiles.py`): `key`, `title`, `detail` (id del detalle que abre, p. ej. `d-s3-ofertas`), `width` (1, 2 o 4 columnas), `tone` (`""` o `dark`), `big` (cifra grande) y `unit`, `sub` (línea de apoyo), `chart` (uno de los gráficos de abajo) y `missing` (texto «Falta …» o «Pendiente»). **Regla de REQ-141:** si el dato de un mosaico es `None`, la plantilla dibuja `missing` en lugar de `big` y `chart`; no existe un valor por omisión. Un test recorre todos los mosaicos con un procedimiento vacío y comprueba que ninguno muestra cifra.
-- **Gráficos** (`charts.py` y `templates/journey/graficos/`, todos SVG con atributos de presentación, porque la política de contenido (`default-src 'self'`) y `test_no_external.py` prohíben `style=`): `Bars` (barras horizontales), `Donuts` (cumple / no cumple / no determinado / pendiente por oferta), `Lollipop` (orden económico con el estimado), `Timeline` (plazos), `Stack` (barra apilada por tipo), `Columns` (columnas chicas), `Heat` (tabla de calor por tipo y oferta). El ícono de estado sigue siendo el de la guía (círculo con símbolo y nombre al pasar el mouse o con el foco).
+- **Gráficos** (`charts.py` y `templates/journey/graficos/`, todos SVG con atributos de presentación, porque la política de contenido (`default-src 'self'`) y `test_no_external.py` prohíben `style=`): `Bars` (barras horizontales), `Donuts` (cumple / no cumple / no determinado / pendiente por oferta), `Lollipop` (orden económico de menor a mayor, con la más baja y la más alta como indicadores), `Timeline` (plazos), `Stack` (barra apilada por tipo), `Columns` (columnas chicas), `Heat` (tabla de calor por tipo y oferta). El ícono de estado sigue siendo el de la guía (círculo con símbolo y nombre al pasar el mouse o con el foco).
 - **Detalle debajo de la fila:** el HTML trae los detalles ya renderizados, en una zona `.detalles`, cada uno `id="d-…"`. Cada mosaico es un `<a href="#d-…">` (sin JavaScript es un ancla a la zona de detalles, que queda visible). `tablero.js` detecta la fila del mosaico (las que comparten `offsetTop`), mueve el detalle después del último mosaico de esa fila y lo abre con una transición de `grid-template-rows` de 0,35 s; un clic en otro mosaico pliega el anterior; un clic en el mismo, lo pliega. Pone `role="button"`, `aria-expanded` y `aria-controls`, y abre el detalle que nombra `location.hash` (así funcionan las anclas que ya usan los enlaces de la 014, como `#s1-portal` o `#dictamen-subir`, y los redirigidos después de un POST: se abre el detalle que contiene el elemento con ese id). Varios mosaicos pueden abrir el mismo detalle (por ejemplo «Requisitos» y «Versiones de la matriz»). Un parámetro que hoy abre un modo del tema (`?oferta=`, `?ficha=`, `?historial=`) abre también su detalle: el tema declara `opens(request)`.
 - **Los mosaicos de otra sección en el primer panel** (resultado por oferta, descartes, preguntas) **no repiten el detalle**: son enlaces a la sección con el detalle abierto (`evaluacion/#d-…`), con el pase de hoja. Así el contexto de la sección 4 (el más pesado) no se calcula dos veces. Es una diferencia con la maqueta (punto D-4).
 - **Mosaicos agregados a los de la maqueta**, para que ninguna función de la 014 quede sin acceso (la maqueta no los dibuja): sección 1, «Datos del procedimiento», «Portal de Compras» y «Alta desde el pliego»; sección 3, «Circulares» y «Fichas de las ofertas»; sección 4, «Exportar»; sección 5, «Normas cargadas». Cada uno abre el parcial de su tema (punto D-5).
@@ -153,14 +153,14 @@ Leyenda: **sí** = existe hoy en el modelo; **calculable** = se deriva de datos 
 |---|---|---|
 | Objeto, tipo y número, fecha de autorización | `tenders.Procedure` (`subject`, `procedure_type`, `number`, `authorization_date`) | sí |
 | Expediente | `PortalProcedureData.file_number` (también lo escribe el alta desde el pliego) | sí; «Falta» si no se cargó |
-| Monto estimado | — | **no** (ADR-0077) |
+| La más alta (indicador) | `assessment.ordering.economic_order(...)` sobre `PortalOfferData.total` | sí si el acta del Portal trae los totales; sin ofertas, día de la apertura y «Pendiente» |
 | Cantidad de ofertas | `Offer` del procedimiento | sí |
 | La más baja | `assessment.ordering.economic_order(...)` sobre `PortalOfferData.total` | sí si el acta del Portal trae los totales; si no, «Falta» |
 | Avance | — | **no está definido** (ADR-0077: secciones listas de cinco) |
 | Días hasta el vencimiento del mantenimiento | Plazo del Portal (`mantenimiento_oferta`, hoy solo en la página guardada) + apertura del cronograma | **calculable** (ADR-0077) |
 | Cantidad de pendientes | `Overview.pending` | sí |
 | Pendiente general | `Section.pending_items` de las cinco secciones | sí; «por qué importa» **no** (se agrega `Item.why`) |
-| Orden económico (lollipop y detalle) | `economic_order` (de menor a mayor, empates con la misma posición) | sí; diferencia con el estimado **no** hasta tener el estimado; diferencia con la más baja, calculable |
+| Orden económico (lollipop y detalle) | `economic_order` (de menor a mayor, empates con la misma posición) | sí; la más alta y la más baja como indicadores; diferencia de cada una con la más baja, calculable; sin ofertas: día de la apertura (cronograma) y «Pendiente» |
 | Plazos importantes | Cronograma del Portal (`PortalProcedureData.schedule`, `s1_datos._schedule`/`_opening`) para la apertura; hoy; vencimiento del mantenimiento (calculable); dictamen (`s4_dictamen`: fecha del documento o del Portal) | apertura sí; vencimiento calculable; dictamen **no tiene fecha prevista** (se muestra «Pendiente» hasta que hay uno) |
 | Avance de procesos largos | `window_for` / `progress_of` | sí |
 | Resultado por oferta, Descartes propuestos, Preguntas | `memo.matrix_page` (`by_outcome`), `s4_descartes.service.units`, `open_questions` | sí; enlazan a la sección 4 |
@@ -183,7 +183,7 @@ Leyenda: **sí** = existe hoy en el modelo; **calculable** = se deriva de datos 
 | Mosaico | Fuente | Existe |
 |---|---|---|
 | Ofertas del acta (cantidad, columnas con el total) | `s3_ofertas.offers_of`, `PortalOfferData.total` | sí; sin totales, solo la cantidad |
-| La más baja y Orden económico | `tablero/economico.py` sobre `economic_order` | sí (diferencia con el estimado: **no**, ADR-0077) |
+| La más baja, la más alta y Orden económico | `tablero/economico.py` sobre `economic_order` | sí |
 | Hojas de compliance («1 de 3») | `s3_anexos.offer_block` (hoja presente) | sí |
 | Documentación de las ofertas («23 de 27») | Cantidad de documentos por oferta (`own_current`) | cantidad **sí**; el denominador («de 9») **no existe**: se muestra la cantidad por oferta y los faltantes que el sistema sí conoce (hoja de compliance, anexos) |
 | Circulares | `s3_circulares.status/context` | sí |
@@ -214,8 +214,8 @@ Leyenda: **sí** = existe hoy en el modelo; **calculable** = se deriva de datos 
 
 | Dato que usa la maqueta | Qué hay hoy | Propuesta | Decisión |
 |---|---|---|---|
-| **Monto estimado** | Nada: ni el Portal (la página no lo trae) ni el modelo lo guardan | Mostrar «Falta» mientras no exista. Para que exista: el evaluador lo carga desde el pliego, con documento y cita literal de respaldo, quién y cuándo (tabla de solo inserción `tenders_procedure_estimate`, un formulario chico en el detalle de «Datos del procedimiento», hecho de auditoría `procedure` con `action=monto_estimado`) | ADR-0077, punto D-1: **necesita respuesta del responsable** |
-| **Diferencia de cada oferta con el estimado** | Depende del monto estimado | Se calcula cuando hay estimado; sin él, solo la diferencia con la más baja y «Falta el monto estimado» | ADR-0077 |
+| **Monto estimado** | Nada: ni el Portal (la página no lo trae) ni el modelo lo guardan | **No se usa** (enmienda del responsable del 2026-10-21, REQ-128 y REQ-130): los indicadores son la oferta más alta y la más baja; sin ofertas, el día de la apertura y «Pendiente». No se agrega tabla ni formulario | Resuelto (D-1) |
+| **Ofertas todavía no cargadas** | El cronograma tiene la apertura; no hay ofertas | El cuadro del orden económico y los indicadores muestran el día de la apertura y «Pendiente», sin cifras | REQ-130 |
 | **Vencimiento del mantenimiento y «faltan N días»** | El parser lee `mantenimiento_oferta` («60 Días corridos Acto de apertura») pero el procedimiento no lo guarda; la página del Portal sí queda guardada (`PortalPage.content`, con enlace y fecha) | Se lee al vuelo desde la última página guardada del proceso (`parse_page`), se suma al día de apertura del cronograma si el plazo es en días corridos y se muestra con «Fuente: Portal, tomado el …». En días hábiles (no hay calendario de feriados): «N días hábiles desde la apertura» y «Falta el calendario» | ADR-0077 |
 | **Avance (76 %) y avance por sección (barras)** | No hay una medida; hay estado y cuentas por sección | Avance = secciones en estado «lista» de las cinco («2 de 5 secciones listas»). El mosaico «Avance por sección» muestra el estado de cada una (ícono) con sus pendientes y faltantes, sin porcentajes inventados | ADR-0077, punto D-2 |
 | **Por qué importa cada pendiente** | `Item` no lo trae | Campo `why`, escrito por cada tema solo donde se sabe el motivo | Plan |
@@ -232,9 +232,9 @@ Todo el esquema lo toca **una sola tarea, B0.1**, para que ningún otro bloque g
 |---|---|---|
 | `accounts_user.theme` (texto, `claro` o `negro`, por omisión `claro`, con restricción de valores) | Tema guardado en el perfil | REQ-134 |
 | `accounts_photo` (nueva, descrita en «Fotos») con restricciones: `slot` entre 0 y 9, única `(user, slot)`, `size` ≤ 2.097.152 | Fotos personales | REQ-136, REQ-137 |
-| `tenders_procedure_estimate` (nueva, solo inserta, con disparadores contra `UPDATE` y `DELETE` como `tenders_document_change`): procedimiento, importe, moneda, documento y cita de respaldo, usuario, momento. **Solo si el responsable aprueba el punto D-1** | Monto estimado con fundamento | REQ-128, REQ-130 |
+| — | (Sin tabla de monto estimado: la decisión D-1 la descartó) | — |
 
-Migraciones reversibles (`accounts/0003_tema_y_fotos.py`; `tenders/00NN_monto_estimado.py` si corresponde). Los usuarios existentes quedan con tema `claro` y sin fotos. Sin cambios en el esquema de ofertas, evaluación, Portal ni auditoría.
+Migraciones reversibles (`accounts/0003_tema_y_fotos.py`). Los usuarios existentes quedan con tema `claro` y sin fotos. Sin cambios en el esquema de procedimientos, ofertas, evaluación, Portal ni auditoría.
 
 ## Flujo de IA
 
@@ -243,7 +243,7 @@ No usa IA. La normalización de fotos es procesamiento de imagen local con Pillo
 ## Registro de auditoría
 
 - **Aprobar desde el pendiente** (REQ-129): `approval.decide` registra quién, cuándo y qué (`portal_decision`), igual que hoy. Es una prueba del test de REQ-129.
-- **Monto estimado** (si se aprueba D-1): hecho `procedure` con `action=monto_estimado`, importe, moneda, documento, cita, usuario y momento (P3, P6).
+- **Monto estimado:** no se usa (D-1); no hay hecho que registrar.
 - **Tema y fotos: no se registran** en la auditoría de evaluaciones. Son preferencias de la persona, no intervienen en ninguna evaluación (P6 pide reconstruir por qué el sistema dijo lo que dijo) y registrar sus fotos sería guardar un dato privado más. La base conserva la huella, el tamaño y la fecha de cada foto.
 - **Rechazos por rol:** sin cambios; el usuario de lectura puede cambiar su tema y sus fotos, pero ninguna acción de decisión (el botón no se dibuja y el servicio igual lo rechaza).
 
@@ -255,7 +255,7 @@ No usa IA. La normalización de fotos es procesamiento de imagen local con Pillo
 | REQ-127 | `tablero.js` y `tablero.css`: detalle bajo la fila, uno abierto, transición de 0,35 s | Test del HTML (mosaico ↔ detalle, `aria-controls`) y de la duración en el CSS (≤ 0,4 s); revisión en el navegador con «Ofertas del acta» |
 | REQ-128 | `_ingreso.html`, `tablero/ingreso.py`, foto de fondo, `economico.py`, plazos; sin mosaicos ni datos de normativa | `tests/journey/test_primer_panel.py`: datos, pendiente general, orden y plazos presentes; ningún dato de normativa (régimen, normas); revisión a 1440 × 900 |
 | REQ-129 | `Item.why/open/post`, `_pendientes.html`, bloque B-P (dictamen en Evaluación) | `tests/journey/test_pendientes.py`: aprobar el dictamen desde el pendiente general lo quita de las dos listas, baja el contador en uno y deja el hecho de auditoría con usuario y momento |
-| REQ-130 | `tablero/economico.py` (ordena, diferencia con el más bajo y con el estimado), mosaico y detalle | Test con tres ofertas: orden, la más baja marcada, porcentajes; sin estimado, «Falta el monto estimado» |
+| REQ-130 | `tablero/economico.py` (ordena, marca la más alta y la más baja, diferencia de cada una con la más baja; sin ofertas, día de la apertura y «Pendiente»), mosaico y detalle | Test con tres ofertas: orden, la más alta y la más baja marcadas, porcentajes con la más baja; test sin ofertas: día de la apertura y «Pendiente», ninguna cifra |
 | REQ-131 | `ingreso.py` (`Timeline`: apertura, hoy, vencimiento, dictamen) | Test con apertura del 22/09/2026, 60 días corridos y hoy 21/10/2026: «21/11 · vence el mantenimiento de las ofertas» y «faltan 31 días»; con días hábiles, «Falta el calendario» |
 | REQ-132 | `_camino.html`, `_hay_falta.html`, contadores en las pestañas | `test_camino.py`: recorrido y línea «Hay … Falta …» en las cinco secciones y en la portada; contador por pestaña |
 | REQ-133 | `tokens.css`, `secciones.css`, `tablero.css`, guía visual nueva | `test_contraste.py` (100 % AA en los dos temas); test del verde lima; revisión visual de las cinco secciones en los dos temas |
@@ -266,7 +266,7 @@ No usa IA. La normalización de fotos es procesamiento de imagen local con Pillo
 | REQ-138 | `pick_for` al servir la página; sin repetir la anterior | Test: con 3 fotos, pedidos sucesivos del primer panel eligen distinto; la página no trae script que cambie la foto |
 | REQ-139 | `pase.css`, `pase.js` | Test de `@view-transition`, duraciones (≤ 0,5 s; ≤ 0,15 s con reducir movimiento) y de `view-transition-name`; revisión en Edge |
 | REQ-140 | `window.py` (`overall_percent`), `_window.html`, `_avance_encabezado.html`, `views/avance.py` | `test_avance_encabezado.py`: con una evaluación en curso, el encabezado de cualquier sección muestra el porcentaje y el primer panel, dónde va y los últimos 3 pasos; intervalo ≤ 10 s |
-| REQ-141 | Regla de `Tile` (`None` → «Falta» o «Pendiente») y los tests de cada tema | `test_sin_inventos.py`: procedimiento vacío, sin dictamen, sin estimado, sin ofertas: ninguna cifra inventada; el mosaico de Evaluación dice «Pendiente» |
+| REQ-141 | Regla de `Tile` (`None` → «Falta» o «Pendiente») y los tests de cada tema | `test_sin_inventos.py`: procedimiento vacío, sin dictamen, sin ofertas (el orden económico muestra el día de la apertura y «Pendiente»): ninguna cifra inventada; el mosaico de Evaluación dice «Pendiente» |
 | REQ-142 | SVG de la marca 017 en `static/marca/`, `<img>` por tema, isotipo en la pestaña | `test_marca.py` actualizado (archivos, sin `<text>`, versión por tema, contraste de las letras sobre su placa); revisión visual de los dos temas |
 
 ## Verificación contra la constitución
@@ -275,12 +275,12 @@ No usa IA. La normalización de fotos es procesamiento de imagen local con Pillo
 |---|---|---|
 | P1 La spec es la fuente | sí | Cada bloque nombra sus REQ; los vacíos de la spec están en «Puntos donde la spec no alcanza» |
 | P2 Trazabilidad | sí | Tabla de cobertura; `tasks.md` asociará REQ a cada tarea |
-| P3 El sistema recomienda, la Comisión decide | sí | El tablero solo muestra; lo que no existe se muestra como «Falta»; los datos con fundamento (Portal, cita) lo conservan; el monto estimado, si se carga, lo carga una persona con su cita; aprobar desde el pendiente sigue siendo del evaluador o el operador según el ítem |
+| P3 El sistema recomienda, la Comisión decide | sí | El tablero solo muestra; lo que no existe se muestra como «Falta»; los datos con fundamento (Portal, cita) lo conservan; aprobar desde el pendiente sigue siendo del evaluador o el operador según el ítem |
 | P4 Datos | sí | Fotos solo en la base local, por usuario, nunca en el repositorio, en pruebas ni en un servicio externo; tipografía y foto de la casa en el equipo; test contra direcciones externas |
 | P5 Local y reproducible | sí | Sin servicios nuevos ni dependencias nuevas; el entorno se levanta igual; la imagen se reconstruye por los estáticos |
 | P6 Auditoría | sí | Lo que decide una persona deja su hecho; tema y fotos no son evaluación (ver «Registro») |
 | P7 Evals | sí (no aplica) | No cambia recuperación, instrucciones ni modelo |
-| P10 Simplicidad | sí | Sin marco de interfaz; dos scripts chicos; una columna y una tabla de fotos; la tabla del estimado solo si el responsable la aprueba; no se hace la comparación «como la subió», ni mosaicos que ningún requisito pide |
+| P10 Simplicidad | sí | Sin marco de interfaz; dos scripts chicos; una columna y una tabla de fotos; sin tabla de monto estimado; no se hace la comparación «como la subió», ni mosaicos que ningún requisito pide |
 | P11 Compuertas | sí | Plan y ADR esperan la aprobación del responsable; los ADR nacen «propuesto» |
 
 ## Decisiones
@@ -295,14 +295,14 @@ Los bloques no son tareas: `tasks.md` los partirá en tareas de una sesión. «A
 
 | Bloque | Qué entrega | Depende de | Archivos que escribe |
 |---|---|---|---|
-| **B0.1 Esquema y perfil** | `User.theme`, `Photo`, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa en estáticos con sus créditos, `.gitignore` | — | `evaluon/accounts/models.py`, `evaluon/accounts/migrations/0003_tema_y_fotos.py`, `evaluon/accounts/photos.py`, `evaluon/static/diseno/casa/*`, `.gitignore`, `tests/accounts/test_models_perfil.py`, `tests/test_sin_fotos_en_el_repositorio.py`; con D-1 aprobado: `evaluon/tenders/models.py`, `evaluon/tenders/migrations/00NN_monto_estimado.py` |
+| **B0.1 Esquema y perfil** | `User.theme`, `Photo`, `photos.py` con `pick_for` (por ahora solo la foto de la casa), foto de la casa en estáticos con sus créditos, `.gitignore` | — | `evaluon/accounts/models.py`, `evaluon/accounts/migrations/0003_tema_y_fotos.py`, `evaluon/accounts/photos.py`, `evaluon/static/diseno/casa/*`, `.gitignore`, `tests/accounts/test_models_perfil.py`, `tests/test_sin_fotos_en_el_repositorio.py` |
 | **B0.2 Tokens, tipografía y marca** | Dos temas en `tokens.css` con los alias viejos, fuente alojada, los cuatro SVG de la marca (sin quitar los viejos), `evaluon.css`, `recorrido.css` y `punto.css` leídos en los dos temas, guía visual, test de contraste y de direcciones externas | — (en paralelo con B0.1) | `evaluon/static/diseno/tokens.css`, `evaluon/static/diseno/fuentes/*`, `evaluon/static/marca/*` (agrega), `evaluon/static/css/evaluon.css`, `evaluon/static/journey/recorrido.css`, `evaluon/static/journey/punto.css`, `docs/diseno/guia-visual.md`, `tests/journey/test_contraste.py`, `tests/test_sin_externos.py` |
 | **B0.3 Encabezado, tema y pase** | `base.html` con tema, encabezado nuevo con camino, pestañas en píldora, selector y menú de usuario, vista del tema, portada que redirige, vista `avance` mínima, `pase.css/js`, ingreso con el logotipo nuevo; se quitan los SVG viejos | B0.1, B0.2 | `evaluon/templates/base.html`, `evaluon/templates/journey/_cabecera.html`, `_encabezado.html`, `_barra.html`, `_barra_nueva.html`, `_icono.html`, `_sprite.html`, `_camino.html`, `_hay_falta.html`, `_selector_tema.html`, `_menu_usuario.html`, `_avance_encabezado.html`, `evaluon/templates/accounts/login.html`, `evaluon/static/journey/secciones.css`, `pase.css`, `pase.js`, `evaluon/accounts/urls.py`, `evaluon/accounts/views_perfil.py`, `evaluon/journey/views/portada.py`, `views/avance.py`, `evaluon/journey/urls.py`, `evaluon/journey/context.py`, `tests/journey/test_marca.py`, `test_tema.py`, `test_pase.py`, `test_camino.py` y los tests de la 014 que miran el encabezado (`test_redirects.py`, `test_sections.py`, `test_angosto.py`, `test_normativas_general.py`) |
 | **B0.4 Componente de tablero y corte vertical** | `Tile`, gráficos SVG, `_tablero.html`, `_mosaico.html`, `tablero.js/css`, cuerpo común `seccion*.html`, y el tablero de Ofertas con el orden económico | B0.3 | `evaluon/journey/tablero/{__init__,tiles,charts,economico}.py`, `evaluon/templates/journey/_tablero.html`, `_mosaico.html`, `graficos/*`, `_economico.html`, `seccion.html`, `seccion_base.html`, `evaluon/static/journey/tablero.css`, `tablero.js`, `evaluon/journey/sections/base.py` (`Section.tiles`), `evaluon/journey/sections/s3.py`, `evaluon/journey/views/portada.py` (la vista `seccion`), `evaluon/journey/temas/s3_ofertas.py` (`tiles`), `tests/journey/test_tablero_*.py`, `test_sin_inventos.py` |
 | **Medición del corte** | Contraste, 2 s, 0,4 s, revisión visual en los dos temas; hallazgos en una sola tarea | B0.4 | `specs/017-tableros-y-estetica/verificacion/*` |
 | **B-P Pendientes con acción a mano** | `Item.why/open/post`, `_pendientes.html` (reemplaza `_paneles.html`), ítems del Portal uno por uno con «Aprobar», dictamen en Evaluación | B0.4 | `evaluon/journey/sections/base.py`, `evaluon/templates/journey/_pendientes.html`, `_paneles.html` (se retira), `evaluon/journey/stages/portal.py`, `evaluon/journey/temas/s1_portal.py` (solo `status` y `_counts`), `evaluon/journey/temas/s4_dictamen.py` (solo `status`), `tests/journey/test_pendientes.py` y los tests de la 014 que cuentan el dictamen |
 | **B1 Fotos** | Normalización, subida, baja, elección, servido y «Mis fotos» | B0.3 (comparte `accounts/urls.py`) | `evaluon/accounts/photos.py`, `evaluon/accounts/views_fotos.py`, `evaluon/accounts/urls.py`, `evaluon/templates/accounts/fotos.html`, `evaluon/static/accounts/fotos.css`, `tests/accounts/test_fotos.py`, `test_fotos_privadas.py` |
-| **B2 Primer panel** | Hero con foto, datos principales, plazos, orden económico, avance por sección, mosaicos de la sección 1, listado de procedimientos y alta | B0.4, B-P | `evaluon/templates/journey/_ingreso.html`, `expedientes.html`, `nuevo.html`, `s1_pliego_borrador.html`, `evaluon/templates/journey/temas/s1_*.html`, `_s1_*.html`, `evaluon/journey/tablero/ingreso.py`, `evaluon/journey/temas/s1_datos.py`, `s1_pliego.py`, `s1_portal.py` (`tiles`), `evaluon/journey/sections/s1.py`, `evaluon/static/journey/ingreso.css`, `s1.css`, `s1_pliego.css`, `tests/journey/test_primer_panel.py`; con D-1 aprobado: `evaluon/tenders/services/estimate.py` |
+| **B2 Primer panel** | Hero con foto, datos principales, plazos, orden económico, avance por sección, mosaicos de la sección 1, listado de procedimientos y alta | B0.4, B-P | `evaluon/templates/journey/_ingreso.html`, `expedientes.html`, `nuevo.html`, `s1_pliego_borrador.html`, `evaluon/templates/journey/temas/s1_*.html`, `_s1_*.html`, `evaluon/journey/tablero/ingreso.py`, `evaluon/journey/temas/s1_datos.py`, `s1_pliego.py`, `s1_portal.py` (`tiles`), `evaluon/journey/sections/s1.py`, `evaluon/static/journey/ingreso.css`, `s1.css`, `s1_pliego.css`, `tests/journey/test_primer_panel.py` |
 | **B3 Pliego y matriz** | Tablero de la sección 2 | B0.4 | `evaluon/journey/temas/s2_*.py`, `evaluon/journey/sections/s2.py`, `evaluon/templates/journey/temas/s2_*.html`, `evaluon/static/journey/s2*.css`, `evaluon/static/tenders/matrix.css`, `tests/journey/temas/test_s2_*.py` |
 | **B4 Ofertas** | Resto del tablero de la sección 3 | B0.4 | `evaluon/journey/temas/s3_anexos.py`, `s3_circulares.py`, `s3_ficha.py`, `s3_ofertas.py` (resto), `evaluon/templates/journey/temas/s3_*.html`, `_s3_*.html`, `evaluon/static/journey/s3*.css`, `s3_*.js`, `tests/journey/temas/test_s3_*.py` |
 | **B5 Evaluación y dictamen** | Tablero de la sección 4 | B0.4, B-P | `evaluon/journey/temas/s4_*.py`, `evaluon/journey/sections/s4.py`, `evaluon/templates/journey/temas/s4_*.html`, `_s4_*.html`, `evaluon/static/journey/s4*.css`, `tests/journey/temas/test_s4_*.py` |
@@ -344,7 +344,7 @@ Los bloques no son tareas: `tasks.md` los partirá en tareas de una sesión. «A
 
 | # | Punto | Recomendación |
 |---|---|---|
-| D-1 | **Monto estimado:** REQ-128 y REQ-130 lo piden, pero no existe en el Portal ni en el modelo, y la spec no dice de dónde sale | Que lo cargue el evaluador desde el pliego con documento y cita, quién y cuándo (tabla chica de solo inserción). Sin esto, el mosaico dice «Falta» y la diferencia con el estimado de REQ-130 no puede mostrarse. Alternativas en el ADR-0077 |
+| D-1 | **Monto estimado:** no existe en el Portal ni en el modelo | **Resuelto por el responsable (2026-10-21):** «tomamos la oferta maxima y la minima como indicadores, si aun no se cargaron las ofertas queda el cuadro con el dia y un indicador de pendiente». Spec enmendada (REQ-128, REQ-130). |
 | D-2 | **«Avance»** (primer panel) no está definido | Secciones «listas» de las cinco; el mosaico «Avance por sección» muestra el estado de cada una, sin porcentajes |
 | D-3 | REQ-128 dice «ningún dato de normativa» y REQ-129 «el pendiente general trae las cinco secciones» (la maqueta incluye «Subir la norma de montos 2026») | El pendiente general incluye los ítems de Normativas (son tareas); el primer panel no muestra mosaicos ni datos de normativa (régimen, normas, citas) |
 | D-4 | La maqueta abre inline en el primer panel los detalles de resultado, descartes y preguntas (de la sección 4) | Que enlacen a la sección 4 con el detalle abierto: evita calcular dos veces el contexto más pesado y mantiene los 2 s |
@@ -375,5 +375,6 @@ Los bloques no son tareas: `tasks.md` los partirá en tareas de una sesión. «A
 | 2026-10-21 | «Marca: mantenemos el logotipo aprobado el 13/10 … recoloreado a negro, gris y lima» | Marca (REQ-142) |
 | 2026-10-21 | «blanco y negro para todas las fotos» | Normalización en luminancia |
 | 2026-10-21 | «solo en el primer panel … fondo muy suave casi etereo … principales datos de procedimiento. No de normativa» | Primer panel; REQ-128 y REQ-135; D-3 |
+| 2026-10-21 | «tomamos la oferta maxima y la minima como indicadores, si aun no se cargaron las ofertas queda el cuadro con el dia y un indicador de pendiente» | `economico.py`, primer panel y Ofertas; REQ-128 y REQ-130; D-1 |
 | 2026-10-07 | Estados como ícono de color con el nombre al pasar el mouse | «Estados de cumplimiento» |
 | Vigente (P4) | Fotos y datos personales solo en el equipo | ADR-0073; test del repositorio |
