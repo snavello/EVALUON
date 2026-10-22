@@ -505,12 +505,12 @@ def _regimen_tile(procedure, ctx):
                     missing=f"Falta cargar la {_expected_regime(procedure.authorization_date)[2]}")
     not_applying = [item["row"].name for item in ctx["rows"]
                     if item["row"].state == NOT_APPLICABLE and not item["row"].amendment]
-    sub = f"Por la autorización del {when}"
+    sub = f"{' y '.join(names)}, por la autorización del {when}."
     if not_applying:
-        sub += f"; la {not_applying[0]} no aplica"
+        sub += f" La {not_applying[0]} no aplica."
     return Tile(key="regimen", title="Régimen que rige", detail="d-s5-rigen",
                 width=2 if len(names) > 1 else 1,
-                big=" y ".join(_short_regime(n) for n in names), unit="Disp.", sub=sub)
+                big=" y ".join(_short_regime(n) for n in names), sub=sub)
 
 
 def tiles(user, procedure, ctx):

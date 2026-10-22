@@ -107,7 +107,7 @@ def test_normas_que_rigen_distingue_la_cargada_sin_validar(after, make_norm, mak
 def test_el_regimen_que_rige_sale_de_la_fecha_de_autorizacion(after, two_regimes, operator_user):
     """REQ-126: el régimen es el que devuelve `applicable_regimes` a la fecha; la 297/03 no."""
     tile = todos(operator_user, after)["regimen"]
-    assert tile.big == "247/2022" and tile.unit == "Disp."
+    assert tile.big == "247/2022" and "Disposición AFIP 247/2022" in tile.sub
     assert "20/05/2024" in tile.sub and "297/03" in tile.sub
 
 
