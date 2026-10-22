@@ -18,7 +18,7 @@
   <p class="falta"><b>Falta:</b> {% for item in missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
   {% endif %}
 
-  {% include "journey/_paneles.html" with pending_total=pending_total suggestion_total=0 pending_rows=pending_rows suggestion_rows=None show_section=False %}
+  {% include "journey/_pendientes.html" with pending_total=pending_total suggestion_total=0 pending_rows=pending_rows suggestion_rows=None show_section=False next_url=request.path %}
 
   {% include "journey/_tablero.html" with blocks=None %}
 </div>

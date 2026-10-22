@@ -1,8 +1,8 @@
-{% comment %}Las cinco secciones, siempre visibles, cada una con su ícono de estado y sus dos cuentas (REQ-075). Lo arma la página y lo vuelve a pedir el sondeo. No tiene formularios (P3).{% endcomment %}<ul>
+{% comment %}Las cinco secciones como pestañas en píldora, siempre visibles (REQ-075, REQ-132). Cada una muestra el contador de sus pendientes (`Section.pending`) y ninguno si no tiene. El estado y las dos cuentas quedan en un texto solo para lectores de pantalla. Lo arma la página y lo vuelve a pedir el sondeo. No tiene formularios (P3).{% endcomment %}<ul>
   {% for s in overview.sections %}
-  <li><a href="{{ s.url }}" data-seccion="{{ s.key }}" data-state="{{ s.state }}" data-label="{{ s.label }}" data-error="{{ s.error }}"{% if s.key == active %} aria-current="page"{% endif %}>
-    <span class="t-nombre">{% include "journey/_icono.html" with icon=s.icon name=s.state_label tip=False %}<span>{{ s.label }}</span></span>
-    <span class="t-pie"><b>{{ s.pending }}</b> pend. · <b>{{ s.suggestions }}</b> sug.</span>
+  <li><a class="tab" href="{{ s.url }}" data-seccion="{{ s.key }}" data-state="{{ s.state }}" data-label="{{ s.label }}" data-error="{{ s.error }}"{% if s.key == active %} aria-current="page"{% endif %}>
+    <span class="t-nombre">{{ s.label }}</span>{% if s.pending %}<span class="c" aria-hidden="true">{{ s.pending }}</span>{% endif %}
+    <span class="sr-only">{{ s.state_label }}. <b>{{ s.pending }}</b> pend. · <b>{{ s.suggestions }}</b> sug.</span>
   </a></li>
   {% endfor %}
 </ul>

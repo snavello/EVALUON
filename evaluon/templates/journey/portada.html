@@ -17,7 +17,7 @@
     {% if overview.pending or overview.suggestions %}Hay <b>{{ overview.pending }}</b> cosa{{ overview.pending|pluralize }} por decidir y <b>{{ overview.suggestions }}</b> sugerencia{{ overview.suggestions|pluralize }} del sistema, repartidas en las cinco pestañas. Se puede entrar a cualquiera en cualquier momento.{% else %}No hay nada pendiente de decidir ni sugerencias del sistema. Se puede entrar a cualquier pestaña en cualquier momento.{% endif %}
   </p>
 
-  {% include "journey/_paneles.html" with pending_total=overview.pending suggestion_total=overview.suggestions pending_rows=pending_items suggestion_rows=suggestion_items show_section=True %}
+  {% include "journey/_pendientes.html" with pending_total=overview.pending suggestion_total=overview.suggestions pending_rows=pending_items suggestion_rows=suggestion_items show_section=True next_url=request.path %}
 
   <div id="seccion-detalle">
     <h3>Qué hay y qué falta, por pestaña</h3>
