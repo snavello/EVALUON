@@ -14,7 +14,7 @@ este tema no las repite.
 """
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 from django.db.models import Count, Q
 from django.urls import reverse
@@ -22,7 +22,10 @@ from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.audit.models import AuditEvent, Channel, EventType
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, TemaStatus
+from evaluon.journey.tablero import charts
+from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.tenders.models import (
     Consequence,
     ConsequenceType,
@@ -114,6 +117,28 @@ def _where(segment):
     return f"{document} › {segment.path}" if segment.path else document
 
 
+WHY = {
+    "req": "La matriz no se puede validar con requisitos sin confirmar, y la evaluación de "
+           "las ofertas se hace sobre la matriz validada.",
+    "tramo": "Un tramo del pliego sin revisar puede esconder un requisito que no entró a la "
+             "matriz.",
+    "consec": "Sin la consecuencia elegida, el sistema no sabe qué pasa si una oferta no "
+              "cumple el requisito.",
+    "sug": "Es algo que el sistema encontró y no está en la matriz: si nadie lo decide, "
+           "queda fuera de la evaluación.",
+}
+# `Item.why` lo agrega la tarea de la lista de pendientes (T-318); hasta que entre, el renglón
+# se arma sin él.
+_ITEM_HAS_WHY = "why" in {f.name for f in fields(Item)}
+
+
+def _item(kind, *args, **kwargs):
+    """Un renglón de la matriz con su «por qué importa» cuando `Item` lo admite."""
+    if _ITEM_HAS_WHY:
+        kwargs["why"] = WHY[kind]
+    return Item(*args, kind=kind, **kwargs)
+
+
 def _decision_items(version):
     """Cada cosa que la Comisión debe decidir en el borrador, con su ancla en esta pestaña.
     Devuelve `(pendientes, sugerencias, cuántas consecuencias faltan)`."""
@@ -123,25 +148,25 @@ def _decision_items(version):
                  .values_list("requirement_id", flat=True))
     pending = []
     for requirement in live.filter(state="propuesto"):
-        pending.append(Item(f"Requisito {requirement.number} sin confirmar",
-                            f"{base}#req-{requirement.number}", 1, "Resolver", kind="req",
+        pending.append(_item("req", f"Requisito {requirement.number} sin confirmar",
+                            f"{base}#req-{requirement.number}", 1, "Resolver",
                             noun="requisitos sin confirmar",
                             group_url=f"{base}?filtro=falta#s2-matriz"))
     for item in version.pending_items.filter(resolved_at__isnull=True).select_related(
             "segment__reading__document").order_by("pk"):
-        pending.append(Item(f"Tramo por revisar: {_where(item.segment)}",
-                            f"{base}#tramo-{item.pk}", 1, "Resolver", kind="tramo",
+        pending.append(_item("tramo", f"Tramo por revisar: {_where(item.segment)}",
+                            f"{base}#tramo-{item.pk}", 1, "Resolver",
                             noun="tramos por revisar", group_url=f"{base}#s2-decidir"))
     missing = [r for r in live if r.pk not in chosen]
     for requirement in missing:
-        pending.append(Item(f"Consecuencia sin elegir: requisito {requirement.number}",
-                            f"{base}#req-{requirement.number}", 1, "Resolver", kind="consec",
+        pending.append(_item("consec", f"Consecuencia sin elegir: requisito {requirement.number}",
+                            f"{base}#req-{requirement.number}", 1, "Resolver",
                             noun="consecuencias sin elegir",
                             group_url=f"{base}?filtro=falta#s2-matriz"))
     suggestions = []
     for requirement in version.requirements.filter(state="sugerido").order_by("number"):
-        suggestions.append(Item(f"Sugerencia {requirement.number} para decidir",
-                                f"{base}#sug-{requirement.number}", 1, "Resolver", kind="sug",
+        suggestions.append(_item("sug", f"Sugerencia {requirement.number} para decidir",
+                                f"{base}#sug-{requirement.number}", 1, "Resolver",
                                 noun="sugerencias para decidir", group_url=f"{base}#s2-decidir"))
     return pending, suggestions, len(missing)
 
@@ -426,3 +451,98 @@ def context(user, procedure, request):
         # Qué etapas de la propuesta corrieron fuera del equipo (REQ-122, T-291).
         "external_line": page.external_line,
     }
+
+
+# --- Tablero (REQ-126, REQ-127, REQ-141; plan 017, «Pliego y matriz»; T-325) -----------------------
+
+DETAIL = detail_id(KEY)
+# Parámetros de la dirección que dejan la matriz filtrada o con el aviso de una acción.
+OPENING_PARAMS = ("filtro", "tipo", "q", "aviso")
+HEAT_TYPES = ((RequirementClass.FORMAL, "Formales"), (RequirementClass.ECONOMICO, "Económicos"),
+              (RequirementClass.TECNICO, "Técnicos"))
+
+
+def opens(request):
+    """Un filtro de la matriz o el aviso de una acción llegan con su detalle ya desplegado."""
+    if any(request.GET.get(name) for name in OPENING_PARAMS):
+        return DETAIL
+    return None
+
+
+def _has_documents(procedure):
+    from evaluon.journey.temas import s2_documentos
+    return bool(s2_documentos.documents_of(procedure))
+
+
+def _missing_matrix(procedure):
+    return "Falta la matriz" if _has_documents(procedure) else "Falta el pliego"
+
+
+def _heat(user, procedure):
+    """La tabla de calor y la cifra: por tipo de requisito y oferta, cuántos requisitos cumple la
+    propuesta vigente. Una oferta sin evaluar queda con las celdas vacías. `None` si ninguna
+    oferta fue evaluada (la sección Evaluación es la dueña de esos resultados, P3)."""
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    evaluated = [status.evaluated for status in page.statuses]
+    if not any(evaluated):
+        return None
+    rows, cumplen = [], 0
+    for category, label in HEAT_TYPES:
+        mine = [r for r in page.requirements if r.category == category]
+        cells = []
+        for offer, done in zip(page.offers, evaluated):
+            if not done or not mine:
+                cells.append(None)
+                continue
+            found = [page.cells[(offer.pk, r.pk)].effective_key for r in mine]
+            total = sum(1 for key in found if key != "no_aplica")
+            value = sum(1 for key in found if key == "cumple")
+            cumplen += value
+            cells.append(charts.HeatCell(value, total))
+        rows.append(charts.HeatRow(label, cells))
+    heat = charts.Heat(uid="s2-cumplimiento", title="Cumplimiento por tipo y oferta",
+                       columns=[f"Of. {offer.number}" for offer in page.offers], rows=rows)
+    total_cells = sum(c.total for row in rows for c in row.cells if c is not None)
+    return (heat, cumplen, total_cells) if heat.has_data else None
+
+
+def tiles(user, procedure, ctx):
+    """«Requisitos», «Versiones de la matriz» y «Cumplimiento por tipo y oferta». Sin pliego
+    dicen «Falta el pliego»; sin evaluación el de cumplimiento dice «Pendiente» y lleva a la
+    propuesta (REQ-141): nunca una cifra que el sistema no tiene."""
+    version = ctx["version"]
+    evaluation = reverse("expedientes:evaluacion", args=[procedure.pk]) + "#d-s4-propuesta"
+    found = _heat(user, procedure)
+    if found is None:
+        heat = Tile(key="cumplimiento", title="Cumplimiento por tipo y oferta", width=4,
+                    href=evaluation, missing="Pendiente",
+                    sub="Aparece cuando el sistema evalúa las ofertas")
+    else:
+        chart, cumplen, total = found
+        heat = Tile(key="cumplimiento", title="Cumplimiento por tipo y oferta", width=4,
+                    href=evaluation, big=cumplen, unit=f"de {total} cumplen",
+                    sub="Propuesta del sistema; decide la Comisión", chart=chart)
+    if version is None:
+        missing = _missing_matrix(procedure)
+        return [Tile(key="requisitos", title="Requisitos", detail=DETAIL, width=2,
+                     missing=missing),
+                Tile(key="versiones", title="Versiones de la matriz", detail=DETAIL,
+                     missing=missing), heat]
+    summary = ctx["summary"]
+    changed = summary["changed"]
+    changes = f"{changed} con cambios por circular" if changed else "sin cambios por circular"
+    stack = charts.Stack(uid="s2-requisitos", title="Requisitos por tipo", parts=[
+        charts.StackPart("Formales", summary["formal"], "ink"),
+        charts.StackPart("Económicos", summary["economico"], "mute"),
+        charts.StackPart("Técnicos", summary["tecnico"], "s3")])
+    state = VERSION_LABELS[version.status]
+    when = (f"validada el {_day(version.validated_at)}"
+            if version.status == VersionStatus.VALIDATED else "todavía sin validar")
+    count = len([v for v in ctx["versions"] if v["version"].status != VersionStatus.DISCARDED])
+    return [
+        Tile(key="requisitos", title="Requisitos", detail=DETAIL, width=2, big=ctx["total"],
+             unit="requisitos", sub=f"Versión {version.number} · {changes}", chart=stack),
+        Tile(key="versiones", title="Versiones de la matriz", detail=DETAIL,
+             big=f"v{version.number}",
+             sub=f"{state}, {when} · {count} {'versión' if count == 1 else 'versiones'}"),
+        heat]
