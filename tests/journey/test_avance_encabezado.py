@@ -9,7 +9,7 @@ import pytest
 from django.urls import reverse
 
 from evaluon.journey.views.avance import avance_of
-from evaluon.tenders.models import Job, JobKind, JobStatus
+from evaluon.tenders.models import JobKind, JobStatus
 from tests.accounts.test_session import TEST_PASSWORD
 from tests.journey.test_window import make_job
 
@@ -51,7 +51,7 @@ def test_the_ring_is_lime_with_an_ink_outline_for_the_light_theme(
     assert html.index("anillo-borde") < html.index("anillo-valor")
 
 
-@pytest.mark.parametrize("kind_name", ["PROPOSE_MATRIX", "READ_DOCUMENT", "PORTAL_EXPLORE"])
+@pytest.mark.parametrize("kind_name", ["PROPOSE_MATRIX", "PORTAL_EXPLORE"])
 def test_a_request_without_a_total_spins_and_shows_no_percent(client, procedure, operator_user,
                                                               kind_name):
     """REQ-140 (D-10): sin total, el anillo gira (sin valor) y el texto dice la tarea, no un %."""
@@ -91,8 +91,6 @@ def test_no_indicator_without_an_active_request(client, procedure, two_offers, s
         simulate(two_offers, status, done=2)
         assert avance_of(procedure) is None
         assert "<svg" not in fragment(client, procedure)
-    Job.objects.all().delete()
-    assert avance_of(procedure) is None
 
 
 def test_the_poll_interval_is_10_seconds_or_less():

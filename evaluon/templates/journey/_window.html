@@ -1,22 +1,25 @@
-{% comment %}Ventana del proceso (T-187, REQ-070). Va dentro del bloque que pide el sondeo, así que se actualiza sola. Solo muestra; no tiene formularios (P3). El nombre del estado aparece al pasar el mouse o con el foco (guía visual).{% endcomment %}{% if window.state == "old" %}
-<p class="process-window pw-last" id="process-window" data-window-state="old">{{ window.last_line }}</p>{% elif window %}
-<section class="process-window process-{{ window.state }}" id="process-window" data-window-state="{{ window.state }}" aria-label="Ventana del proceso">
+{% comment %}Ventana del proceso (T-187, REQ-070; estética de la 017, T-330, REQ-140). Va dentro del bloque que pide el sondeo, así que se actualiza sola. Solo muestra; no tiene formularios (P3). El primer panel la incluye con `{% include "journey/_window.html" %}` con `window` en el contexto. Porcentaje grande solo cuando el sistema lo sabe (evaluar ofertas y armar fichas); matriz, lectura y Portal muestran el paso, el tiempo y una barra sin valor (D-10). El nombre del estado aparece al pasar el mouse o con el foco (guía visual). Sin estilos ni scripts en línea: todo está en avance.css.{% endcomment %}{% if window.state == "old" %}
+<p class="pw-last" id="process-window" data-window-state="old">{{ window.last_line }}</p>{% elif window %}
+<section class="run pw-{{ window.state }}" id="process-window" data-window-state="{{ window.state }}" aria-label="Ventana del proceso">
   <svg class="pw-sprite" width="0" height="0" aria-hidden="true" focusable="false">
-    <symbol id="pw-pend" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M8 4.2V8l2.6 1.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="pw-cumple" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M4.5 8.3l2.3 2.3 4.7-5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="pw-nocumple" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M5.2 5.2l5.6 5.6M10.8 5.2l-5.6 5.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="pw-pend" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path class="sy" d="M8 4.2V8l2.6 1.6" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="pw-cumple" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path class="sy" d="M4.5 8.3l2.3 2.3 4.7-5" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="pw-nocumple" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path class="sy" d="M5.2 5.2l5.6 5.6M10.8 5.2l-5.6 5.6" fill="none" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
-  <h2 class="pw-title">
-    <span class="pw-icon pw-icon-{{ window.state }}" tabindex="0" role="img" title="{{ window.state_label }}" aria-label="{{ window.state_label }}" data-nombre="{{ window.state_label }}"><svg aria-hidden="true">{% if window.state == "done" %}<use href="#pw-cumple"/>{% elif window.state == "failed" %}<use href="#pw-nocumple"/>{% else %}<use href="#pw-pend"/>{% endif %}</svg></span>
-    Ventana del proceso
-  </h2>
-  <p class="pw-task"><strong>{{ window.task }}</strong>{% if window.active %} — {% if window.state == "waiting" %}en espera desde hace{% else %}lleva{% endif %} <span class="pw-num">{{ window.elapsed }}</span>{% endif %}</p>
+  <div class="pw-cab">
+    <h2 class="pw-title">
+      <span class="pw-icon pw-icon-{{ window.state }}" tabindex="0" role="img" title="{{ window.state_label }}" aria-label="{{ window.state_label }}" data-nombre="{{ window.state_label }}"><svg aria-hidden="true">{% if window.state == "done" %}<use href="#pw-cumple"/>{% elif window.state == "failed" %}<use href="#pw-nocumple"/>{% else %}<use href="#pw-pend"/>{% endif %}</svg></span>
+      <span class="pw-task">{{ window.task }}</span>
+    </h2>
+    {% if window.active %}<p class="pw-donde">{% if window.where %}{{ window.where }} · {% endif %}{% if window.state == "waiting" %}en espera desde hace{% else %}lleva{% endif %} <span class="pw-num">{{ window.elapsed }}</span></p>{% elif window.where %}<p class="pw-donde">{{ window.where }}</p>{% endif %}
+  </div>
+  {% if window.overall_percent is not None %}<div class="pw-pct pw-num">{{ window.overall_percent }} %</div>{% endif %}
+  {% if window.overall_percent is not None %}<progress class="pw-barra" max="100" value="{{ window.overall_percent }}" aria-label="Avance del pedido">{{ window.overall_percent }} %</progress>{% elif window.indeterminate %}<div class="pw-barra pw-indet" role="progressbar" aria-label="{{ window.state_label }}, sin porcentaje"><i></i></div>{% endif %}
   {% if window.active %}<p class="pw-step">Ahora: {{ window.step }}.</p>{% endif %}
   {% if window.state == "failed" %}<p class="pw-summary pw-error" role="alert">{{ window.summary }}</p>{% elif window.summary %}<p class="pw-summary">{{ window.summary }}</p>{% endif %}
   {% if window.main or window.detail %}
   <div class="pw-counts">
-    {% if window.main %}<p><span class="pw-label">Hecho</span> <span class="pw-num">{{ window.main.text }}</span> · <span class="pw-label">Falta</span> <span class="pw-num">{{ window.main.left }}</span>{% if window.detail %} {% if window.main.left == 1 %}oferta{% else %}ofertas{% endif %}{% endif %}</p>
-    <progress max="100" value="{{ window.main.percent }}">{{ window.main.percent }} %</progress>{% endif %}
+    {% if window.main %}<p><span class="pw-label">Hecho</span> <span class="pw-num">{{ window.main.text }}</span> · <span class="pw-label">Falta</span> <span class="pw-num">{{ window.main.left }}</span>{% if window.detail %} {% if window.main.left == 1 %}oferta{% else %}ofertas{% endif %}{% endif %}</p>{% endif %}
     {% if window.detail %}<p><span class="pw-label">En esta oferta</span> <span class="pw-num">{{ window.detail.text }}</span> · <span class="pw-label">Falta</span> <span class="pw-num">{{ window.detail.left }}</span> {% if window.detail.left == 1 %}requisito{% else %}requisitos{% endif %}</p>{% endif %}
   </div>
   {% endif %}

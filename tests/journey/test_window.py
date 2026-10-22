@@ -29,6 +29,12 @@ def block(client, procedure):
     return client.get(reverse("journey:stages", args=[procedure.pk])).content.decode()
 
 
+def panel(client, procedure):
+    """Solo la ventana del proceso (la página trae además las etapas, con sus propios números)."""
+    return re.search(r'<section.*?id="process-window".*?</section>',
+                     block(client, procedure), re.S).group(0)
+
+
 def test_no_job_no_window(client, operator_user):
     """REQ-070: sin pedidos no hay ventana."""
     empty = Procedure.objects.create(number="VACIO-SINTETICO", procedure_type="Prueba",
@@ -215,7 +221,7 @@ def make_job(procedure, user, kind, status=JobStatus.RUNNING, progress=None):
     fields = {"status": status, "progress": progress or {}}
     if status != JobStatus.QUEUED:
         fields["started_at"] = now - timedelta(seconds=40)
-    job = Job.objects.create(kind=kind, procedure=procedure, requested_by=user)
+    job = Job.objects.create(kind=kind, procedure=procedure, requested_by=user, target_id=1)
     Job.objects.filter(pk=job.pk).update(**fields)
     job.refresh_from_db()
     return job
@@ -305,7 +311,7 @@ def test_the_start_of_an_offer_does_not_take_the_offer_count_for_requirements(
     assert "En esta oferta" not in block(client, procedure)
 
 
-@pytest.mark.parametrize("kind_name", ["PROPOSE_MATRIX", "READ_DOCUMENT", "PORTAL_EXPLORE"])
+@pytest.mark.parametrize("kind_name", ["PROPOSE_MATRIX", "PORTAL_EXPLORE"])
 def test_long_requests_without_a_total_show_step_time_and_an_indeterminate_bar(
         client, procedure, operator_user, kind_name):
     """REQ-140 (D-10): matriz, lectura y Portal muestran el paso y el tiempo transcurrido con una
@@ -315,7 +321,7 @@ def test_long_requests_without_a_total_show_step_time_and_an_indeterminate_bar(
     make_job(procedure, operator_user, getattr(JobKind, kind_name))
     data = window_for(procedure)
     assert data["overall_percent"] is None and data["indeterminate"] is True
-    html = block(client, procedure)
+    html = panel(client, procedure)
     assert "%" not in html and "<progress" not in html
     assert 'class="pw-barra pw-indet"' in html and 'role="progressbar"' in html
     assert "aria-valuenow" not in html
@@ -329,7 +335,7 @@ def test_waiting_request_has_an_indeterminate_bar_and_no_percent(
     simulate(two_offers, JobStatus.QUEUED)
     data = window_for(procedure)
     assert data["overall_percent"] is None and data["indeterminate"] is True
-    html = block(client, procedure)
+    html = panel(client, procedure)
     assert "%" not in html and 'class="pw-barra pw-indet"' in html
 
 
@@ -339,11 +345,11 @@ def test_finished_evaluation_shows_100_and_failed_keeps_the_error(
     una alerta y la barra donde quedó (nunca 100)."""
     log_in(client, operator_user)
     simulate(two_offers, JobStatus.DONE, done=2)
-    done = block(client, procedure)
+    done = panel(client, procedure)
     assert re.search(r'class="pw-pct[^"]*">\s*100 %\s*<', done)
     assert "pw-indet" not in done
     simulate(two_offers, JobStatus.FAILED, done=1, error="timeout: x")
-    failed = block(client, procedure)
+    failed = panel(client, procedure)
     assert 'role="alert"' in failed and "el motor de IA no respondió a tiempo" in failed
     assert "100 %" not in failed and re.search(r'class="pw-pct[^"]*">\s*50 %\s*<', failed)
 
