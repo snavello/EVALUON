@@ -1693,7 +1693,7 @@ flowchart TD
 
 ## 017 · Tableros de primer nivel y estética nueva
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador, 6 dudas abiertas) · [carpeta](../specs/017-tableros-y-estetica)
+**Etapa actual:** 1 de 7 · Spec (spec en borrador, 4 dudas abiertas) · [carpeta](../specs/017-tableros-y-estetica)
 
 ```mermaid
 flowchart LR
@@ -1707,7 +1707,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Resolver 6 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+- **Próximo paso:** Resolver 4 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
 
 ### Qué se hizo
 
@@ -1733,8 +1733,7 @@ flowchart LR
 | REQ-139 | Al cambiar de sección, la pantalla pasa con efecto de hoja que gira. Con «reducir movimiento» activado en el equipo, el paso es un fundido corto. | — | — |
 | REQ-140 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su avance con la estética nueva: porcentaje, dónde va (por ejemplo, oferta 2 de 3, requisito 14 de 23) y los últimos pasos en lenguaje llano, en el primer panel y como indicador chico en el encabezado de todas las secciones. | — | — |
 | REQ-141 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente», nunca con un valor inventado. Toda propuesta del sistema sigue mostrando su fundamento (P3). | — | — |
-| REQ-142 | La marca en el encabezado se adapta a la estética nueva. `[A ACLARAR: ¿se mantiene el logotipo aprobado el 2026-10-13 (EVALU ON con efecto vidrio) recoloreado a negro, gris y lima, o se adopta la versión de las maquetas (EVALU con ON en píldora lima)?]` | — | — |
+| REQ-142 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el efecto vidrio y el halo, recoloreados a la estética nueva: en el tema gris y blanco, la placa EVALU en negro y la de ON en verde lima; en el tema negro, la placa EVALU en gris y la de ON en verde lima. El encabezado muestra la versión del tema elegido y la pestaña del navegador lleva el isotipo. Archivos: `docs/diseno/marca/017/`. | — | — |
 | REQ-128 | ¿«Lo importante de todos» es de las cinco secciones, o además una portada con todos los procedimientos? | — | — |
 | REQ-135 | ¿La foto va solo en el primer panel o también en las otras secciones? | — | — |
 | REQ-137 | ¿El tono común de las fotos es blanco y negro, color papel, o lo elige cada usuario? | — | — |
-| REQ-142 | ¿Se mantiene el logotipo aprobado recoloreado o se adopta la versión de las maquetas? | — | — |

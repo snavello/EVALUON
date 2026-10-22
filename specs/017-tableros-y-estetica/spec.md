@@ -21,6 +21,7 @@ Sin esto, la Comisión tiene que recorrer cada sección para saber qué hacer, y
 | 2026-10-21 | Ronda 2 | «instala impeccable y hace versiones nuevas» |
 | 2026-10-21 | Ronda 3 | «hace una como el formato jacaranda pero en contrastes de negros grises y blanco, como la pagina de tesla mas un color verde limon para resaltadps. Los graficos pueden contener colores aunque ligeramente desaturado. Con estas especificaciones varia que datos van al dashboard oficial y podes hacer combinaciones y en alguna una foto blanco y negro o color papel . HAce 5 en total y pasamos a migrar la pagina real si me gusta. Lo que me muestre debera ser capaz de implementarse sin mayores complejidades en 8000. La idea general es tener un primer nivel de cada menu con informacion agregada y luego on click se abre o usa otra ventana» |
 | 2026-10-21 | Elección y alcance | «El detalle Se despliega debajo del mosaico, Vamos a elegir default grafico del modelo la que tiene foto es decir el numero , pero la foto quisera que este mas chica 40 por ciento menos y que tenga algun dato arriba para que no quede solo decorativo. Quiero un pendiente de hacer general y despues uno en cada etapa. Un orden economico de las ofertas y plazos importantes. El primer panel sera como un ingreso a lo importante de todos. En el resto se pueden repetir o mostrar datos de la etapa. Elegido ya el formato de las pantallas, tendremos un pequeño selector en pantalla para pasar a Negro como el modelo 3 y a gris blanco como el modelo 1 . En todos los casos procura siempre que se sepa el camino, que hay y que falta hacer o completar. Cuando haya foto ingresaran con una sutil animacion y tendremos un pequeño crud para subir fotos que tomara al azar y solo cambian al cambiar de pantalla. todas las que subamos las transformaras para que tengan la misma tonalidad, saturacion, temperatura, brillo contraste etc para que no quede desfasada la imagen. podemos ponerlo como una opcion del perfil para tener un gesto amable con los usuarios que por ejemplo puedan usar el sistema con una foto de un ser querido. limite 10 cada uno . Cuando haya procesos ejecutando tareas largas tenes que dejar algo que marque avance acorde con la estetica . Vamos al desarrollo ! Alguna duda ?» |
+| 2026-10-21 | Marca | «Marca: mantenemos el logotipo aprobado el 13/10 (EVALU ON vidrio), recoloreado a negro, gris y lima.» |
 
 Referencias: maquetas de la exploración en `docs/diseno/exploracion-ui/` (ronda 3: modelos 1, 2 y 3) y maqueta de esta feature en `docs/diseno/mockup-017/index.html`, que reúne lo elegido.
 
@@ -56,7 +57,7 @@ Referencias: maquetas de la exploración en `docs/diseno/exploracion-ui/` (ronda
 | REQ-139 | Al cambiar de sección, la pantalla pasa con efecto de hoja que gira. Con «reducir movimiento» activado en el equipo, el paso es un fundido corto. | — |
 | REQ-140 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su avance con la estética nueva: porcentaje, dónde va (por ejemplo, oferta 2 de 3, requisito 14 de 23) y los últimos pasos en lenguaje llano, en el primer panel y como indicador chico en el encabezado de todas las secciones. | REQ-067 (feature 013) |
 | REQ-141 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente», nunca con un valor inventado. Toda propuesta del sistema sigue mostrando su fundamento (P3). | P3 (constitución) |
-| REQ-142 | La marca en el encabezado se adapta a la estética nueva. `[A ACLARAR: ¿se mantiene el logotipo aprobado el 2026-10-13 (EVALU ON con efecto vidrio) recoloreado a negro, gris y lima, o se adopta la versión de las maquetas (EVALU con ON en píldora lima)?]` | — |
+| REQ-142 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el efecto vidrio y el halo, recoloreados a la estética nueva: en el tema gris y blanco, la placa EVALU en negro y la de ON en verde lima; en el tema negro, la placa EVALU en gris y la de ON en verde lima. El encabezado muestra la versión del tema elegido y la pestaña del navegador lleva el isotipo. Archivos: `docs/diseno/marca/017/`. | — |
 
 Se mantienen sin cambios las funciones de la feature 014 (REQ-075 a REQ-099). REQ-133 reemplaza a REQ-100 (guía visual) y REQ-142 enmienda a REQ-108 (marca).
 
@@ -80,7 +81,7 @@ Criterio numérico de la feature (ADR-0025): en los dos temas, el 100 % de los p
 - **REQ-139.** Dado el pase entre secciones, cuando cambio de sección, entonces la hoja gira en 0,5 segundos o menos; con «reducir movimiento», el cambio es un fundido de 0,15 segundos o menos.
 - **REQ-140.** Dada una evaluación de ofertas en curso, cuando estoy en cualquier sección, entonces el indicador del encabezado muestra el porcentaje, y en el primer panel veo dónde va y los últimos 3 pasos, actualizados con la frecuencia del avance actual (10 segundos, REQ-067).
 - **REQ-141.** Dado un procedimiento sin dictamen, cuando miro el tablero de Evaluación, entonces el mosaico dice «Pendiente» y no muestra un valor.
-- **REQ-142.** `[A ACLARAR]` según la respuesta sobre la marca.
+- **REQ-142.** Dado el encabezado, cuando cambio de tema, entonces el logotipo pasa de la versión negro y lima a la versión gris y lima, con la misma forma que el aprobado el 2026-10-13, y las letras se leen con contraste de 4,5:1 o más sobre su placa.
 
 ## Requisitos no funcionales
 
@@ -110,4 +111,3 @@ Criterio numérico de la feature (ADR-0025): en los dos temas, el 100 % de los p
 | REQ-128 | ¿«Lo importante de todos» es de las cinco secciones, o además una portada con todos los procedimientos? | Responsable |
 | REQ-135 | ¿La foto va solo en el primer panel o también en las otras secciones? | Responsable |
 | REQ-137 | ¿El tono común de las fotos es blanco y negro, color papel, o lo elige cada usuario? | Responsable |
-| REQ-142 | ¿Se mantiene el logotipo aprobado recoloreado o se adopta la versión de las maquetas? | Responsable |

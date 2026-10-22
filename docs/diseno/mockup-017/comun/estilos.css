@@ -281,3 +281,8 @@ svg.i{width:1rem;height:1rem;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .busy{white-space:nowrap}
 .todo .btn:not(.p),.dt .btn:not(.p){background:var(--bg)}
 @media (hover:hover){.todo .btn:not(.p):hover,.dt .btn:not(.p):hover{background:var(--tile-h)}}
+/* Marca aprobada el 2026-10-13, recoloreada a negro, gris y lima (decisión del 2026-10-21) */
+.mark img{display:block;height:2.125rem;width:auto}
+.mark .m-negro{display:none}
+[data-theme="negro"] .mark .m-claro{display:none}
+[data-theme="negro"] .mark .m-negro{display:block}

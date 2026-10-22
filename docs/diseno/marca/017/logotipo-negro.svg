@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="126 144 772 224" role="img" aria-label="EVALUON">
+  <defs>
+    <linearGradient id="gIzq" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A4D55"/><stop offset="1" stop-color="#2A2C31"/></linearGradient>
+    <linearGradient id="gDer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D6FF52"/><stop offset="1" stop-color="#B2DE18"/></linearGradient>
+    <linearGradient id="gVidrio" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.12"/></linearGradient>
+    <linearGradient id="gBorde" gradientUnits="userSpaceOnUse" x1="0" y1="156" x2="0" y2="356"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"/><stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0.08"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/></linearGradient>
+    <radialGradient id="gHalo" gradientUnits="userSpaceOnUse" cx="755" cy="256" r="150" gradientTransform="translate(755 256) scale(1.25 0.9) translate(-755 -256)"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/><stop offset="0.45" stop-color="#EEFFB0" stop-opacity="0.45"/><stop offset="1" stop-color="#C6F432" stop-opacity="0"/></radialGradient>
+    <clipPath id="placa"><path d="M167 156H857A28 28 0 0 1 885 184V328A28 28 0 0 1 857 356H167A28 28 0 0 1 139 328V184A28 28 0 0 1 167 156Z"/></clipPath>
+    <clipPath id="zonaDer"><path d="M625 156H857A28 28 0 0 1 885 184V328A28 28 0 0 1 857 356H625Z"/></clipPath>
+    <filter id="luzTexto" x="-25%" y="-40%" width="150%" height="190%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="7" result="difuso"/><feFlood flood-color="#FFFFFF" flood-opacity="0.55"/><feComposite in2="difuso" operator="in" result="luz"/><feMerge><feMergeNode in="luz"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <g id="icon">
+    <path d="M167 156H629V356H167A28 28 0 0 1 139 328V184A28 28 0 0 1 167 156Z" fill="url(#gIzq)"/>
+    <path d="M625 156H857A28 28 0 0 1 885 184V328A28 28 0 0 1 857 356H625Z" fill="url(#gDer)"/>
+    <g clip-path="url(#zonaDer)"><rect x="625" y="156" width="260" height="200" fill="url(#gHalo)"/></g>
+    <g clip-path="url(#placa)">
+      <path d="M139 156H885V224C790 262 640 206 500 232C380 254 250 268 139 240Z" fill="url(#gVidrio)"/>
+      <path d="M167 156H857A28 28 0 0 1 885 184V328A28 28 0 0 1 857 356H167A28 28 0 0 1 139 328V184A28 28 0 0 1 167 156Z" fill="none" stroke="url(#gBorde)" stroke-width="3"/>
+    </g>
+  </g>
+  <g id="wordmark">
+    <g fill="#F2F2F2"><path d="M191.83 299V213.1H255.53V227.63H209.18V246.68H252.3V261.15H209.18V284.53H257.17V299Z"/><path d="M293.79 299 263.08 213.1H281.89L303.63 276.68L324.67 213.1H343.06L312.3 299Z"/><path d="M420.47 299H401.6L394.1 279.49H359.76L352.67 299H334.28L367.73 213.1H386.07ZM388.53 265.02 376.7 233.14 365.1 265.02Z"/><path d="M430.13 299V213.8H447.48V284.53H490.6V299Z"/><path d="M502.85 213.1H520.19V259.62Q520.19 270.7 520.84 273.98Q521.95 279.25 526.14 282.45Q530.33 285.64 537.6 285.64Q544.98 285.64 548.73 282.62Q552.48 279.61 553.24 275.21Q554 270.82 554 260.62V213.1H571.35V258.22Q571.35 273.69 569.94 280.07Q568.53 286.46 564.75 290.86Q560.97 295.25 554.65 297.86Q548.32 300.46 538.12 300.46Q525.82 300.46 519.46 297.62Q513.1 294.78 509.41 290.24Q505.72 285.7 504.55 280.72Q502.85 273.34 502.85 258.92Z"/></g>
+    <g fill="#0B0C0E" filter="url(#luzTexto)"><path d="M670.21 256.58Q670.21 243.45 674.14 234.55Q677.07 227.98 682.14 222.77Q687.21 217.55 693.24 215.04Q701.27 211.64 711.76 211.64Q730.74 211.64 742.14 223.41Q753.54 235.19 753.54 256.17Q753.54 276.97 742.23 288.72Q730.92 300.46 711.99 300.46Q692.83 300.46 681.52 288.78Q670.21 277.09 670.21 256.58ZM688.09 255.99Q688.09 270.58 694.82 278.11Q701.56 285.64 711.93 285.64Q722.3 285.64 728.96 278.17Q735.61 270.7 735.61 255.76Q735.61 240.99 729.13 233.73Q722.66 226.46 711.93 226.46Q701.21 226.46 694.65 233.81Q688.09 241.17 688.09 255.99Z"/><path d="M767.25 299V213.1H784.12L819.28 270.46V213.1H835.39V299H817.99L783.36 242.98V299Z"/></g>
+  </g>
+</svg>

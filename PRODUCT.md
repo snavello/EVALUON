@@ -37,7 +37,7 @@ El sistema recomienda y la Comisión decide (P3). Toda conclusión muestra su fu
 
 ## Brand Commitments
 
-- Nombre: EVALUON. Logotipo «EVALU ON» e isotipo «E + on», aprobados el 2026-10-13 (`docs/diseno/marca/`). Su continuidad con la estética nueva está abierta en la spec 017.
+- Nombre: EVALUON. Logotipo «EVALU ON» e isotipo «E + on», aprobados el 2026-10-13 (`docs/diseno/marca/`). Desde el 2026-10-21 se usan recoloreados a negro, gris y verde lima, con la misma forma, vidrio y halo (`docs/diseno/marca/017/`, spec 017).
 - Voz: español rioplatense administrativo, claro, sin jerga técnica en pantalla; los controles dicen su acción.
 
 ## Evidence on Hand

@@ -195,7 +195,7 @@
   }
 
   // ---------- Armado ----------
-  const mark = `<a class="mark" href="#procedimiento" aria-label="EVALUON">EVALU<span class="on">ON</span></a>`;
+  const mark = `<a class="mark" href="#procedimiento" aria-label="EVALUON"><img class="m-claro" src="img/logotipo-claro.svg" alt="EVALUON" height="34"><img class="m-negro" src="img/logotipo-negro.svg" alt="EVALUON" height="34"></a>`;
   const nav = `<nav class="nav" role="tablist" aria-label="Secciones"><span class="ind" aria-hidden="true"></span>${SECS.map(([k, l], i) => `<button class="tab" role="tab" id="tab-${k}" aria-controls="pg-${k}" aria-selected="false" tabindex="-1" data-i="${i}">${l}<span class="c" data-count="${i}"></span></button>`).join('')}</nav>`;
   const right = `<div class="right"><button class="busy" title="Ver el avance"><span class="ring"></span><span>Evaluando · <b class="num">0 %</b></span></button><div class="theme" role="group" aria-label="Tema"><button data-theme="claro" aria-label="Gris y blanco">${I.sun}</button><button data-theme="negro" aria-label="Negro">${I.moon}</button></div><div class="me"><button class="av" aria-haspopup="menu" aria-expanded="false" aria-label="Su perfil">EM</button><div class="menu" role="menu"><div class="who"><b>evaluador de muestra</b>Comisión Evaluadora</div><button role="menuitem" data-fotos>${I.photo}Mis fotos</button><button role="menuitem">${I.out}Salir</button></div></div></div>`;
   document.body.className = 'noanim';
