@@ -1693,7 +1693,7 @@ flowchart TD
 
 ## 017 · Tableros de primer nivel y estética nueva
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador, 4 dudas abiertas) · [carpeta](../specs/017-tableros-y-estetica)
+**Etapa actual:** 1 de 7 · Spec (spec en borrador, 3 dudas abiertas) · [carpeta](../specs/017-tableros-y-estetica)
 
 ```mermaid
 flowchart LR
@@ -1707,7 +1707,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Resolver 4 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+- **Próximo paso:** Resolver 3 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
 
 ### Qué se hizo
 
@@ -1728,7 +1728,7 @@ flowchart LR
 | REQ-134 | Un selector chico en el encabezado pasa la pantalla a negro (modelo 3) o a gris y blanco (modelo 1). La elección queda guardada en el perfil del usuario y vale en cualquier equipo. El tema de inicio es gris y blanco. | — | — |
 | REQ-135 | La foto del primer panel ocupa un 40 % menos que en el modelo 2 y lleva encima un dato del procedimiento (por ejemplo, los días que faltan para el vencimiento del mantenimiento de las ofertas y la cantidad de pendientes), para que no sea solo decorativa. `[A ACLARAR: ¿la foto va solo en el primer panel o también en las otras secciones?]` | — | — |
 | REQ-136 | Cada usuario tiene en su perfil «Mis fotos»: sube, ve y quita hasta 10 fotos. Si no tiene fotos propias, se muestra la foto de la casa. Las fotos quedan en el equipo, las ve solo su dueño y nunca van al repositorio ni a un servicio externo. | — | — |
-| REQ-137 | Al subir una foto, el sistema la ajusta para que todas tengan el mismo tono, saturación, temperatura, brillo y contraste que la estética de la pantalla. `[A ACLARAR: ¿el tono común es blanco y negro, color papel, o lo elige cada usuario?]` | — | — |
+| REQ-137 | Al subir una foto, el sistema la ajusta para que todas tengan el mismo tono, saturación, temperatura, brillo y contraste: todas quedan en blanco y negro, con el mismo brillo medio y el mismo contraste que la foto de la casa. | — | — |
 | REQ-138 | La foto se elige al azar entre las del usuario y cambia solo al cambiar de pantalla, nunca mientras se está en ella. Entra con una animación sutil. | — | — |
 | REQ-139 | Al cambiar de sección, la pantalla pasa con efecto de hoja que gira. Con «reducir movimiento» activado en el equipo, el paso es un fundido corto. | — | — |
 | REQ-140 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su avance con la estética nueva: porcentaje, dónde va (por ejemplo, oferta 2 de 3, requisito 14 de 23) y los últimos pasos en lenguaje llano, en el primer panel y como indicador chico en el encabezado de todas las secciones. | — | — |
@@ -1736,4 +1736,3 @@ flowchart LR
 | REQ-142 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el efecto vidrio y el halo, recoloreados a la estética nueva: en el tema gris y blanco, la placa EVALU en negro y la de ON en verde lima; en el tema negro, la placa EVALU en gris y la de ON en verde lima. El encabezado muestra la versión del tema elegido y la pestaña del navegador lleva el isotipo. Archivos: `docs/diseno/marca/017/`. | — | — |
 | REQ-128 | ¿«Lo importante de todos» es de las cinco secciones, o además una portada con todos los procedimientos? | — | — |
 | REQ-135 | ¿La foto va solo en el primer panel o también en las otras secciones? | — | — |
-| REQ-137 | ¿El tono común de las fotos es blanco y negro, color papel, o lo elige cada usuario? | — | — |

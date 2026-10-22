@@ -127,8 +127,8 @@
   const refreshTodos = () => { $$('.todo').forEach(el => { const s = el.dataset.sec; el.outerHTML = todoBlock(s === 'all' ? undefined : +s); }); SECS.forEach((_, i) => { const c = $(`[data-count="${i}"]`), n = TODO.filter(t => t.s === i && !t.done).length; c.textContent = n; c.hidden = !n; }); const g = TODO.filter(t => !t.done).length; $$('[data-total]').forEach(e => { e.textContent = g; }); };
 
   // ---------- Fotos ----------
-  const HOUSE = { bn: 'img/biblioratos-bn.jpg', papel: 'img/biblioratos-papel.jpg' };
-  let tono = store.get('evaluon-tono', 'bn');
+  const HOUSE = { bn: 'img/biblioratos-bn.jpg' };
+  const tono = 'bn'; // decisión del 2026-10-21: todas las fotos en blanco y negro
   let fotos = store.get('evaluon-fotos', []);
   let lastPhoto = -1;
   const pool = () => fotos.length ? fotos.map(f => f[tono]) : [HOUSE[tono]];
@@ -146,7 +146,7 @@
         let lo = 0, hi = 255, acc = 0; for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc > n * .02) { lo = v; break; } } acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > n * .02) { hi = v; break; } }
         const span = Math.max(1, hi - lo), out = {};
         const curve = v => { let t = Math.min(1, Math.max(0, (v - lo) / span)); t = t * t * (3 - 2 * t) * .35 + t * .65; return t; };
-        for (const mode of ['bn', 'papel']) {
+        for (const mode of ['bn']) {
           const o = x.createImageData(W, H), q = o.data;
           for (let i = 0; i < n; i++) {
             const t = curve(Y[i]); let r, g, b;
@@ -187,10 +187,9 @@
   function fotosPage() {
     const slots = Array.from({ length: 10 }, (_, k) => fotos[k] ? `<div class="slot"><img src="${fotos[k][tono]}" alt="Foto ${k + 1} de su perfil"><button class="del" data-del="${k}" aria-label="Quitar la foto ${k + 1}">${I.x}</button></div>` : k === fotos.length ? `<button class="slot add" data-add>${I.plus}<br>Subir una foto<br><small>${10 - fotos.length} lugares libres</small></button>` : `<div class="slot empty" aria-hidden="true"></div>`).join('');
     const last = fotos[fotos.length - 1];
-    return `<div class="fotos"><h1>Mis fotos</h1><p class="intro">Fotos que aparecen en el ingreso de cada procedimiento, una al azar cada vez que cambia la pantalla. Puede subir hasta 10. Todas se ajustan al subir para que tengan el mismo tono, brillo y contraste que el resto de la pantalla. Quedan en el equipo y solo las ve usted.</p>
+    return `<div class="fotos"><h1>Mis fotos</h1><p class="intro">Fotos que aparecen en el ingreso de cada procedimiento, una al azar cada vez que cambia la pantalla. Puede subir hasta 10. Todas se pasan a blanco y negro al subirlas, con el mismo brillo y contraste, para que combinen con la pantalla. Quedan en el equipo y solo las ve usted.</p>
       <div class="slots">${slots}</div>
-      <div class="tone"><span>Tono de las fotos:</span><button class="fb" data-tono="bn" aria-pressed="${tono === 'bn'}">Blanco y negro</button><button class="fb" data-tono="papel" aria-pressed="${tono === 'papel'}">Color papel</button></div>
-      ${last ? `<div class="compare"><figure><img src="${last.original}" alt="">Como la subió</figure><figure><img src="${last[tono]}" alt="">Como se ve en EVALUON</figure></div>` : `<p style="margin-top:1rem;color:var(--ink-2);font-size:.875rem">Sin fotos propias se muestra la foto de la casa.</p>`}
+      ${last ? `<div class="compare"><figure><img src="${last.original}" alt="">Como la subió</figure><figure><img src="${last[tono]}" alt="">Como se ve en EVALUON</figure></div>` : `<p style="margin-top:1.25rem;color:var(--ink-2);font-size:.875rem">Sin fotos propias se muestra la foto de la casa.</p>`}
       <input type="file" accept="image/jpeg,image/png,image/webp" hidden id="up"></div>`;
   }
 
@@ -274,7 +273,6 @@
     const ok = el.closest('.js-ok');
     if (ok && !ok.dataset.done) { ok.dataset.done = '1'; if (ok.dataset.todo !== undefined) { TODO[+ok.dataset.todo].done = true; refreshTodos(); say('Listo: quedó registrado con su usuario y la fecha'); } else { ok.classList.remove('p'); ok.classList.add('done'); ok.innerHTML = I.check + 'Descarte aceptado'; } return; }
     const f = el.closest('.fb[data-f]'); if (f) { filterM(f.closest('.dt'), f.dataset.f); return; }
-    const tn = el.closest('[data-tono]'); if (tn) { tono = tn.dataset.tono; store.set('evaluon-tono', tono); pgs[5].innerHTML = fotosPage(); return; }
     if (el.closest('[data-add]')) { $('#up').click(); return; }
     const del = el.closest('[data-del]'); if (del) { fotos.splice(+del.dataset.del, 1); store.set('evaluon-fotos', fotos); pgs[5].innerHTML = fotosPage(); say('Foto quitada'); return; }
     const a = el.closest('a[href^="#"]'); if (a && a.getAttribute('href') !== '#') { e.preventDefault(); const k = a.getAttribute('href').slice(1); const i = SECS.findIndex(([s]) => s === k); if (i >= 0) go(i); }
