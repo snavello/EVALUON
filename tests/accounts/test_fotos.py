@@ -92,15 +92,21 @@ def relative_difference(a, b):
     return abs(a - b) / max(a, b)
 
 
-def ihdr_only_png(width, height):
-    """PNG con solo el encabezado: declara medidas enormes sin traer los datos (bomba)."""
+def header_only_png(width, height, data=b""):
+    """PNG con solo el encabezado y datos mínimos: declara las medidas que se pidan sin traer los
+    píxeles (una bomba si son enormes; una imagen rota si `data` no es zlib válido)."""
 
     def chunk(kind, data):
         body = kind + data
         return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
 
     header = struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0)
-    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", data or zlib.compress(b""))
+        + chunk(b"IEND", b"")
+    )
 
 
 def request_for(user, session=None):
@@ -190,13 +196,22 @@ def test_the_mapping_table_is_smooth_and_never_goes_down():
     assert all(a <= b for a, b in zip(table, table[1:]))
 
 
-@pytest.mark.django_db
-def test_a_16_bit_png_is_not_left_nearly_white():
+def test_16_bit_grays_are_scaled_to_8_bits_instead_of_clipped():
     """REQ-137: un PNG de 16 bits por canal se lleva a 8 bits sin recortar a blanco."""
     gradient = Image.new("I;16", (256, 8))
     gradient.putdata([x * 257 for _ in range(8) for x in range(256)])
-    photo = photos.upload(make_user(), io.BytesIO(encode(gradient)))
-    assert 60 < statistics(photo)[0] < 200
+    gray = photos.to_luminance(gradient)
+    assert gray.mode == "L"
+    mean = sum(level * count for level, count in enumerate(gray.histogram())) / (256 * 8)
+    assert 120 <= mean <= 135
+
+
+@pytest.mark.django_db
+def test_a_16_bit_png_can_be_uploaded():
+    """REQ-137: la subida de un PNG de 16 bits llega al final."""
+    gradient = Image.new("I;16", (256, 8))
+    gradient.putdata([x * 257 for _ in range(8) for x in range(256)])
+    assert photos.upload(make_user(), io.BytesIO(encode(gradient))).size > 0
 
 
 # --- REQ-137: lo que se guarda ---------------------------------------------------------------
@@ -308,7 +323,7 @@ def test_a_corrupt_image_is_rejected_with_a_clear_message():
     with pytest.raises(photos.PhotoRejected) as truncated:
         photos.upload(user, io.BytesIO(raw[: len(raw) // 2]))
     assert "dañada" in str(truncated.value)
-    broken = b"\x89PNG\r\n\x1a\n" + b"no son datos de una imagen" * 5
+    broken = header_only_png(50, 50, b"no son datos de una imagen" * 5)
     with pytest.raises(photos.PhotoRejected) as bad_png:
         photos.upload(user, io.BytesIO(broken))
     assert "dañada" in str(bad_png.value)
@@ -335,7 +350,7 @@ def test_a_pixel_bomb_is_rejected_without_decoding_it():
     user = make_user()
     for width, height in ((9000, 9000), (60000, 60000)):
         with pytest.raises(photos.PhotoRejected) as error:
-            photos.upload(user, io.BytesIO(ihdr_only_png(width, height)))
+            photos.upload(user, io.BytesIO(header_only_png(width, height)))
         assert "píxeles" in str(error.value)
     assert Photo.objects.count() == 0
 
@@ -399,7 +414,7 @@ def test_two_uploads_that_pick_the_same_slot_do_not_fail_nor_overwrite(monkeypat
     photo = photos.upload(user, io.BytesIO(encode(dark_saturated())))
     assert photo.slot == 1
     assert len(calls) >= 2
-    assert Photo.objects.get(user=user, slot=0).content.tobytes() == b"ganadora"
+    assert bytes(Photo.objects.get(user=user, slot=0).content) == b"ganadora"
     assert Photo.objects.filter(user=user).count() == 2
 
 
