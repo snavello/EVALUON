@@ -130,7 +130,8 @@ def test_el_pendiente_general_junta_las_cinco_secciones(client, procedure, matri
     contadores coinciden con los del procedimiento."""
     html = abrir(client, procedure, operator_user)
     resumen = sections.sections_for(operator_user, procedure)
-    panel = ingreso(html)
+    # Desde T-337 el pendiente general es el detalle de su cuadro, dentro del tablero.
+    panel = html.split('id="ingreso"')[1]
     assert 'id="pendientes"' in panel and 'id="sugerencias"' in panel
     assert re.search(r'Pendientes de decidir <span class="cta">%d<' % resumen.pending, panel)
     assert re.search(r'Sugerencias del sistema <span class="cta">%d<' % resumen.suggestions, panel)
@@ -269,10 +270,11 @@ def test_el_texto_sobre_la_foto_no_usa_opacidad():
 # --- Hay/Falta y tiempos -------------------------------------------------------------------------
 
 
-def test_el_encabezado_deja_el_lugar_de_hay_falta():
-    """REQ-132: el primer panel incluye la línea «Hay · Falta» (T-312)."""
+def test_hay_falta_es_un_cuadro_del_tablero_y_no_una_linea_del_encabezado():
+    """REQ-132, T-337: el primer panel ya no incluye la línea «Hay · Falta» debajo del encabezado:
+    es el primer cuadro del tablero y su detalle (`_hay_falta.html`) se despliega debajo."""
     plantilla = (STATIC.parent / "templates" / "journey" / "_ingreso.html").read_text("utf-8")
-    assert '{% include "journey/_hay_falta.html" %}' in plantilla
+    assert "_hay_falta.html" not in plantilla and "_pendientes.html" not in plantilla
 
 
 def test_el_primer_panel_se_arma_en_dos_segundos_con_el_caso_chico(

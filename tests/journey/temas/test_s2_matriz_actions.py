@@ -500,11 +500,13 @@ def test_the_panels_list_each_thing_with_a_link_to_this_tab(client, procedure, b
     la pantalla vieja."""
     log_in(client, evaluator_user)
     html = client.get(tab(procedure)).content.decode()
-    # Los paneles terminan donde empieza el tablero (T-313), que lleva los detalles; sin tablero,
-    # donde empieza `#seccion-detalle`.
-    fin = min(i for i in (html.find('<section class="tablero"'), html.find('id="seccion-detalle"'))
-              if i != -1)
-    panels = html[html.index('id="pendientes"'):fin]
+    # Las listas viven en los detalles de sus cuadros (T-337): desde `d-pendientes` hasta donde
+    # termina `d-sugerencias` (el siguiente detalle o `#seccion-detalle`).
+    desde = html.index('id="d-pendientes"')
+    sugerencias = html.index('id="d-sugerencias"')
+    fin = min(i for i in (html.find('class="inline-detail"', sugerencias + 1),
+                          html.find('id="seccion-detalle"')) if i != -1)
+    panels = html[html.index('id="pendientes"', desde):fin]
     base = tab(procedure)
     for number in [r.number for r in board.rows]:
         assert f"Requisito {number} sin confirmar" in panels

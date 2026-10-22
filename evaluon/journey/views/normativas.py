@@ -21,6 +21,7 @@ from evaluon.journey import memo
 from evaluon.journey.sections import SECTIONS
 from evaluon.journey.sections import s5
 from evaluon.journey.temas import s5_normas
+from evaluon.journey.tablero import resumen
 from evaluon.journey.tablero.tiles import Tile
 from evaluon.journey.views.portada import DROPDOWN_LIMIT, ROLE_LABELS
 from evaluon.tenders.models import Procedure
@@ -56,12 +57,21 @@ def general(request):
     # informe de lectura, validar y lista) y la consulta general lleva a su pantalla.
     context.update({
         "section": {"label": "Normativas"},
-        "board": [*s5_normas.tiles(request.user, None, normas),
+        "board": [resumen.hay_falta_tile(context["summary"], context["missing"]),
+                  resumen.pending_tile(context["pending_total"], context["pending_rows"]),
+                  *s5_normas.tiles(request.user, None, normas),
                   Tile(key="consulta", title="Consulta de normativa", href=context["query_url"],
                        width=2, missing="Abrir la consulta",
                        sub="Pide la fecha de autorización para saber qué régimen aplica")],
         "abre": s5_normas.opens(request),
     })
-    context["details"] = [{"id": "d-s5-normas", "title": "Normas cargadas", "html": render_to_string(
-        s5_normas.PARTIAL, {**context, "t": normas}, request=request)}]
+    # Los cuadros de indicadores van primero (T-337); su detalle, el resumen, lo que falta y la
+    # lista de pendientes, se despliega debajo.
+    details = [
+        ("d-hay-falta", "Qué hay y qué falta", "journey/_normativas_hay_falta.html", {}),
+        (resumen.DETAIL_PENDING, "Pendientes de decidir", "journey/_detalle_pendientes.html",
+         {"suggestion_total": 0, "suggestion_rows": None, "show_section": False}),
+        ("d-s5-normas", "Normas cargadas", s5_normas.PARTIAL, {"t": normas})]
+    context["details"] = [{"id": id_, "title": title, "html": render_to_string(
+        template, {**context, **extra}, request=request)} for id_, title, template, extra in details]
     return render(request, "journey/normativas.html", context)
