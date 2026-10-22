@@ -32,7 +32,7 @@ NO_TOTAL_TEXT = "Falta el total"
 LOW_TEXT = "La más baja"
 HIGH_TEXT = "La más alta"
 
-_PESOS = ("", "ARS", "$")
+_PESOS = ("ARS", "$")
 _TENTH = Decimal("0.1")
 
 
@@ -61,6 +61,7 @@ class EconomicView:
     state: str
     rows: list = field(default_factory=list)
     count: int = 0
+    uid: str = "economico"
     opening_day: str | None = None
     missing: str = ""
     warning: str = ""
@@ -75,7 +76,9 @@ class EconomicView:
             charts.LollipopRow(r.name, r.amount, r.amount_text, _chart_note(r),
                                low=r.is_low, high=r.is_high)
             for r in self.rows if r.amount is not None]
-        return charts.Lollipop(uid="orden", title="Orden económico de las ofertas", rows=rows)
+        return charts.Lollipop(
+            uid=f"{self.uid}-grafico", rows=rows,
+            title="Orden económico de las ofertas, con la diferencia respecto de la más baja")
 
 
 def _number(value):
@@ -84,22 +87,28 @@ def _number(value):
 
 
 def _money(value, currency=""):
-    """«$ 1.234,50», o «USD 10,00» si la moneda no es el peso."""
-    symbol = "$" if (currency or "").strip().upper() in _PESOS else currency.strip()
+    """«$ 1.234,50» en pesos; «USD 10,00» en otra moneda; sin moneda, el monto solo: no se
+    afirma una moneda que el Portal no dijo (P3)."""
+    currency = (currency or "").strip()
+    if not currency:
+        return _number(value)
+    symbol = "$" if currency.upper() in _PESOS else currency
     return f"{symbol} {_number(value)}"
 
 
 def _percent(value):
+    """«+10,0 %»; una diferencia que redondea a cero pero existe se dice «< 0,1 %»."""
+    if value == 0:
+        return "< 0,1 %"
     return f"+{value:.1f}".replace(".", ",") + " %"
 
 
 def _chart_note(row):
     if row.is_low:
         return LOW_TEXT
-    sobre = f"{row.diff_text} sobre la más baja" if row.diff_text else ""
     if row.is_high:
-        return f"{HIGH_TEXT} · {sobre}" if sobre else HIGH_TEXT
-    return sobre
+        return f"{HIGH_TEXT} · {row.diff_text}" if row.diff_text else HIGH_TEXT
+    return row.diff_text
 
 
 def opening_day(procedure):
@@ -112,19 +121,20 @@ def opening_day(procedure):
     return f"{moment:%d/%m/%Y}" if moment else None
 
 
-def economic_view(procedure, offers=None, discards=None):
+def economic_view(procedure, offers=None, discards=None, uid="economico"):
     """El orden económico de `procedure`. `offers` son las ofertas a ordenar (por omisión todas
     las del procedimiento) y `discards` lo que devuelve `ordering.propose_discards` (por omisión
-    ninguna se descarta)."""
+    ninguna se descarta). `uid` da el id del cuadro y el prefijo de los del gráfico: dos cuadros
+    en una página llevan `uid` distintos."""
     if offers is None:
         offers = list(procedure.offers.order_by("number"))
     order = ordering.economic_order(procedure, list(offers), discards or {}) if offers else None
     if order is None or not order.totals:
-        return EconomicView(state=STATE_PENDING, opening_day=opening_day(procedure),
+        return EconomicView(state=STATE_PENDING, uid=uid, opening_day=opening_day(procedure),
                             missing=PENDING_TEXT)
     count = len(order.totals)
     if all(r.amount is None for r in order.totals):
-        return EconomicView(state=STATE_NO_TOTAL, count=count, missing=NO_TOTAL_TEXT)
+        return EconomicView(state=STATE_NO_TOTAL, uid=uid, count=count, missing=NO_TOTAL_TEXT)
 
     priced = [r.amount for r in order.totals if r.amount is not None]
     comparable = not order.warning
@@ -145,10 +155,10 @@ def economic_view(procedure, offers=None, discards=None):
                     _TENTH, rounding=ROUND_HALF_UP)
             elif r.amount == lowest:
                 row.diff_pct = Decimal("0.0")
-            if row.diff_pct and not row.is_low:
+            if row.diff_pct is not None and not row.is_low:
                 row.diff_text = _percent(row.diff_pct)
         rows.append(row)
     return EconomicView(
-        state=STATE_ORDERED, rows=rows, count=count, warning=order.warning,
+        state=STATE_ORDERED, uid=uid, rows=rows, count=count, warning=order.warning,
         low=next((r for r in rows if r.is_low), None),
         high=next((r for r in rows if r.is_high), None))

@@ -19,6 +19,7 @@ Reglas de la guía visual (`docs/diseno/guia-visual.md`, 4 y 5):
   separan con un hueco y con la leyenda, nunca solo con esos dos colores.
 """
 
+import itertools
 import math
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -31,6 +32,8 @@ TONES = ("ok", "no", "nd", "pe", "ext", "lime", "ink", "mute", "s3")
 # `color: var(--…)`: ok, no, nd, pe, ext, lime, ink y s3 con el token del mismo nombre, `mute`
 # con `--s2`, `ink2` con `--ink-2` y `line` con `--line`.
 CLASSES = frozenset({f"g-{tone}" for tone in TONES} | {"g-ink2", "g-line"})
+
+_SEQUENCE = itertools.count(1)
 
 STACK_ORDER = ("ink", "mute", "s3", "ext", "ok", "nd")
 TIMELINE_STATES = ("past", "now", "future", "pending")
@@ -85,7 +88,7 @@ def _nice_step(raw):
 @dataclass(kw_only=True)
 class Chart:
     """Lo común de los siete gráficos: título y descripción accesibles y el prefijo de los ids
-    (`uid`, único en la página; por omisión el tipo de gráfico)."""
+    (`uid`, único en la página; por omisión se genera uno con el tipo y un número)."""
 
     title: str = ""
     desc: str = ""
@@ -94,9 +97,14 @@ class Chart:
     template: ClassVar[str] = ""
     kind: ClassVar[str] = ""
 
+    def __post_init__(self):
+        # Sin `uid`, cada gráfico genera el suyo: dos del mismo tipo en una página no repiten ids.
+        if not self.uid:
+            self.uid = f"{self.kind}-{next(_SEQUENCE)}"
+
     @property
     def ident(self):
-        return self.uid or self.kind
+        return self.uid
 
     @property
     def title_id(self):
@@ -300,9 +308,10 @@ class Lollipop(Chart):
     template: ClassVar[str] = "journey/graficos/_lollipop.html"
     kind: ClassVar[str] = "lollipop"
 
-    WIDTH: ClassVar[int] = 560
+    WIDTH: ClassVar[int] = 560  # ancho mínimo; crece si un texto no entra (H-1)
     LEFT: ClassVar[int] = 84
-    RIGHT: ClassVar[int] = 150
+    PLOT: ClassVar[int] = 326
+    MARGIN: ClassVar[int] = 6
     PITCH: ClassVar[int] = 40
     TOP: ClassVar[int] = 14
 
@@ -314,9 +323,17 @@ class Lollipop(Chart):
     def has_data(self):
         return bool(self._valid)
 
+    @cached_property
+    def _width(self):
+        """El ancho del dibujo: el mínimo, o el que hace falta para que el monto y la nota de
+        cada punto entren (0,6 del cuerpo por letra, una cota alta del ancho real)."""
+        ends = [self._x(_f(r.value)) + 14 + max(len(r.text) * 0.6 * 12, len(r.note) * 0.6 * 10)
+                for r in self._valid]
+        return max(self.WIDTH, math.ceil(max(ends, default=0) + self.MARGIN))
+
     @property
     def view_box(self):
-        return f"0 0 {self.WIDTH} {self.TOP + len(self._valid) * self.PITCH + 22}"
+        return f"0 0 {self._width} {self.TOP + len(self._valid) * self.PITCH + 22}"
 
     @cached_property
     def _domain(self):
@@ -331,8 +348,7 @@ class Lollipop(Chart):
 
     def _x(self, value):
         start, end = self._domain
-        plot = self.WIDTH - self.RIGHT - self.LEFT
-        return self.LEFT + (value - start) / (end - start) * plot
+        return self.LEFT + (value - start) / (end - start) * self.PLOT
 
     @cached_property
     def geometry(self):

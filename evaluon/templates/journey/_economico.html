@@ -1,7 +1,7 @@
 {% comment %}
 Cuadro del orden económico (detalle). Lo reutilizan el tablero de Ofertas (T-315) y el primer panel (T-322).
 Variable: `orden` (tablero.economico.EconomicView). Sin monto estimado (ADR-0077, D). Todo lo que falta se dice: nunca hay una cifra inventada (REQ-141).
-{% endcomment %}<div class="economico" id="economico">
+{% endcomment %}<div class="economico" id="{{ orden.uid }}">
 {% if orden.state == "ordered" %}
   {% if orden.warning %}<p class="aviso" role="status">{{ orden.warning }}</p>{% endif %}
   <table class="tbl economico-tabla">
