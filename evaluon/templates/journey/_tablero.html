@@ -13,8 +13,5 @@
     {% endfor %}
   </div>
 </section>
-{% if blocks %}
-<div id="seccion-detalle">
-  {% for block in blocks %}{% include block.partial with t=block.t %}{% endfor %}
-</div>
-{% endif %}
+{# Siempre presente (REQ-100: el orden de la jerarquía no cambia); vacío si ningún tema queda sin mosaico. #}
+<div id="seccion-detalle">{% for block in blocks %}{% include block.partial with t=block.t %}{% endfor %}</div>

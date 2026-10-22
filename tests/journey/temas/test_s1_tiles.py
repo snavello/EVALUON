@@ -68,7 +68,7 @@ def test_la_seccion_1_abre_con_sus_tres_mosaicos_y_cada_uno_su_detalle(
     assert {"s1-datos", "s1-renglones"} <= set(p.details["d-s1-datos"]["ids"])
     assert "s1-portal" in p.details["d-s1-portal"]["ids"]
     assert {"s1-pliego", "s1-pliego-subir"} <= set(p.details["d-s1-pliego"]["ids"])
-    assert 'id="seccion-detalle"' not in html  # ningún tema queda fuera del tablero
+    assert 'id="seccion-detalle"></div>' in html  # ningún tema queda fuera del tablero: el contenedor va vacío
 
 
 def test_los_mosaicos_salen_de_los_tres_temas_en_su_orden(procedure, operator_user, rf):
