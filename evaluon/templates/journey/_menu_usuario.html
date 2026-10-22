@@ -1,0 +1,10 @@
+{% comment %}Menú del usuario (REQ-132): sus iniciales, su nombre y rol, y «Salir». Es un `popover` declarativo (sin scripts: el botón lo abre, Esc o un clic afuera lo cierran) y no un `details`, que las pantallas de lectura de la 002 no admiten. El enlace a «Mis fotos» lo agrega T-320.{% endcomment %}<div class="me">
+  <button class="av" type="button" popovertarget="menu-usuario" aria-label="Su perfil: {{ user.username }}"><span aria-hidden="true">{{ user.username|slice:":2"|upper }}</span></button>
+  <div id="menu-usuario" class="menu" popover aria-label="Menú del usuario">
+    <p class="sel-user"><strong>{{ user.username }}</strong>{% if role_label %}<small>{{ role_label }}</small>{% endif %}</p>
+    <form method="post" action="{% url 'accounts:logout' %}" class="logout-form">
+      {% csrf_token %}
+      <button class="salir" type="submit"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>Salir</button>
+    </form>
+  </div>
+</div>

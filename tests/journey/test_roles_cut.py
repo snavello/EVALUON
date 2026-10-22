@@ -69,8 +69,8 @@ def test_an_unknown_procedure_is_a_404(client, operator_user):
 
 
 def test_the_old_menu_is_gone(client, procedure, operator_user):
-    """REQ-100: el encabezado no trae el menú viejo («Recorrido», «Procedimientos»)."""
+    """REQ-100: el encabezado no trae el menú viejo («Recorrido»); «Procedimientos» es el primer tramo del recorrido nuevo (REQ-132)."""
     log_in(client, operator_user)
     html = client.get(reverse("expedientes:procedimiento", args=[procedure.pk])).content.decode()
     header = html[html.index('<header class="top"'):html.index("</header>")]
-    assert ">Recorrido<" not in header and ">Procedimientos<" not in header
+    assert ">Recorrido<" not in header and 'class="site-nav"' not in header
