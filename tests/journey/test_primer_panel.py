@@ -292,3 +292,15 @@ def test_el_usuario_de_lectura_ve_el_primer_panel_sin_acciones(client, procedure
     html = abrir(client, procedure, no_commission_user)
     assert "photo-bg" in html
     assert "<form" not in ingreso(html).replace('class="preferencia"', "")
+
+
+def test_el_primer_panel_trae_la_ventana_del_proceso(client, procedure, matrix, tres, offer,
+                                                      simulate, operator_user):
+    """REQ-140 (aviso de T-330): con un pedido en curso, el primer panel muestra la ventana del
+    proceso (`id="process-window"`), debajo de los datos principales, y el sondeo la reemplaza."""
+    from evaluon.tenders.models import JobStatus
+    simulate([offer], JobStatus.RUNNING)
+    html = abrir(client, procedure, operator_user)
+    assert 'id="process-window"' in html
+    assert 'data-poll-url="' + reverse("expedientes:ventana", args=[procedure.pk]) + '"' in html
+    assert html.index('id="ingreso"') < html.index('id="process-window"') < html.index('id="pendientes"')
