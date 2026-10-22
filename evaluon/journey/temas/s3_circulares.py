@@ -226,6 +226,13 @@ def rows_of(user, procedure):
     return rows
 
 
+# Por qué importa cada pendiente (REQ-129): lo sabe este tema, no la lista.
+WHY_OPEN = ("La circular ya se leyó, pero la matriz no cambia hasta que la Comisión abre la "
+            "versión nueva.")
+WHY_VALIDATE = ("La versión nueva está en borrador: el cambio de la circular no queda firme hasta "
+                "que la Comisión la valida.")
+
+
 def status(user, procedure):
     rows = _states(procedure)
     documents = [row.document for row in rows]
@@ -250,10 +257,11 @@ def status(user, procedure):
         if state.state == circular_version.EN_BORRADOR:
             pending.append(Item(
                 f"{title}: la versión {state.version.number} de la matriz, con lo que cambió, "
-                "falta validarla", matrix_url(procedure.pk), 1, "Validar"))
+                "falta validarla", matrix_url(procedure.pk), 1, "Validar",
+                why=WHY_VALIDATE))
         else:
             pending.append(Item(f"{title}: falta abrir la versión nueva de la matriz",
-                                tab_url(procedure.pk) + ANCHOR, 1, "Abrir"))
+                                tab_url(procedure.pk) + ANCHOR, 1, "Abrir", why=WHY_OPEN))
     return TemaStatus(pending=len(pending), missing=tuple(missing), sources=tuple(sources),
                       pending_items=tuple(pending))
 

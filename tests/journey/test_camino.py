@@ -42,7 +42,7 @@ def test_every_section_has_the_path_and_the_hay_falta_line(client, procedure, ma
     assert "Procedimientos" in header and procedure.number in header
     block = hay_falta(html)
     assert html.count('class="hay-falta"') == 1
-    assert "Hay:" in block and "Falta:" in block
+    assert "Hay:" in block and 'class="hf-fila hf-falta"' in block and "Falta" in block
     assert 'id="seccion-resumen"' in block
     assert html.index('id="seccion-titulo"') < html.index('class="hay-falta"')
 
@@ -67,6 +67,29 @@ def test_hay_comes_from_the_summary_and_falta_from_the_missing_with_their_action
         if item.url:
             assert f'href="{item.url}"' in falta.group(1)
             assert (item.action or "Ver") in falta.group(1)
+
+
+def test_the_label_does_not_repeat_the_word_when_the_missing_text_starts_with_it(
+        client, procedure, operator_user):
+    """T-335, REQ-132: si el primer faltante ya empieza con «Falta», la etiqueta no repite la
+    palabra («Falta: Falta el expediente…»); el texto de cada faltante sigue entero."""
+    log_in(client, operator_user)
+    visto = False
+    for key in KEYS:
+        section = sections_for(operator_user, procedure, channel=Channel.SCREEN).get(key)
+        if not section.tema_missing:
+            continue
+        block = hay_falta(client.get(url(key, procedure)).content.decode())
+        etiqueta = re.search(r'<span class="hf-et"><i class="hf-punto hf-punto-falta"[^>]*></i>'
+                             r'(.*?)</span>', block, re.S).group(1).strip()
+        primero = str(section.tema_missing[0].text).strip()
+        if primero.startswith("Falta"):
+            assert etiqueta == "", (key, etiqueta)
+            visto = True
+        else:
+            assert etiqueta == "Falta:", (key, etiqueta)
+        assert primero in block
+    assert visto, "ningun caso de prueba tiene un faltante que empiece con Falta"
 
 
 def test_without_anything_missing_the_line_says_so_without_a_missing_list(

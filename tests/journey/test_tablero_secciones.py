@@ -5,6 +5,7 @@ Recorre todos los temas que declaran `tiles()`: cada bloque nuevo queda cubierto
 archivo. Como los temas todavía no declaran mosaicos, el resto de las pruebas instala unos de
 prueba en `s3_ofertas`. El despliegue en el navegador se revisa en T-316."""
 
+import re
 from decimal import Decimal
 from html.parser import HTMLParser
 from pathlib import Path
@@ -247,7 +248,9 @@ def test_el_tablero_deja_los_huecos_de_otras_tareas():
     que seguir entre Hay/Falta y el tablero."""
     texto = (Path(__file__).resolve().parents[2] / "evaluon" / "templates" / "journey"
              / "seccion.html").read_text(encoding="utf-8")
-    assert "{% block hay_falta %}{% endblock %}" in texto
+    # T-312 lo llenó: el bloque sigue definido y lleva el parcial de Hay/Falta.
+    assert re.search(r'\{% block hay_falta %\}(\{% include "journey/_hay_falta.html" %\})?'
+                     r'\{% endblock %\}', texto)
     assert "{% block pendientes %}" in texto
     assert texto.index("block hay_falta") < texto.index("block pendientes") < texto.index(
         "journey/_tablero.html")

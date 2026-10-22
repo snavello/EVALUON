@@ -343,14 +343,23 @@ def _rows(found, procedure, is_evaluator):
     return rows
 
 
+AVISO = "s4-descartes-aviso"
+
+
+def _back(procedure, text, ok=True):
+    """Vuelve al detalle de los descartes, donde se dibuja el aviso (T-335)."""
+    return base.back(procedure, text, ok, anchor=f"#{AVISO}")
+
+
 def context(user, procedure, request):
+    aviso = base.unpack(request.GET.get("aviso")) if request is not None else None
     page = memo.matrix_page(user, procedure.pk, channel=CHANNEL)
     evaluated = any(s.evaluated for s in page.statuses)
     is_evaluator = getattr(user, "commission_role", "") == CommissionRole.EVALUATOR
     empty = {"pid": procedure.pk, "evaluated": evaluated, "is_evaluator": is_evaluator,
              "requirements": len(page.requirements), "results": [], "rows": [],
              "to_decide": 0, "decided": 0, "totals": [], "lines": [], "columns": (),
-             "warnings": [], "price_sources": []}
+             "warnings": [], "price_sources": [], "aviso": aviso, "aviso_id": AVISO}
     if not evaluated:
         return empty
     found = service.units(page)
@@ -421,9 +430,9 @@ def decide(request, procedure_id):
                               post.get("action", ""), note=post.get("note", ""),
                               channel=CHANNEL)
     except service.DiscardRefused as error:
-        return base.back(procedure, str(error), ok=False)
+        return _back(procedure, str(error), ok=False)
     scope = "completa" if line is None else f"renglón {line}"
-    return base.back(procedure, f"{DONE[done.decision.action]} el descarte de la oferta "
+    return _back(procedure, f"{DONE[done.decision.action]} el descarte de la oferta "
                                 f"{done.decision.offer.number} ({scope}). "
                                 "Quedó registrado quién y cuándo.")
 

@@ -38,7 +38,7 @@ _SEQUENCE = itertools.count(1)
 STACK_ORDER = ("ink", "mute", "s3", "ext", "ok", "nd")
 TIMELINE_STATES = ("past", "now", "future", "pending")
 DONUT_STATES = (("ok", "Cumple"), ("no", "No cumple"), ("nd", "No determinado"),
-                ("pe", "Pendiente"))
+                ("pe", "Sin resultado"))
 
 
 # --- Ayudas ------------------------------------------------------------------------------------
@@ -199,7 +199,10 @@ class Bars(Chart):
 
 @dataclass
 class DonutItem:
-    """Cumple, no cumple, no determinado y pendiente de una oferta (cantidades de requisitos)."""
+    """Cumple, no cumple, no determinado y sin resultado (`pe`) de una oferta (cantidades de
+    requisitos). «Sin resultado» no es la columna «Pendiente» de la tabla de la propuesta (esa es
+    «sin decidir por la Comisión»): es el requisito sin resultado vigente o a la espera del informe
+    técnico."""
 
     label: str
     ok: int = 0
@@ -279,7 +282,7 @@ class Donuts(Chart):
         for item in self._valid:
             counts = item.counts
             parts.append(f"{item.label}: {counts['ok']} cumplen, {counts['no']} no cumplen, "
-                         f"{counts['nd']} no determinados, {counts['pe']} pendientes")
+                         f"{counts['nd']} no determinados, {counts['pe']} sin resultado")
         return "; ".join(parts) + "."
 
 

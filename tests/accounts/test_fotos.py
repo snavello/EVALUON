@@ -331,6 +331,29 @@ def test_a_corrupt_image_is_rejected_with_a_clear_message():
 
 
 @pytest.mark.django_db
+def test_a_truncated_image_is_rejected_even_if_another_library_tolerates_truncation():
+    """REQ-136, P4 (T-335): `weasyprint` (el PDF de la exportación) deja `LOAD_TRUNCATED_IMAGES` en
+    verdadero en todo el proceso; la subida de fotos igual rechaza el JPEG cortado, y el valor
+    global queda como estaba."""
+    import weasyprint  # noqa: F401  (es lo que lo deja en verdadero en producción)
+    from PIL import ImageFile
+    raw = encode(dark_saturated(), "JPEG")
+    user = make_user()
+    anterior = ImageFile.LOAD_TRUNCATED_IMAGES
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    try:
+        with pytest.raises(photos.PhotoRejected) as truncated:
+            photos.upload(user, io.BytesIO(raw[: len(raw) // 2]))
+        assert "dañada" in str(truncated.value)
+        assert ImageFile.LOAD_TRUNCATED_IMAGES is True
+        assert Photo.objects.count() == 0
+        photos.upload(user, io.BytesIO(raw))  # la foto entera sigue entrando
+        assert Photo.objects.count() == 1
+    finally:
+        ImageFile.LOAD_TRUNCATED_IMAGES = anterior
+
+
+@pytest.mark.django_db
 def test_a_format_that_is_not_allowed_is_rejected_by_its_content():
     """REQ-136: solo JPEG, PNG o WebP; se mira el contenido, no el nombre del archivo."""
     user = make_user()
@@ -377,7 +400,7 @@ def test_the_11th_photo_is_rejected_asking_to_remove_one():
         make_photo(user, slot)
     with pytest.raises(photos.PhotoRejected) as error:
         photos.upload(user, io.BytesIO(encode(dark_saturated())))
-    assert "quitá una" in str(error.value)
+    assert "quite una" in str(error.value)
     assert Photo.objects.filter(user=user).count() == 10
 
 
@@ -438,7 +461,7 @@ def test_a_lost_race_for_the_last_slot_is_rejected_with_a_clear_message(monkeypa
     monkeypatch.setattr(photos, "used_slots", stale)
     with pytest.raises(photos.PhotoRejected) as error:
         photos.upload(user, io.BytesIO(encode(dark_saturated())))
-    assert "quitá una" in str(error.value)
+    assert "quite una" in str(error.value)
     assert Photo.objects.filter(user=user).count() == 10
 
 

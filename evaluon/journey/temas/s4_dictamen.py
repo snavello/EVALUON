@@ -184,6 +184,14 @@ def status(user, procedure):
                       pending_items=tuple(_pending_item(user, procedure, item) for item in waiting))
 
 
+AVISO = "s4-dictamen-aviso"
+
+
+def _back(procedure, text, ok=True):
+    """Vuelve al detalle del dictamen, donde se dibuja el aviso (T-335)."""
+    return acciones.back(procedure, text, ok, anchor=f"#{AVISO}")
+
+
 def context(user, procedure, request):
     # `request` puede faltar cuando otro llamador arma los mosaicos sin pedido.
     aviso = acciones.unpack(request.GET.get("aviso")) if request is not None else None
@@ -267,15 +275,15 @@ def take(request, procedure_id):
     procedure = _procedure(procedure_id)
     item = portal_dictamen(procedure)
     if item is None:
-        return acciones.back(procedure, "El Portal no publicó un dictamen de este procedimiento.",
+        return _back(procedure, "El Portal no publicó un dictamen de este procedimiento.",
                              ok=False)
     if item.state != ItemState.PROPUESTO:
-        return acciones.back(procedure, "Ese dictamen del Portal ya se decidió.", ok=False)
+        return _back(procedure, "Ese dictamen del Portal ya se decidió.", ok=False)
     (result,) = approval.decide(request.user, [item.pk], approval.APPROVE, channel=CHANNEL)
     if result.result in (approval.KEPT_AS_FILE, approval.LOADED):
-        return acciones.back(procedure, "Se tomó el dictamen del Portal. Queda cargado en esta "
+        return _back(procedure, "Se tomó el dictamen del Portal. Queda cargado en esta "
                                         "sección, con quién lo aprobó y cuándo.")
-    return acciones.back(procedure, f"No se tomó el dictamen del Portal. {result.reason}".strip(),
+    return _back(procedure, f"No se tomó el dictamen del Portal. {result.reason}".strip(),
                          ok=False)
 
 
@@ -285,7 +293,7 @@ def upload(request, procedure_id):
     procedure = _procedure(procedure_id)
     file = request.FILES.get("file")
     if file is None:
-        return acciones.back(procedure, "Elija el archivo del dictamen.", ok=False)
+        return _back(procedure, "Elija el archivo del dictamen.", ok=False)
     content, name = file.read(), file.name
     title = (request.POST.get("title") or "").strip() or _title(name)
     text_date = (request.POST.get("issued_on") or "").strip()
@@ -295,14 +303,14 @@ def upload(request, procedure_id):
         refusal = services.refuse_invalid_date(
             request.user, procedure, data=content, file_name=name, kind=DocumentKind.DICTAMEN,
             title=title, issued_on_text=text_date, channel=CHANNEL)
-        return acciones.back(procedure, str(refusal), ok=False)
+        return _back(procedure, str(refusal), ok=False)
     try:
         services.load_document(request.user, procedure, data=content, file_name=name,
                                kind=DocumentKind.DICTAMEN, title=title, issued_on=issued_on,
                                channel=CHANNEL)
     except services.DocumentRefused as error:
-        return acciones.back(procedure, str(error), ok=False)
-    return acciones.back(procedure, f"Se subió el dictamen «{title}». Queda guardado como "
+        return _back(procedure, str(error), ok=False)
+    return _back(procedure, f"Se subió el dictamen «{title}». Queda guardado como "
                                     "archivo: el sistema no lo lee ni lo redacta.")
 
 
@@ -325,16 +333,16 @@ def _change(request, procedure_id, document_id, operation, done, call, needs_fil
                             channel=CHANNEL)
     note = " ".join(request.POST.get("note", "").split())
     if not note:
-        return acciones.back(procedure, "Escriba el motivo: es obligatorio y queda registrado.",
+        return _back(procedure, "Escriba el motivo: es obligatorio y queda registrado.",
                              ok=False)
     file = request.FILES.get("file")
     if needs_file and file is None:
-        return acciones.back(procedure, "Elija el archivo que reemplaza al dictamen.", ok=False)
+        return _back(procedure, "Elija el archivo que reemplaza al dictamen.", ok=False)
     try:
         call(request.user, document, note, file)
     except (document_history.HistoryRefused, services.DocumentRefused) as error:
-        return acciones.back(procedure, str(error), ok=False)
-    return acciones.back(procedure, f"Dictamen «{document.title}»: {done}")
+        return _back(procedure, str(error), ok=False)
+    return _back(procedure, f"Dictamen «{document.title}»: {done}")
 
 
 @require_POST

@@ -678,7 +678,8 @@ def _tile_orden(view):
     else:
         sub = "Todos los totales cargados son iguales."
     return Tile(key="orden", title="Orden económico", detail=DETAIL_ORDER, width=2,
-                big=view.count, unit="ofertas ordenadas", sub=sub,
+                big=view.count, unit="oferta ordenada" if view.count == 1 else "ofertas ordenadas",
+                sub=sub,
                 chart=view.chart if view.chart.has_data else None)
 
 

@@ -189,7 +189,7 @@ def test_los_parciales_de_circulares_anexos_y_ficha_son_detalles_del_tablero(
     cada parcial es el detalle de su mosaico y el ancla `#s3-circulares` está dentro."""
     html = pedir(client, procedure, operator_user)
     pagina = Pagina(html)
-    assert 'id="seccion-detalle"' not in html
+    assert 'id="seccion-detalle"></div>' in html  # el contenedor va vacío: ningún tema queda fuera
     for detalle in ("d-s3-circulares", "d-s3-anexos", "d-s3-ficha"):
         assert detalle in pagina.details
     assert "s3-circulares" in pagina.details["d-s3-circulares"]["ids"]

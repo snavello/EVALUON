@@ -105,7 +105,7 @@ def status(user, procedure):
     cuentas de la sección y de la portada. Los anexos no son obligatorios: no cuentan."""
     base = tab_url(procedure.pk)
     missing, sources = [], []
-    offers = list(procedure.offers.order_by("number"))
+    offers = memo.offers(procedure)
     sheets_of = compliance.sheets_by_offer(offers)
     annexes_of = document_history.current_documents_by_offer(offers, DocumentKind.ANEXO_TECNICO)
     for offer in offers:
@@ -207,7 +207,7 @@ class SheetRow:
 def sheet_rows(procedure):
     """Una fila por oferta, calculada una sola vez por pedido (la usan el mosaico y el detalle)."""
     def compute():
-        offers = list(procedure.offers.order_by("number"))
+        offers = memo.offers(procedure)
         sheets_of = compliance.sheets_by_offer(offers)
         annexes_of = document_history.current_documents_by_offer(offers,
                                                                   DocumentKind.ANEXO_TECNICO)

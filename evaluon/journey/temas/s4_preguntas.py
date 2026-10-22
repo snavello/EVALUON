@@ -41,6 +41,7 @@ from evaluon.journey import basis, memo, points, reading_note
 from evaluon.journey.sections.base import TemaStatus
 from evaluon.journey.tablero.tiles import Tile, detail_id
 from evaluon.journey.temas import s4_preguntas_acciones as acciones
+from evaluon.journey.temas import s4_propuesta_acciones as propuesta
 from evaluon.offers.services import offers as offers_service
 
 KEY = "s4_preguntas"
@@ -275,7 +276,9 @@ def context(user, procedure, request):
     blocked = questions_service.blocked_notice(procedure, answered) if len(answered) else ""
     first = len(answered.groups[0]) if len(answered) else 0
     page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    aviso = propuesta.unpack(request.GET.get("aviso")) if request is not None else None
     return {
+        "aviso": aviso, "aviso_id": acciones.AVISO,
         "evaluated": any(s.evaluated for s in page.statuses),
         "only_open": only_open,
         # El botón solo si el pedido no se va a rechazar; si no, el aviso dice qué hacer (D-2).

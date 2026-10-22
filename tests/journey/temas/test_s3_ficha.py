@@ -160,6 +160,7 @@ def test_proposed_rows_are_pending_and_a_missing_sheet_is_not_a_missing_item(
     status = s3_ficha.status(operator_user, procedure)
     assert status.missing == ()
     assert sum(i.count for i in status.pending_items) == sheet.entries.count()
+    assert all(i.why.strip() for i in status.pending_items)  # T-335: dice por qué importa
     assert all(i.url.startswith(f"/expedientes/{procedure.pk}/ofertas/")
                for i in status.pending_items)
     section = next(s for s in sections_for(operator_user, procedure).sections
@@ -178,6 +179,7 @@ def test_confirmed_rows_stop_counting_and_an_offer_without_sheet_is_a_suggestion
     other = make_offer(procedure, operator_user, "Otro oferente", {"o.pdf": ["Texto."]})
     status = s3_ficha.status(operator_user, procedure)
     assert [i.count for i in status.suggestion_items] == [1]
+    assert all(i.why.strip() for i in status.suggestion_items)  # T-335
     assert status.suggestion_items[0].url.startswith(
         f"/expedientes/{procedure.pk}/ofertas/?ficha={other.pk}")
     assert status.missing == ()

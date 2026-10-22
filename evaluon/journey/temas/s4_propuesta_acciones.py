@@ -59,11 +59,13 @@ def pair_url(procedure, offer_id, requirement_id):
     return reverse("expedientes:s4_par", args=[procedure.pk, offer_id, requirement_id])
 
 
-def back(procedure, text, ok=True, *, pair=None):
-    """Vuelve a la pestaña (o al detalle del par, si la acción salió de ahí) con el mensaje."""
+def back(procedure, text, ok=True, *, pair=None, anchor=ANCHOR):
+    """Vuelve a la pestaña (o al detalle del par, si la acción salió de ahí) con el mensaje.
+    `anchor` es el aviso dentro del detalle de la acción (T-335): cada tema dibuja el suyo y el
+    tablero abre ese detalle; por omisión, el de la propuesta."""
     if pair is not None:
-        return redirect(f"{pair_url(procedure, *pair)}?aviso={pack(text, ok)}{ANCHOR}")
-    return redirect(f"{tab_url(procedure)}?aviso={pack(text, ok)}{ANCHOR}")
+        return redirect(f"{pair_url(procedure, *pair)}?aviso={pack(text, ok)}{anchor}")
+    return redirect(f"{tab_url(procedure)}?aviso={pack(text, ok)}{anchor}")
 
 
 # --- Vistas --------------------------------------------------------------------------------------

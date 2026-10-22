@@ -135,11 +135,17 @@ def _all_read(offers):
     return documents.exists() and not documents.filter(readings__isnull=True).exists()
 
 
+# Por qué importa cada pendiente o sugerencia (REQ-129): lo sabe este tema, no la lista.
+WHY_ROWS = ("Son filas que propuso el sistema: no valen como dato de la oferta hasta que la "
+            "Comisión las confirma.")
+WHY_ARM = "La ficha es opcional; se puede armar porque la oferta está leída y hay matriz validada."
+
+
 def status(user, procedure):
     """Las filas propuestas son pendientes y la oferta sin ficha es una sugerencia; ninguna es
     faltante (la ficha es opcional). Las cuentas las suma la etapa de ofertas de la 013; acá se
     reemplazan sus renglones genéricos por uno por oferta, con su enlace dentro de la pestaña."""
-    offers = list(procedure.offers.order_by("number"))
+    offers = memo.offers(procedure)
     having = offer_ids_with_documents(offers)
     with_documents = [o for o in offers if o.pk in having]
     latest = _latest_sheets(offers)
@@ -147,7 +153,7 @@ def status(user, procedure):
                     f"{'fila' if count == 1 else 'filas'} de la ficha por confirmar",
                     tab_url(procedure.pk, offer.pk) + "#s3-ficha", count, "Resolver",
                     kind="ficha", noun="ofertas con filas de la ficha por confirmar",
-                    group_url=tab_url(procedure.pk) + "#s3-ficha")
+                    group_url=tab_url(procedure.pk) + "#s3-ficha", why=WHY_ROWS)
                for offer, _, count in _pending_sheets(with_documents)]
     suggestions = []
     if _all_read(with_documents) and latest_validated(procedure) is not None:
@@ -155,7 +161,7 @@ def status(user, procedure):
                             "(opcional)", tab_url(procedure.pk, o.pk) + "#s3-ficha", 1,
                             "Ver", kind="ficha_arma",
                             noun="ofertas donde se puede armar la ficha (opcional)",
-                            group_url=tab_url(procedure.pk) + "#s3-ficha")
+                            group_url=tab_url(procedure.pk) + "#s3-ficha", why=WHY_ARM)
                        for o in with_documents if o.pk not in latest]
     sources = []
     for offer in offers:
@@ -314,7 +320,7 @@ class CardRow:
 def sheet_rows(procedure):
     """Una fila por oferta, calculada una sola vez por pedido (la usan el mosaico y el detalle)."""
     def compute():
-        offers = list(procedure.offers.order_by("number"))
+        offers = memo.offers(procedure)
         latest = _latest_sheets(offers)
         pending = {offer.pk: count for offer, _, count in _pending_sheets(offers)}
         rows = []

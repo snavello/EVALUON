@@ -270,9 +270,9 @@ def test_el_texto_sobre_la_foto_no_usa_opacidad():
 
 
 def test_el_encabezado_deja_el_lugar_de_hay_falta():
-    """REQ-132: el lugar donde se conecta la línea «Hay · Falta» (T-312) está marcado."""
+    """REQ-132: el primer panel incluye la línea «Hay · Falta» (T-312)."""
     plantilla = (STATIC.parent / "templates" / "journey" / "_ingreso.html").read_text("utf-8")
-    assert "HAY_FALTA" in plantilla
+    assert '{% include "journey/_hay_falta.html" %}' in plantilla
 
 
 def test_el_primer_panel_se_arma_en_dos_segundos_con_el_caso_chico(

@@ -63,12 +63,14 @@ def test_la_seccion_1_abre_con_sus_tres_mosaicos_y_cada_uno_su_detalle(
     log_in(client, operator_user)
     html = pagina(client, procedure)
     p = revisar(html)
-    assert [t["data-detail"] for t in p.tiles] == ["d-s1-datos", "d-s1-portal", "d-s1-pliego"]
-    assert set(p.details) == {"d-s1-datos", "d-s1-portal", "d-s1-pliego"}
+    # El primer panel (T-321) suma antes sus propios mosaicos; acá se miran los de los temas.
+    temas = [t["data-detail"] for t in p.tiles if t.get("data-detail", "").startswith("d-s1-")]
+    assert temas[-3:] == ["d-s1-datos", "d-s1-portal", "d-s1-pliego"]
+    assert {"d-s1-datos", "d-s1-portal", "d-s1-pliego"} <= set(p.details)
     assert {"s1-datos", "s1-renglones"} <= set(p.details["d-s1-datos"]["ids"])
     assert "s1-portal" in p.details["d-s1-portal"]["ids"]
     assert {"s1-pliego", "s1-pliego-subir"} <= set(p.details["d-s1-pliego"]["ids"])
-    assert 'id="seccion-detalle"' not in html  # ningún tema queda fuera del tablero
+    assert 'id="seccion-detalle"></div>' in html  # ningún tema queda fuera del tablero: el contenedor va vacío
 
 
 def test_los_mosaicos_salen_de_los_tres_temas_en_su_orden(procedure, operator_user, rf):
@@ -78,7 +80,8 @@ def test_los_mosaicos_salen_de_los_tres_temas_en_su_orden(procedure, operator_us
     request.user = operator_user
     contextos = {t.KEY: t.context(operator_user, procedure, request) for t in seccion.temas}
     claves = [t.key for t in seccion.tiles(operator_user, procedure, contextos)]
-    assert claves == ["datos", "portal", "pliego"]
+    # Los mosaicos propios del primer panel (T-321) van primero; los de los temas siguen en su orden.
+    assert claves[-3:] == ["datos", "portal", "pliego"]
 
 
 # --- REQ-141: sin datos, falta -----------------------------------------------------------------------

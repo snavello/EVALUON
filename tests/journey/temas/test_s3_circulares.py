@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from evaluon.audit.models import AuditEvent, EventType, Outcome
 from evaluon.portal import models as p
+from evaluon.journey.temas import s3_circulares
 from evaluon.tenders.models import Document, Job, JobKind, Procedure
 from evaluon.tenders.services import circular_version
 from tests.accounts.test_session import TEST_PASSWORD
@@ -195,6 +196,8 @@ def test_a_modifying_circular_opens_a_new_draft_version_marked_in_both_tabs(
     page = text_of(client.get(tab(procedure)))
     assert "Todavía no abrió una versión nueva de la matriz." in page
     assert "falta abrir la versión nueva de la matriz" in page      # pendiente de la sección
+    abrir = s3_circulares.status(operator_user, procedure).pending_items
+    assert abrir and all(i.why.strip() for i in abrir)               # T-335: dice por qué importa
     assert "Abrir la versión nueva de la matriz" in page
 
     response = client.post(open_url(procedure), {"document": document.pk})
@@ -209,6 +212,8 @@ def test_a_modifying_circular_opens_a_new_draft_version_marked_in_both_tabs(
     assert "Falta validarla." in row
     assert "Abrir la versión nueva de la matriz" not in row
     assert "falta validarla" in page                              # sigue como pendiente
+    validar = s3_circulares.status(operator_user, procedure).pending_items
+    assert validar and all(i.why.strip() for i in validar)           # T-335
 
     matrix_page = text_of(client.get(reverse("expedientes:pliego", args=[procedure.pk])))
     assert "Cambiado por Circular N.º 1 (versión 2)" in matrix_page

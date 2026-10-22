@@ -600,7 +600,8 @@ def tiles(user, procedure, ctx):
                     ("nodeterminado", "No determinado", 1),
                     ("tipo", "Cumplimiento por tipo y oferta", 2))]
     evaluated = len(fig.offers)
-    sub = "Requisitos que cumple cada una, según el resultado vigente."
+    sub = ("Requisitos que cumple cada una, según el resultado vigente. «Sin resultado»: "
+           "requisitos sin resultado vigente o a la espera del informe técnico.")
     if fig.unevaluated:
         word = "oferta" if len(fig.unevaluated) == 1 else "ofertas"
         sub += f" Sin evaluar: {word} {', '.join(str(n) for n in fig.unevaluated)}."
@@ -622,17 +623,23 @@ def tiles(user, procedure, ctx):
     return [
         Tile(key="resultado", title="Resultado por oferta", detail=DETAIL, width=2,
              big=evaluated, unit=unit, sub=sub, chart=donuts, missing=MISSING),
-        Tile(key="nocumple", title="No cumple", detail=DETAIL, big=fig.no, unit="requisitos",
+        Tile(key="nocumple", title="No cumple", detail=DETAIL, big=fig.no,
+             unit=requirements_word(fig.no),
              sub=f"Pares requisito-oferta que no cumplen {scope}", missing=MISSING),
         Tile(key="nodeterminado", title="No determinado", detail=DETAIL, big=fig.nd,
-             unit="requisitos",
+             unit=requirements_word(fig.nd),
              sub=f"Pares que el sistema no pudo concluir {scope}; los resuelve la Comisión",
              missing=MISSING),
         Tile(key="tipo", title="Cumplimiento por tipo y oferta", detail=DETAIL, width=2,
-             big=fig.requirements, unit="requisitos",
+             big=fig.requirements, unit=requirements_word(fig.requirements),
              sub=f"Cumplen / total, por tipo y oferta · matriz versión {fig.version}",
              chart=heat, missing=MISSING),
     ]
+
+
+def requirements_word(count):
+    """«requisito» con la cifra 1 y «requisitos» con cualquier otra."""
+    return "requisito" if count == 1 else "requisitos"
 
 
 def opens(request):
