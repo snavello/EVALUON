@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mis fotos · EVALUON{% endblock %}
+
+{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'accounts/fotos.css' %}">{% endblock %}
+
+{% block content %}
+<section class="fotos">
+  <h1>Mis fotos</h1>
+  <p class="intro">Fotos que aparecen en el ingreso de cada procedimiento, una al azar cada vez que cambia la pantalla. Puede subir hasta {{ max_photos }}. Todas se pasan a blanco y negro al subirlas, con el mismo brillo y contraste, para que combinen con la pantalla. Quedan en el equipo y solo las ve usted.</p>
+  {% if notice %}<p class="aviso-foto ok" role="status">{{ notice }}</p>{% endif %}
+  {% if error %}<p class="aviso-foto error" role="alert">{{ error }}</p>{% endif %}
+  <div class="slots">
+    {% for photo in photos %}
+    <div class="slot">
+      <img src="{% url 'accounts:foto' photo.pk %}" alt="Foto {{ forloop.counter }} de su perfil" loading="lazy">
+      <form method="post" action="{% url 'accounts:foto_quitar' photo.pk %}" class="quitar">
+        {% csrf_token %}
+        <button class="del" type="submit" aria-label="Quitar la foto {{ forloop.counter }}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </form>
+    </div>
+    {% endfor %}
+    {% if can_add %}
+    <form method="post" action="{% url 'accounts:fotos' %}" enctype="multipart/form-data" class="slot add">
+      {% csrf_token %}
+      <label for="foto-nueva">Subir una foto</label>
+      <input id="foto-nueva" type="file" name="foto" accept="image/jpeg,image/png,image/webp" required>
+      <button class="btn primario" type="submit">Subir</button>
+      <small>{{ free }} lugar{{ free|pluralize:"es" }} libre{{ free|pluralize }}</small>
+    </form>
+    {% endif %}
+    {% for _ in empty_slots %}<div class="slot empty" aria-hidden="true"></div>{% endfor %}
+  </div>
+  {% if not can_add %}<p class="nota">Ya tiene {{ max_photos }} fotos, el máximo: quitá una antes de subir otra.</p>{% endif %}
+  {% if not count %}<p class="nota">Sin fotos propias se muestra la foto de la casa.</p>{% endif %}
+</section>
+{% endblock %}
