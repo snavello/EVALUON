@@ -56,11 +56,17 @@
   --pe: #7488A4;
   --ext: #8C7AB0;
   --s2: #868686;             /* serie neutra; maqueta #8E8E8E */
-  --s3: #4A4C51;             /* tercera serie; la maqueta usaba #C9C9C9 (1,5:1) */
+  --s3: #5C5E62;             /* tercera serie, gris medio-oscuro; la maqueta usaba #C9C9C9 (1,5:1) */
   --trk: #E2E2E2;
   --dark-tile: #171A20;
   --dark-tile-ink: #FFFFFF;
   --dark-tile-2: #B9BBBF;
+  /* Encabezado viejo (header.top de secciones.css), transitorio hasta T-311: secciones.css fija el
+     blanco del usuario, «Salir» y el selector, así que el fondo es oscuro en los dos temas. */
+  --hdr: #171A20;
+  --hdr-ink: #FFFFFF;
+  --hdr-ink-2: #B9BBBF;
+  --hdr-hover: #2A2D35;
 }
 
 /* ---------- Tema negro (modelo 3) ---------- */
@@ -93,6 +99,10 @@
   --dark-tile: #C6F432;
   --dark-tile-ink: #0B0C0E;
   --dark-tile-2: #2B3310;
+  --hdr: #0B0C0E;
+  --hdr-ink: #F2F2F2;
+  --hdr-ink-2: #A3A5AA;
+  --hdr-hover: #1F2126;
   color-scheme: dark;
 }
 
@@ -112,12 +122,12 @@
 
   /* Paleta vieja (azules y beiges) llevada a los grises del tema */
   --ev-azul-900: var(--ink);
-  --ev-azul-800: var(--tile-h);
+  --ev-azul-800: var(--hdr-hover);   /* solo lo usa el encabezado viejo */
   --ev-azul-700: var(--ink);
   --ev-azul-600: var(--ink-2);
   --ev-azul-500: var(--ink);
   --ev-azul-300: var(--line);
-  --ev-azul-200: var(--ink-2);
+  --ev-azul-200: var(--hdr-ink-2);  /* solo lo usa el encabezado viejo */
   --ev-azul-100: var(--tile-h);
   --ev-azul-50: var(--tile-h);
   --ev-beige-50: var(--tile);
@@ -138,8 +148,8 @@
   --ev-enlace: var(--ink);
   --ev-borde: var(--line);
   --ev-borde-campo: var(--ink-3);
-  --ev-encabezado-fondo: var(--bg);
-  --ev-encabezado-texto: var(--ink);
+  --ev-encabezado-fondo: var(--hdr);
+  --ev-encabezado-texto: var(--hdr-ink);
   --ev-nav-fondo: var(--nav-track);
   --ev-nav-texto: var(--nav-ink);
   --ev-boton-fondo: var(--btn);
@@ -164,6 +174,7 @@
   --ev-icono-nodeterminado: var(--nd);
   --ev-icono-pendiente: var(--pe);
   --ev-icono-simbolo: #FFFFFF;
+  --ev-icono-tam: 16px;
   --ev-tooltip-fondo: var(--ink);
   --ev-tooltip-texto: var(--bg);
 }

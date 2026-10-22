@@ -154,6 +154,9 @@ def _pares() -> list[tuple[str, str, str, float]]:
     add("encabezado viejo: blanco fijo de secciones.css", "#FFFFFF", "--ev-encabezado-fondo", TEXTO)
     add("encabezado viejo: blanco fijo sobre el hover", "#FFFFFF", "--ev-azul-800", TEXTO)
     add("encabezado viejo: texto tenue sobre el hover", "--ev-azul-200", "--ev-azul-800", TEXTO)
+    for fondo in ("--hdr", "--hdr-hover"):
+        add(f"encabezado viejo: --hdr-ink / {fondo}", "--hdr-ink", fondo, TEXTO)
+        add(f"encabezado viejo: --hdr-ink-2 / {fondo}", "--hdr-ink-2", fondo, TEXTO)
     add("alias encabezado, texto tenue", "--ev-azul-200", "--ev-encabezado-fondo", TEXTO)
     add("alias botón", "--ev-boton-texto", "--ev-boton-fondo", TEXTO)
     add("alias botón (hover)", "--ev-boton-texto", "--ev-boton-hover", TEXTO)

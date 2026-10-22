@@ -32,9 +32,10 @@ Los valores marcados con `*` no son los de la maqueta: se ajustaron para llegar 
 | `--focus` | `#6F9108` `*` | `#C6F432` | Anillo de foco |
 | `--nav-track` / `--nav-on` / `--nav-on-ink` / `--nav-ink` | `#F4F4F4` / `#171A20` / `#FFFFFF` / `#5C5E62` | `#17181C` / `#C6F432` / `#0B0C0E` / `#A3A5AA` | Pestañas en píldora |
 | `--ok` `--no` `--nd` `--pe` `--ext` | `#5C9176` `*` `#BE6A64` `#A57F39` `*` `#7488A4` `*` `#8C7AB0` | `#62A080` `*` `#CC7B75` `#B98C39` `*` `#8094B0` `*` `#9A8AC0` | Estados y gráficos |
-| `--s2` / `--s3` | `#868686` `*` / `#4A4C51` `*` | `#8A8C91` `*` / `#6A6D74` `*` | Series neutras de los gráficos |
+| `--s2` / `--s3` | `#868686` `*` / `#5C5E62` `*` | `#8A8C91` `*` / `#6A6D74` `*` | Series neutras de los gráficos |
 | `--trk` | `#E2E2E2` | `#2A2C31` | Pista detrás de una barra |
 | `--dark-tile` / `--dark-tile-ink` / `--dark-tile-2` | `#171A20` / `#FFFFFF` / `#B9BBBF` | `#C6F432` / `#0B0C0E` / `#2B3310` | Mosaico destacado |
+| `--hdr` / `--hdr-ink` / `--hdr-ink-2` / `--hdr-hover` | `#171A20` / `#FFFFFF` / `#B9BBBF` / `#2A2D35` | `#0B0C0E` / `#F2F2F2` / `#A3A5AA` / `#1F2126` | **Transitorio hasta T-311.** Encabezado viejo (`header.top`): `secciones.css` fija en blanco el usuario, «Salir» y el selector, así que su fondo es oscuro también en el tema gris y blanco. T-311 lo retira con el encabezado único |
 | `--accent` / `--accent-h` | `#8B1E2D` / `#6F1723` | `#B3263C` / `#8F1D30` | Acento de las páginas viejas (acción destructiva). No es del modelo 2; sale con ellas en T-331 |
 
 Tintas de estado, iguales en los dos temas porque se calculan con `color-mix(in srgb, …)` sobre los tokens: `--X-bg` (el color al 20 %, 22 % para `--nd`, sobre `--bg`) y `--X-ink` (el color al 65 %, 55 % para `--nd`, sobre `--ink`), con `X` en `ok`, `no`, `nd`, `pe`, `ext`. Son el fondo y el texto de las etiquetas y avisos de estado.
@@ -43,7 +44,7 @@ Medidas de la maqueta: `--r` 18 px (mosaico), `--r-sm` 10 px, `--maxw` 78 rem, `
 
 ### 1.2 Alias de los tokens viejos
 
-Hasta T-331, los `--ev-*` siguen existiendo y apuntan a los tokens nuevos, para que las páginas que todavía no se migraron se lean bien en los dos temas. Equivalencias: `--ev-fondo` es `--bg`; `--ev-superficie`, `--tile`; `--ev-superficie-2`, `--tile-h`; `--ev-texto`, `--ink`; `--ev-texto-suave`, `--ink-2`; `--ev-borde`, `--line`; `--ev-borde-campo`, `--ink-3`; `--ev-enlace`, `--ink` (los enlaces se distinguen por el subrayado); `--ev-azul-*` y `--ev-beige-*` van a `--ink`, `--tile`, `--tile-h`, `--line` según el papel; `--ev-rojo`, `--accent`; los estados (`--ev-cumple`, `--ev-nocumple`, `--ev-nodeterminado`, `--ev-pendiente`, `--ev-externo` y sus `-fondo`), a las tintas `--X-ink` y `--X-bg`; los `--ev-icono-*`, a `--ok`, `--no`, `--nd`, `--pe`. `test_contraste.py` verifica los alias en los dos temas. Las medidas, la escala tipográfica, los radios y las sombras `--ev-*` no cambian.
+Hasta T-331, los `--ev-*` siguen existiendo y apuntan a los tokens nuevos, para que las páginas que todavía no se migraron se lean bien en los dos temas. Equivalencias: `--ev-fondo` es `--bg`; `--ev-superficie`, `--tile`; `--ev-superficie-2`, `--tile-h`; `--ev-texto`, `--ink`; `--ev-texto-suave`, `--ink-2`; `--ev-borde`, `--line`; `--ev-borde-campo`, `--ink-3`; `--ev-enlace`, `--ink` (los enlaces se distinguen por el subrayado); `--ev-azul-*` y `--ev-beige-*` van a `--ink`, `--tile`, `--tile-h`, `--line` según el papel (`--ev-azul-200` y `--ev-azul-800`, que solo usa el encabezado viejo, van a `--hdr-ink-2` y `--hdr-hover`; `--ev-encabezado-fondo` y `-texto`, a `--hdr` y `--hdr-ink`); `--ev-rojo`, `--accent`; los estados (`--ev-cumple`, `--ev-nocumple`, `--ev-nodeterminado`, `--ev-pendiente`, `--ev-externo` y sus `-fondo`), a las tintas `--X-ink` y `--X-bg`; los `--ev-icono-*`, a `--ok`, `--no`, `--nd`, `--pe`. `test_contraste.py` verifica los alias en los dos temas. Las medidas, la escala tipográfica, los radios, las sombras y `--ev-icono-tam` (16 px) no cambian. `test_contraste.py` exige además que todo `var(--…)` de las hojas y plantillas esté definido en `tokens.css` o en su propio archivo.
 
 ## 2. Tipografía
 
@@ -71,7 +72,7 @@ SVG con `fill` y `stroke` en `currentColor`; el color sale de una clase `g-ok`, 
 
 ## 6. Contraste (AA)
 
-Cálculo: luminancia relativa L = 0,2126 R + 0,7152 G + 0,0722 B con canales linealizados; razón = (L claro + 0,05) / (L oscuro + 0,05). Las mezclas `color-mix` se calculan en sRGB como el navegador. `tests/journey/test_contraste.py` declara los pares y los calcula desde `tokens.css`: 126 en el tema gris y blanco y 125 en el negro, todos al 100 %. Mínimos: texto 4,5:1; íconos, marcas y gráficos 3:1; el texto sobre la foto del primer panel lo agrega T-321 (`PARES_FOTO`, en el peor píxel).
+Cálculo: luminancia relativa L = 0,2126 R + 0,7152 G + 0,0722 B con canales linealizados; razón = (L claro + 0,05) / (L oscuro + 0,05). Las mezclas `color-mix` se calculan en sRGB como el navegador. `tests/journey/test_contraste.py` declara los pares y los calcula desde `tokens.css`: 133 en el tema gris y blanco y 132 en el negro, todos al 100 %. Mínimos: texto 4,5:1; íconos, marcas y gráficos 3:1; el texto sobre la foto del primer panel lo agrega T-321 (`PARES_FOTO`, en el peor píxel).
 
 Una prueba de alteración demuestra que el test muerde: volver `--ink-3` al `#8E8E8E` de la maqueta, o `--nd` al `#C29A4F`, lo hace fallar.
 
@@ -92,7 +93,7 @@ Criterio: el menor cambio de tono (se mueve solo la luminosidad en HSL, sin toca
 | `--ok`, `--pe` negro (símbolo blanco, 3:1) | `#6FA88A`: 2,75; `#8D9FB8`: 2,70 | `#62A080`: 3,06; `#8094B0`: 3,10 | Símbolo blanco sobre el círculo |
 | `--focus` claro (anillo, 3:1) | `#8DB80A`: 2,34 (1,98 sobre `--tile-h`) | `#6F9108`: 3,10 sobre `--tile-h` | El anillo de foco debía verse; es el mismo verde oliva, más oscuro |
 | `--s2` claro (serie neutra, 3:1) | `#8E8E8E`: 2,77 sobre `--tile-h` | `#868686`: 3,08 | Ídem |
-| `--s3` claro (serie neutra, 3:1) | `#C9C9C9`: 1,4 sobre `--tile-h` | `#4A4C51`: 7,27 | Un gris claro no puede llegar a 3:1 sobre un mosaico gris: la tercera serie pasa a ser la más oscura (el valor que tenía la maqueta en el tema negro). Cambia la lectura de ese gráfico: a revisar con el Coordinador |
+| `--s3` claro (serie neutra, 3:1) | `#C9C9C9`: 1,4 sobre `--tile-h` | `#5C5E62`: 6,50 sobre `--bg`, 5,91 sobre `--tile`, 5,50 sobre `--tile-h` | Un gris claro no puede llegar a 3:1 sobre un mosaico gris: la tercera serie pasa a ser un gris medio-oscuro, distinto de `--ink` (2,7:1 entre ambos) y de `--s2` (1,8:1). Cambia la lectura de ese gráfico: a revisar con el Coordinador |
 | `--s3` negro (serie neutra, 3:1) | `#4A4C51`: 1,87 sobre `--tile-h` | `#6A6D74`: 3,11 | Ídem; `--s2` negro sube a `#8A8C91` para mantener la distancia entre las dos series |
 
 Sin cambios, ya pasaban: `--ink`, `--ink-2`, `--no`, `--ext`, `--lime`/`--on-lime`, botón, pestañas, mosaico destacado y todas las tintas de estado (el texto `--X-ink` sobre `--X-bg` queda entre 5,0 y 7,7:1).
