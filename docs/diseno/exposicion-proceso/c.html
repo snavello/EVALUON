@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>C · Cuadro de cumplimiento</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Maquetas de exposición del proceso (17/11/2026). Mismos colores y tipografía que la 017. Datos inventados. */
+:root{
+  --f:'Hanken Grotesk',system-ui,sans-serif;--r:18px;--r-sm:10px;--maxw:78rem;
+  --bg:#FFFFFF;--tile:#F4F4F4;--tile-h:#ECECEC;--line:#E2E2E2;--ink:#171A20;--ink-2:#5C5E62;--ink-3:#8E8E8E;
+  --lime:#C6F432;--btn:#171A20;--focus:#8DB80A;
+  --ok:#5E9479;--no:#BE6A64;--nd:#C29A4F;--pe:#7A8DA8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f);color:var(--ink);background:var(--bg);font-size:15px;line-height:1.45}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+/* cabecera */
+.top{border-bottom:1px solid var(--line);padding:.8rem 0 .7rem}
+.top .fila{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.logo{display:inline-flex;font-weight:800;letter-spacing:.02em;font-size:1.05rem;text-decoration:none}
+.logo b{background:var(--ink);color:#fff;padding:.25rem .45rem;border-radius:4px 0 0 4px}
+.logo i{background:var(--lime);color:var(--ink);padding:.25rem .4rem;border-radius:0 4px 4px 0;font-style:normal}
+.tabs{display:flex;gap:.15rem;background:var(--tile);border-radius:999px;padding:.25rem;margin:0 auto;flex-wrap:wrap}
+.tabs a{padding:.45rem 1rem;border-radius:999px;text-decoration:none;color:var(--ink-2);font-size:.9rem}
+.tabs a.on{background:var(--ink);color:#fff;font-weight:600}
+.tabs a small{background:#fff;color:var(--ink);border-radius:999px;padding:0 .4rem;margin-left:.35rem;font-weight:700}
+.yo{width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700;margin-left:auto}
+.tabs + .yo{margin-left:0}
+.miga{font-size:.85rem;color:var(--ink-2);margin-top:.6rem}
+.miga b{color:var(--ink);font-weight:600}
+/* títulos */
+h1{font-size:1.9rem;font-weight:500;margin:2rem 0 .3rem;letter-spacing:-.01em}
+h2{font-size:1.15rem;font-weight:600;margin:0 0 .6rem}
+.sub{color:var(--ink-2);margin:0 0 1.5rem}
+/* piezas */
+.tile{background:var(--tile);border-radius:var(--r);padding:1.25rem 1.4rem}
+.oscuro{background:var(--ink);color:#fff}
+.oscuro .tenue{color:#B9BBBF}
+.tenue{color:var(--ink-2)}
+.chico{font-size:.85rem}
+.btn{display:inline-block;background:var(--btn);color:#fff;border:0;border-radius:6px;padding:.7rem 1.2rem;font:600 .95rem var(--f);text-decoration:none;cursor:pointer}
+.btn.lima{background:var(--lime);color:var(--ink)}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.grid{display:grid;gap:1rem}
+.g-2-1{grid-template-columns:2fr 1fr}
+.g-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g-2-1,.g-3{grid-template-columns:1fr}}
+/* estados: siempre texto, nunca solo color */
+.est{display:inline-block;font-size:.78rem;font-weight:600;border-radius:999px;padding:.15rem .65rem;white-space:nowrap}
+.est.ok{background:#E3EEE8;color:#2F5E48}
+.est.cur{background:var(--lime);color:var(--ink)}
+.est.falta{background:#F3E9D6;color:#7A5A1A}
+.est.na{background:#fff;color:var(--ink-3);border:1px dashed var(--ink-3)}
+.dev{display:inline-block;font-size:.72rem;font-weight:600;border:1px dashed var(--ink);border-radius:4px;padding:.05rem .4rem;margin-left:.4rem;vertical-align:middle;background:#fff;color:var(--ink)}
+.pie{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.82rem;color:var(--ink-2)}
+table{border-collapse:collapse;width:100%}
+th{font-weight:600;text-align:left;font-size:.82rem;color:var(--ink-2)}
+td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+</style>
+<style>
+.hilo{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;font-size:.88rem;margin:0 0 1.2rem;padding:0;list-style:none}
+.hilo li{padding:.3rem .7rem;border-radius:999px;background:var(--tile);color:var(--ink-2)}
+.hilo li.ok::before{content:"✓ ";font-weight:700}
+.hilo li.aca{background:var(--lime);color:var(--ink);font-weight:700}
+.hilo li.na{background:#fff;border:1px dashed var(--ink-3);color:var(--ink-3)}
+.hilo .fl{background:none;padding:0;color:var(--ink-3)}
+.filtros{display:flex;gap:.4rem;margin-bottom:.8rem;flex-wrap:wrap}
+.filtros a{padding:.35rem .8rem;border-radius:999px;border:1px solid var(--line);text-decoration:none;font-size:.88rem}
+.filtros a.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.cuadro th.of{text-align:center;width:8.5rem;color:var(--ink);font-size:.9rem}
+.cuadro th.of small{display:block;font-weight:400;color:var(--ink-2)}
+.cuadro td.c{text-align:center;padding:.3rem}
+.cuadro tr.grupo td{background:var(--tile);font-weight:600;font-size:.85rem}
+.cel{display:block;border-radius:6px;padding:.35rem .2rem;font-size:.8rem;font-weight:600;text-decoration:none}
+.cel.si{background:#E3EEE8;color:#2F5E48}.cel.no{background:#F3DEDC;color:#8A3A34}
+.cel.dec{background:var(--lime);color:var(--ink)}.cel.esp{background:#fff;color:var(--ink-3);border:1px dashed var(--ink-3)}
+.cel.sel{outline:3px solid var(--ink);outline-offset:1px}
+.lado{position:sticky;top:1rem}
+.cita{background:#fff;border-left:3px solid var(--ink);padding:.6rem .8rem;margin:.3rem 0 1rem;font-size:.9rem}
+.cita small{display:block;color:var(--ink-2);margin-top:.3rem}
+.dec-b{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.8rem}
+.g-c{grid-template-columns:1.55fr 1fr;align-items:start}
+@media(max-width:1000px){.g-c{grid-template-columns:1fr}}
+</style></head><body>
+<header class="top"><div class="wrap">
+  <div class="fila"><a class="logo" href="#"><b>EVALU</b><i>ON</i></a>
+    <nav class="tabs"><a class="on" href="#">Procedimiento</a><a href="#">Pliego y matriz</a><a href="#">Ofertas</a><a href="#">Evaluación y dictamen <small>12</small></a><a href="#">Normativas</a></nav>
+    <span class="yo">MC</span></div>
+  <div class="miga">Procedimientos › <b>0A1PC000000-0031-LPU26 · Adquisición de sillas ergonómicas para oficinas</b></div>
+</div></header>
+
+<main class="wrap">
+  <h1>Lo que pide el pliego y lo que trajo cada oferta</h1>
+  <ol class="hilo"><li class="ok">Pliego</li><li class="fl">→</li><li class="ok">27 requisitos</li><li class="fl">→</li><li class="ok">3 ofertas</li><li class="fl">→</li><li class="ok">Cumplimiento</li><li class="fl">→</li><li class="aca">Decisión de la Comisión · faltan 12</li><li class="fl">→</li><li class="na">Dictamen</li></ol>
+
+  <div class="grid g-c">
+    <section>
+      <div class="filtros"><a class="on" href="#">Con algo pendiente · 13</a><a href="#">Todos · 27</a><a href="#">A decidir · 12</a><a href="#">No cumple · 1</a><a href="#">Esperan informe técnico · 6</a></div>
+      <table class="cuadro">
+        <thead><tr><th>Requisito del pliego</th>
+          <th class="of">Oferta 1<small>Mobiliario Norte<br>$ 52.480.000</small></th>
+          <th class="of">Oferta 2<small>Equipar Oficinas<br>$ 48.210.000 · la más baja</small></th>
+          <th class="of">Oferta 3<small>Sur Amoblamientos<br>$ 61.900.000</small></th></tr></thead>
+        <tbody>
+          <tr class="grupo"><td colspan="4">Formales · se muestran 7 de 18; los otros 11 cumplen en las tres ofertas</td></tr>
+          <tr><td>4. Declaración jurada de habilidad para contratar</td><td class="c"><a class="cel si" href="#">Cumple</a></td><td class="c"><a class="cel dec" href="#">A decidir</a></td><td class="c"><a class="cel si" href="#">Cumple</a></td></tr>
+          <tr><td>7. Constitución de domicilio electrónico</td><td class="c"><a class="cel dec" href="#">A decidir</a></td><td class="c"><a class="cel si" href="#">Cumple</a></td><td class="c"><a class="cel dec" href="#">A decidir</a></td></tr>
+          <tr><td>9. Garantía de mantenimiento de oferta (5 %)</td><td class="c"><a class="cel si" href="#">Cumple</a></td><td class="c"><a class="cel no" href="#">No cumple</a></td><td class="c"><a class="cel si" href="#">Cumple</a></td></tr>
+          <tr><td>12. Antecedentes: 3 provisiones similares en 5 años</td><td class="c"><a class="cel dec" href="#">A decidir</a></td><td class="c"><a class="cel dec sel" href="#">A decidir</a></td><td class="c"><a class="cel dec" href="#">A decidir</a></td></tr>
+          <tr><td>15. Poder del firmante de la oferta</td><td class="c"><a class="cel dec" href="#">A decidir</a></td><td class="c"><a class="cel dec" href="#">A decidir</a></td><td class="c"><a class="cel si" href="#">Cumple</a></td></tr>
+          <tr><td>16. Folleto y ficha del producto firmados</td><td class="c"><a class="cel dec" href="#">A decidir</a></td><td class="c"><a class="cel dec" href="#">A decidir</a></td><td class="c"><a class="cel dec" href="#">A decidir</a></td></tr>
+          <tr><td>18. Plazo de entrega declarado</td><td class="c"><a class="cel si" href="#">Cumple</a></td><td class="c"><a class="cel si" href="#">Cumple</a></td><td class="c"><a class="cel dec" href="#">A decidir</a></td></tr>
+          <tr class="grupo"><td colspan="4">Económicos · 3 de 3 cumplen en las tres ofertas</td></tr>
+          <tr class="grupo"><td colspan="4">Técnicos · 6 requisitos esperan el informe técnico del área</td></tr>
+          <tr><td>22. Certificación de ergonomía del modelo ofrecido</td><td class="c"><span class="cel esp">Espera informe</span></td><td class="c"><span class="cel esp">Espera informe</span></td><td class="c"><span class="cel esp">Espera informe</span></td></tr>
+        </tbody>
+        <tfoot><tr><th>Cumple hasta ahora</th><th class="of">17 de 27</th><th class="of">16 de 27</th><th class="of">17 de 27</th></tr></tfoot>
+      </table>
+    </section>
+
+    <aside class="tile lado">
+      <span class="tenue chico">Requisito 12 · Oferta 2 · punto 5 de 12 a decidir</span>
+      <h2 style="margin-top:.3rem">Antecedentes: 3 provisiones similares en 5 años</h2>
+      <b class="chico">Qué pide el pliego</b>
+      <div class="cita">«El oferente deberá acreditar al menos tres (3) provisiones de mobiliario de oficina de características similares en los últimos cinco (5) años, mediante órdenes de compra o constancias de recepción.»<small>Pliego de bases y condiciones particulares, cláusula 14, pág. 9</small></div>
+      <b class="chico">Qué trajo la Oferta 2</b>
+      <div class="cita">«Se adjuntan dos órdenes de compra (2023 y 2024) y nota del cliente Cooperativa El Trébol por una entrega de 2021.»<small>Oferta 2, documento «Antecedentes», folios 37 a 41</small></div>
+      <b class="chico">Por qué el sistema no pudo concluir</b>
+      <p class="chico" style="margin:.3rem 0 0">Hay dos órdenes de compra; la tercera es una nota del cliente y el pliego pide orden de compra o constancia de recepción.</p>
+      <div class="dec-b"><a class="btn" href="#">Cumple</a><a class="btn sec" href="#">No cumple</a><a class="btn sec" href="#">Pedir subsanación</a></div>
+      <p class="chico tenue" style="margin:.8rem 0 0">Toda decisión pide un fundamento y queda registrada con nombre y hora. <a href="#">Siguiente a decidir ›</a></p>
+      <p class="chico" style="margin:.8rem 0 0"><span class="dev" style="margin:0">Desarrollo medio</span> Pliego y oferta lado a lado en el mismo panel: hoy está en una página aparte, a 3 clics.</p>
+    </aside>
+  </div>
+  <p class="pie">Opción C · La portada es el cuadro requisitos × ofertas: el proceso se lee de izquierda a derecha (lo que se pide → lo que trajo cada uno → lo que decide la Comisión). El cuadro reúne en un lugar lo que hoy aparece con cuatro nombres en tres secciones. Datos inventados.</p>
+</main></body></html>

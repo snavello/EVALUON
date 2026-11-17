@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D · El informe que se va armando</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Maquetas de exposición del proceso (17/11/2026). Mismos colores y tipografía que la 017. Datos inventados. */
+:root{
+  --f:'Hanken Grotesk',system-ui,sans-serif;--r:18px;--r-sm:10px;--maxw:78rem;
+  --bg:#FFFFFF;--tile:#F4F4F4;--tile-h:#ECECEC;--line:#E2E2E2;--ink:#171A20;--ink-2:#5C5E62;--ink-3:#8E8E8E;
+  --lime:#C6F432;--btn:#171A20;--focus:#8DB80A;
+  --ok:#5E9479;--no:#BE6A64;--nd:#C29A4F;--pe:#7A8DA8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f);color:var(--ink);background:var(--bg);font-size:15px;line-height:1.45}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+/* cabecera */
+.top{border-bottom:1px solid var(--line);padding:.8rem 0 .7rem}
+.top .fila{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.logo{display:inline-flex;font-weight:800;letter-spacing:.02em;font-size:1.05rem;text-decoration:none}
+.logo b{background:var(--ink);color:#fff;padding:.25rem .45rem;border-radius:4px 0 0 4px}
+.logo i{background:var(--lime);color:var(--ink);padding:.25rem .4rem;border-radius:0 4px 4px 0;font-style:normal}
+.tabs{display:flex;gap:.15rem;background:var(--tile);border-radius:999px;padding:.25rem;margin:0 auto;flex-wrap:wrap}
+.tabs a{padding:.45rem 1rem;border-radius:999px;text-decoration:none;color:var(--ink-2);font-size:.9rem}
+.tabs a.on{background:var(--ink);color:#fff;font-weight:600}
+.tabs a small{background:#fff;color:var(--ink);border-radius:999px;padding:0 .4rem;margin-left:.35rem;font-weight:700}
+.yo{width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700;margin-left:auto}
+.tabs + .yo{margin-left:0}
+.miga{font-size:.85rem;color:var(--ink-2);margin-top:.6rem}
+.miga b{color:var(--ink);font-weight:600}
+/* títulos */
+h1{font-size:1.9rem;font-weight:500;margin:2rem 0 .3rem;letter-spacing:-.01em}
+h2{font-size:1.15rem;font-weight:600;margin:0 0 .6rem}
+.sub{color:var(--ink-2);margin:0 0 1.5rem}
+/* piezas */
+.tile{background:var(--tile);border-radius:var(--r);padding:1.25rem 1.4rem}
+.oscuro{background:var(--ink);color:#fff}
+.oscuro .tenue{color:#B9BBBF}
+.tenue{color:var(--ink-2)}
+.chico{font-size:.85rem}
+.btn{display:inline-block;background:var(--btn);color:#fff;border:0;border-radius:6px;padding:.7rem 1.2rem;font:600 .95rem var(--f);text-decoration:none;cursor:pointer}
+.btn.lima{background:var(--lime);color:var(--ink)}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.grid{display:grid;gap:1rem}
+.g-2-1{grid-template-columns:2fr 1fr}
+.g-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g-2-1,.g-3{grid-template-columns:1fr}}
+/* estados: siempre texto, nunca solo color */
+.est{display:inline-block;font-size:.78rem;font-weight:600;border-radius:999px;padding:.15rem .65rem;white-space:nowrap}
+.est.ok{background:#E3EEE8;color:#2F5E48}
+.est.cur{background:var(--lime);color:var(--ink)}
+.est.falta{background:#F3E9D6;color:#7A5A1A}
+.est.na{background:#fff;color:var(--ink-3);border:1px dashed var(--ink-3)}
+.dev{display:inline-block;font-size:.72rem;font-weight:600;border:1px dashed var(--ink);border-radius:4px;padding:.05rem .4rem;margin-left:.4rem;vertical-align:middle;background:#fff;color:var(--ink)}
+.pie{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.82rem;color:var(--ink-2)}
+table{border-collapse:collapse;width:100%}
+th{font-weight:600;text-align:left;font-size:.82rem;color:var(--ink-2)}
+td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+</style>
+<style>
+body{background:var(--tile)}
+.top{background:#fff}
+.g-d{grid-template-columns:15rem 1fr 16rem;align-items:start;margin-top:1.5rem}
+@media(max-width:1000px){.g-d{grid-template-columns:1fr}}
+.ind{list-style:none;margin:0;padding:0;position:sticky;top:1rem}
+.ind li{display:flex;justify-content:space-between;gap:.5rem;padding:.55rem .6rem;border-radius:8px;font-size:.9rem;align-items:center}
+.ind li.aca{background:#fff;font-weight:700}
+.ind a{text-decoration:none}
+.hoja{background:#fff;border-radius:6px;padding:2.5rem 3rem;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.hoja h1{margin:0 0 .2rem;font-size:1.5rem;font-weight:600}
+.hoja h2{margin:2rem 0 .5rem;font-size:1.05rem;border-bottom:1px solid var(--line);padding-bottom:.3rem;display:flex;justify-content:space-between;gap:1rem;align-items:baseline}
+.hoja p{margin:.4rem 0}
+.hueco{border:1.5px dashed var(--nd);background:#FBF6EA;border-radius:8px;padding:.7rem .9rem;margin:.6rem 0;font-size:.92rem;display:flex;justify-content:space-between;gap:1rem;align-items:center}
+.hueco a{font-weight:700;white-space:nowrap}
+.hoja table{font-size:.88rem;margin:.5rem 0}
+.gris{color:var(--ink-3)}
+.lado{background:#fff;border-radius:var(--r);padding:1.2rem;position:sticky;top:1rem}
+.lado ol{padding-left:1.1rem;margin:.4rem 0 1rem}.lado li{margin:.35rem 0;font-size:.92rem}
+</style></head><body>
+<header class="top"><div class="wrap">
+  <div class="fila"><a class="logo" href="#"><b>EVALU</b><i>ON</i></a>
+    <nav class="tabs"><a class="on" href="#">Informe</a><a href="#">Pliego y matriz</a><a href="#">Ofertas</a><a href="#">Evaluación <small>12</small></a><a href="#">Normativas</a></nav>
+    <span class="yo">MC</span></div>
+  <div class="miga">Procedimientos › <b>0A1PC000000-0031-LPU26 · Adquisición de sillas ergonómicas para oficinas</b></div>
+</div></header>
+
+<main class="wrap"><div class="grid g-d">
+  <nav><ol class="ind">
+    <li><a href="#">1. El procedimiento</a><span class="est ok">Hecho</span></li>
+    <li><a href="#">2. Qué pide el pliego</a><span class="est ok">Hecho</span></li>
+    <li><a href="#">3. Ofertas recibidas</a><span class="est ok">Hecho</span></li>
+    <li class="aca"><a href="#">4. Cumplimiento por oferta</a><span class="est cur">Faltan 12</span></li>
+    <li><a href="#">5. Cuadro comparativo</a><span class="est ok">Hecho</span></li>
+    <li><a href="#">6. Subsanaciones</a><span class="est falta">Faltan 4</span></li>
+    <li><a href="#">7. Conclusión</a><span class="est na">Todavía no</span></li>
+  </ol></nav>
+
+  <article class="hoja">
+    <span class="tenue chico">Informe de evaluación · borrador que se completa solo a medida que la Comisión decide</span>
+    <h1>Adquisición de sillas ergonómicas para oficinas</h1>
+    <p class="tenue">Licitación pública 0A1PC000000-0031-LPU26 · apertura del 20/03/2026</p>
+
+    <h2>3. Ofertas recibidas <span class="est ok">Hecho</span></h2>
+    <p>Se recibieron tres ofertas según el acta de apertura: Mobiliario Norte ($ 52.480.000), Equipar Oficinas ($ 48.210.000) y Sur Amoblamientos ($ 61.900.000).</p>
+
+    <h2>4. Cumplimiento por oferta <span class="est cur">Faltan 12 decisiones</span></h2>
+    <table><thead><tr><th>Oferta</th><th>Cumple</th><th>No cumple</th><th>A decidir</th><th>Espera informe técnico</th></tr></thead>
+      <tbody><tr><td>1. Mobiliario Norte</td><td>17</td><td>0</td><td>4</td><td>6</td></tr>
+      <tr><td>2. Equipar Oficinas</td><td>16</td><td>1</td><td>4</td><td>6</td></tr>
+      <tr><td>3. Sur Amoblamientos</td><td>17</td><td>0</td><td>4</td><td>6</td></tr></tbody></table>
+    <p>La Oferta 2 no cumple el requisito 9 (garantía de mantenimiento de oferta): la póliza presentada cubre el 3 % y el pliego exige el 5 % (cláusula 11; oferta, folio 12).</p>
+    <div class="hueco"><span>Acá van las 12 decisiones de la Comisión con su fundamento. Hay 0 tomadas.</span><a href="#">Decidir ›</a></div>
+    <div class="hueco"><span>Acá va el resultado de los 6 requisitos técnicos. Falta el informe técnico del área en las 3 ofertas.</span><a href="#">Subir informe ›</a></div>
+
+    <h2>5. Cuadro comparativo <span class="est ok">Hecho</span></h2>
+    <p>Orden económico: 1.º Equipar Oficinas, 2.º Mobiliario Norte, 3.º Sur Amoblamientos. <a href="#">Ver cuadro completo</a></p>
+
+    <h2>6. Subsanaciones <span class="est falta">Faltan 4</span></h2>
+    <p>Se pidieron 11 aclaraciones o subsanaciones; 7 están resueltas.</p>
+    <div class="hueco"><span>Quedan 4 pedidos sin respuesta cargada.</span><a href="#">Ver pedidos ›</a></div>
+
+    <h2 class="gris">7. Conclusión <span class="est na">Todavía no</span></h2>
+    <p class="gris">Ofertas admisibles, ofertas desestimadas con su causa y orden de mérito. Se completa cuando no queden huecos en los capítulos 4 y 6.</p>
+  </article>
+
+  <aside class="lado">
+    <h2>Para cerrar el informe</h2>
+    <ol><li>Decidir 12 puntos</li><li>Subir el informe técnico</li><li>Cerrar 4 subsanaciones</li></ol>
+    <a class="btn" href="#">Seguir con el primero</a>
+    <p class="chico" style="margin-top:1.2rem"><span class="dev" style="margin:0">Desarrollo de fondo</span><br>Hoy el sistema no redacta informe: el dictamen se toma del Portal o se sube (quedó diferido por decisión del 03/10). Esta opción necesita:</p>
+    <ul class="chico" style="padding-left:1.1rem;margin:.3rem 0"><li>borrador de informe armado con lo ya decidido;</li><li>orden de mérito como decisión registrada;</li><li>plazo de cada subsanación.</li></ul>
+  </aside>
+</div>
+<p class="pie">Opción D · El informe final es la columna vertebral: cada capítulo es un paso y cada hueco es una tarea. La Comisión ve desde el primer día adónde va todo lo que carga. Datos inventados.</p>
+</main></body></html>
