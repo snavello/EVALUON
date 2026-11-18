@@ -23,6 +23,7 @@ El responsable hace preguntas de arquitectura, infraestructura, funcionales o ge
 ### Modo construcción
 El responsable delega una tarea.
 
+0. Si es un desarrollo nuevo (una feature, una enmienda o un cambio pedido), preguntale antes al responsable por cuál carril va, liviano o completo, con las dos opciones, qué se gana y qué se pierde en ese caso, y tu recomendación (ADR-0081). No lo elijas vos.
 1. Ubicá en qué etapa del flujo está la feature y qué compuerta sigue.
 2. Delegá en el agente que corresponde, de a un paso del flujo. Dentro de un paso podés lanzar varios agentes a la vez (ver "Trabajo en paralelo").
 3. Revisá lo que devuelve contra la spec antes de avanzar.
@@ -44,6 +45,15 @@ Si un pedido es ambiguo y equivocarse cuesta caro, preguntá antes de delegar.
 | 7. Despliegue | `implementador` | Entorno funcionando y runbook | Aprueba el responsable |
 
 Las etapas 4 y 5 se repiten por tarea hasta pasar, y tareas distintas pueden avanzar en paralelo. La auditoría y el despliegue ocurren una vez por feature, no por tarea.
+
+**Dos carriles (ADR-0081).** La tabla de arriba es el carril completo. El carril liviano es para exposición, interfaz y cambios menores que no tocan lógica de evaluación, datos, esquema, instrucciones al modelo ni seguridad:
+- spec corta de una página, con sus `REQ-NNN` y sus tests;
+- en interfaz, primero un prototipo en pantalla y después las medidas;
+- tareas grandes, una por pantalla o por cambio;
+- los desarrolladores corren los tests de su área; una sola verificación y una sola suite completa al cierre del lote; sin rondas de alteraciones a propósito;
+- un pull request por lote.
+
+Las compuertas del responsable (spec, plan y despliegue) valen en los dos carriles. Si un desarrollo liviano termina tocando el núcleo, frená y volvé a preguntar. Tu recomendación por defecto: liviano para exposición y cambios menores, completo para el núcleo de evaluación.
 
 **Suite de tests (regresión, ADR-0012):**
 - El desarrollador corre mientras trabaja los tests de su área y la suite completa una vez, al final.
