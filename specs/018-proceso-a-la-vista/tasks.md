@@ -2,7 +2,7 @@
 
 Plan: `specs/018-proceso-a-la-vista/plan.md` (aprobado el 2026-11-17 por el responsable, con la tabla de 21 estados firmada y los ADR 0078, 0079 y 0080 aceptados)
 
-Despliegue: pendiente
+Despliegue: aprobado 2026-11-18 (responsable del proyecto, «Sí, desplegar»; en el piloto de 8000, commit bf2270f9)
 
 > El tablero (`docs/tablero.md`) se genera de este archivo. Al aprobarse el despliegue, la línea de arriba pasa a `Despliegue: aprobado AAAA-MM-DD`.
 
