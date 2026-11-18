@@ -1,6 +1,6 @@
 # Spec 018 · El proceso a la vista
 
-Estado: borrador · Fecha: 2026-11-17 · Aprobó: —
+Estado: aprobada · Fecha: 2026-11-17 · Aprobó: responsable del proyecto (2026-11-17, «Si ok.  Los que vencen hoy marcamos el paso o  tarea  en lila 🟪 color  de alerta»)
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
@@ -34,6 +34,7 @@ Sin esto, quien entra no sabe cómo está el procedimiento ni qué le toca, y el
 | 2026-11-17 | Comparación de ofertas | Ante la pregunta «¿cuándo se da por hecha la "Comparación de ofertas"?», respondió: «Con el cumplimiento hecho». |
 | 2026-11-17 | Acciones en el inicio | Ante la pregunta «¿cuántas acciones muestra "Para hoy" y en qué orden?», respondió: «Todas, que sea posible colapsar  y expandir un procedimiento». Lectura del Coordinador, a confirmar al aprobar: no hay un bloque «Para hoy» aparte; la lista de procedimientos es una sola y cada procedimiento se expande para mostrar sus acciones. Los procedimientos se ordenan por el vencimiento más próximo y abren expandidos. |
 | 2026-11-17 | Procedimientos terminados | Ante las opciones «1. cuando se carga el dictamen» y «2. lo archiva una persona a mano», respondió: «Opción 1». |
+| 2026-11-17 | Aprobación y vence hoy | Ante el pedido de aprobación con la lectura del Coordinador sobre el inicio, respondió: «Si ok.  Los que vencen hoy marcamos el paso o  tarea  en lila 🟪 color  de alerta». Lectura del Coordinador: el lila marca solo lo que vence hoy; lo que vence en los próximos días y lo ya vencido se muestran con su fecha y su texto, sin lila. Los vencimientos que el sistema conoce hoy son la apertura, el mantenimiento de las ofertas y el dictamen (REQ-131). El lila ya se usa en el cuadro de cumplimiento para el estado «externo»: el plan resuelve que no se confundan. |
 
 Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el diagnóstico y la comparación; `e.html`, `a.html` y `c.html` son las elegidas; `b.html` y `d.html` quedan como alternativas no elegidas).
 
@@ -67,6 +68,7 @@ Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el 
 | REQ-154 | Al tocar una celda se ve, sin salir del cuadro: qué pide el pliego (texto y dónde está), qué trajo esa oferta (texto y dónde está), por qué el sistema propone lo que propone, y las mismas acciones de decisión que existen hoy. Desde ahí se pasa al siguiente punto a decidir. | P3 (constitución) |
 | REQ-155 | Vocabulario único en pantalla: «Procedimientos» (no «Expedientes») para la lista; «Matriz de requisitos» para la lista de lo que pide el pliego; «Cuadro de cumplimiento» para requisitos por ofertas. Los nombres de los siete pasos no cambian de una pantalla a otra. | — |
 | REQ-156 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). | — |
+| REQ-157 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece el vencimiento, en el inicio y en la portada del procedimiento. En esas pantallas el lila no se usa para ninguna otra cosa. | — |
 
 Se mantienen sin cambios las funciones de las features 004, 008, 012, 014 y 016 y los requisitos de la 017 no enmendados arriba. Qué entra en cada paso:
 
@@ -105,6 +107,7 @@ Por requisito:
 - **REQ-154.** Dada una celda «A decidir», cuando la toco, entonces veo en la misma pantalla el texto del pliego con su ubicación, el texto de la oferta con su ubicación y el motivo de la duda; cuando decido, queda registrado quién y cuándo como hoy, la celda cambia y puedo pasar al siguiente.
 - **REQ-155.** Dadas todas las pantallas, cuando busco «Expedientes» o «Matriz de cumplimiento» como nombre de la lista de requisitos, entonces no aparecen.
 - **REQ-156.** Dada cualquier marca de estado, cuando la miro en los dos temas, entonces tiene su nombre escrito y contraste de 4,5:1 o más.
+- **REQ-157.** Dado un procedimiento cuyo mantenimiento de oferta vence hoy y al que le falta el dictamen, cuando miro el inicio y su portada, entonces el paso 7 y la acción «Cargar el dictamen» están en lila y dicen «Vence hoy»; al día siguiente ya no están en lila. Dado un procedimiento sin vencimientos hoy, cuando lo miro, entonces no hay nada en lila.
 
 ## Requisitos no funcionales
 
@@ -138,4 +141,4 @@ Para el responsable, de a una:
 4. Paso 5 · Comparación de ofertas: resuelta el 2026-11-17 (hecha cuando el cumplimiento está hecho).
 5. Procedimientos terminados: resuelta el 2026-11-17 (cuando se carga el dictamen).
 
-No quedan dudas abiertas. Al aprobar, el responsable confirma la lectura del Coordinador sobre las acciones en el inicio (ver «Decisiones del responsable»).
+No quedan dudas abiertas. El responsable confirmó al aprobar la lectura del Coordinador sobre las acciones en el inicio (ver «Decisiones del responsable»).

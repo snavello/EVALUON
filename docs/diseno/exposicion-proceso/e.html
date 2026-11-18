@@ -74,6 +74,9 @@ details.proc summary:hover{background:var(--tile)}
 .est-p{font-size:.9rem}
 .cuenta{font-size:.85rem;font-weight:600;background:var(--tile);border-radius:999px;padding:.2rem .7rem;justify-self:start;white-space:nowrap}
 .vence{font-weight:600;white-space:nowrap;text-align:right}.vence.pronto{color:#8A3A34}
+.hoy-m{display:inline-block;background:#E6DFF3;color:#4B3A78;border-radius:999px;padding:.15rem .7rem;font-size:.82rem;font-weight:700}
+.pts i.v{background:#8C7AB0;outline:1px solid #4B3A78}
+.acc li.vh{background:#E6DFF3;border-left:4px solid #8C7AB0;border-radius:var(--r-sm)}
 .acc{list-style:none;margin:0 0 1rem 2.6rem;padding:0;background:var(--tile);border-radius:var(--r-sm)}
 .acc li{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 1rem;border-top:1px solid var(--line)}
 .acc li:first-child{border-top:0}
@@ -94,9 +97,9 @@ details.proc summary:hover{background:var(--tile)}
 
   <details class="proc" open>
     <summary><span class="nom">Provisión de tóner y cartuchos<small>0A1PC000000-0019-CDI26 · 2 ofertas</small></span>
-      <span class="est-p"><span class="pts"><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="a"></i></span><small>En curso: Dictamen</small></span>
-      <span class="cuenta">1 acción</span><span class="vence pronto">02/05 · 6 días</span></summary>
-    <ul class="acc"><li><span>Cargar el dictamen<small>Paso 7 · el mantenimiento de oferta vence en 6 días</small></span><a class="btn" href="#">Cargar</a></li></ul>
+      <span class="est-p"><span class="pts"><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="v"></i></span><small>En curso: Dictamen · vence hoy</small></span>
+      <span class="cuenta">1 acción</span><span class="vence"><span class="hoy-m">Vence hoy</span></span></summary>
+    <ul class="acc"><li class="vh"><span>Cargar el dictamen <span class="hoy-m">Vence hoy</span><small>Paso 7 · hoy vence el mantenimiento de las ofertas</small></span><a class="btn" href="#">Cargar</a></li></ul>
   </details>
 
   <details class="proc">
@@ -129,5 +132,5 @@ details.proc summary:hover{background:var(--tile)}
     </ul>
   </details>
 
-  <p class="pie">Inicio de la aplicación (spec 018, REQ-150 y REQ-151): todas las acciones de todos los procedimientos abiertos, agrupadas por procedimiento; cada uno se colapsa y se expande (el de limpieza está colapsado). La barra muestra el estado de cada uno de los 7 pasos: negro hecho, lima en curso, gris sin empezar. Un procedimiento pasa a «Terminados» cuando se carga su dictamen. Las mismas acciones para todos: mostrarlas por persona necesita registrar quiénes integran la Comisión de cada procedimiento (fuera de alcance). Datos inventados.</p>
+  <p class="pie">Inicio de la aplicación (spec 018, REQ-150 y REQ-151): todas las acciones de todos los procedimientos abiertos, agrupadas por procedimiento; cada uno se colapsa y se expande (el de limpieza está colapsado). La barra muestra el estado de cada uno de los 7 pasos: negro hecho, lima en curso, gris sin empezar. Lo que vence hoy va en lila con el texto «Vence hoy» (REQ-157). Un procedimiento pasa a «Terminados» cuando se carga su dictamen. Las mismas acciones para todos: mostrarlas por persona necesita registrar quiénes integran la Comisión de cada procedimiento (fuera de alcance). Datos inventados.</p>
 </main></body></html>
