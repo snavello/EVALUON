@@ -96,6 +96,22 @@
     });
   }
 
+  // Carga única (T-361, ADR-0079): un elemento con `data-carga-url` se pide una vez al abrir la
+  // página y se reemplaza por lo que devuelve el servidor. El inicio lo usa para completar cada
+  // procedimiento (pasos y acciones) sin demorar la lista. Si falla, queda el enlace al procedimiento.
+  document.querySelectorAll("[data-carga-url]").forEach(function (el) {
+    fetch(el.dataset.cargaUrl, {credentials: "same-origin", cache: "no-store"})
+      .then(function (response) {
+        if (response.redirected || !response.ok) { throw new Error("carga"); }
+        return response.text();
+      })
+      .then(function (html) { el.outerHTML = html; })
+      .catch(function () {
+        var estado = el.querySelector(".ini-cargando");
+        if (estado) { estado.firstChild.textContent = "No se pudieron calcular los pasos. "; }
+      });
+  });
+
   var stages = document.getElementById("journey-stages");
   if (stages) { watch(stages, stages.dataset.url); }
   document.querySelectorAll("[data-poll-url]").forEach(function (root) {

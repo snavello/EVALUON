@@ -1,0 +1,8 @@
+{% comment %}Una fila del inicio antes de calcular sus pasos (T-361, ADR-0079): nombre, número y vencimiento, que ya se saben, y el enlace al procedimiento. `recorrido.js` pide `data-carga-url` y reemplaza la fila por `_ini_proc.html`; sin JavaScript queda como está y el enlace funciona.{% endcomment %}<details class="ini-proc" open data-procedimiento="{{ a.procedure.pk }}" data-carga-url="{% url 'expedientes:fila' a.procedure.pk %}">
+  <summary>
+    <span class="ini-nombre"><a href="{% url 'expedientes:portada' a.procedure.pk %}">{{ a.procedure.subject|truncatechars:90 }}</a>
+      <small>{{ a.procedure.number }}</small></span>
+    <span class="ini-vence">{% with v=a.vencimiento %}{% if not v %}<span class="ini-sin-fecha">Sin fecha de vencimiento</span>{% elif v.marca == "hoy" %}<span class="pr-hoy">Vence hoy</span>{% elif v.marca == "vencido" %}<span class="pr-vencido">{{ v.texto }}</span>{% else %}<span class="ini-fecha">{{ v.texto }}</span>{% endif %}{% endwith %}</span>
+    <span class="ini-cargando" role="status">Calculando los pasos y las acciones… <a href="{% url 'expedientes:portada' a.procedure.pk %}">Abrir el procedimiento</a></span>
+  </summary>
+</details>

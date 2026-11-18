@@ -18,7 +18,7 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role, viewing
 from evaluon.audit.models import Channel
 from evaluon.journey import memo
-from evaluon.journey.proceso import acciones, calculo, lote, mapa, pasos
+from evaluon.journey.proceso import acciones, calculo, lote, mapa, pasos, vencimientos
 from evaluon.journey.sections import sections_for
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import is_viewer
@@ -118,11 +118,33 @@ class _Abierto:
 
     @property
     def orden(self):
-        """Vencidos (el más viejo primero), vencen hoy, futuros por fecha y sin fecha; a igual
-        fecha, por número de procedimiento."""
-        v = self.vencimiento
-        return (v.orden[0], v.orden[1], self.procedure.number) if v else (3, date.max,
-                                                                         self.procedure.number)
+        return _orden(self.vencimiento, self.procedure)
+
+
+def _orden(v, procedure):
+    """Vencidos (el más viejo primero), vencen hoy, futuros por fecha y sin fecha; a igual fecha,
+    por número de procedimiento."""
+    return (v.orden[0], v.orden[1], procedure.number) if v else (3, date.max, procedure.number)
+
+
+@dataclass
+class _Esqueleto:
+    """La fila del inicio antes de calcular sus pasos: el procedimiento y su vencimiento más
+    próximo (el mismo de `Proceso.vencimiento`), que es lo que ordena la lista (T-361)."""
+
+    procedure: object
+    vencimiento: object
+
+    @property
+    def orden(self):
+        return _orden(self.vencimiento, self.procedure)
+
+
+def _esqueleto(procedure):
+    """Un procedimiento abierto sin sus pasos: solo sus plazos (un abierto no tiene dictamen)."""
+    with memo.scope():
+        return _Esqueleto(procedure, vencimientos.proximo(ingreso.plazos(procedure),
+                                                          dictamen_cargado=False))
 
 
 def _en_curso(proceso):
@@ -166,13 +188,29 @@ def lista(request):
     if request.GET.get("ver") == "terminados":
         context.update({"terminados": [_terminado(por_id[i]) for i in ids_terminados]})
         return render(request, "journey/inicio.html", context)
-    abiertos = sorted((_abierto(request.user, por_id[i]) for i in ids_abiertos),
-                      key=lambda a: a.orden)
-    acciones_en_total = sum(len(a.lineas) for a in abiertos)
-    context.update({
-        "abiertos": abiertos, "total_acciones": acciones_en_total,
-        "hay_procedimientos": bool(procedimientos)})
+    # La respuesta sale enseguida con el nombre, el número y el vencimiento de cada abierto (lo que
+    # alcanza para ordenar); los pasos y las acciones de cada uno llegan aparte por `fila` (ADR-0079,
+    # salida B; T-361). Sin JavaScript queda el enlace al procedimiento.
+    abiertos = sorted((_esqueleto(por_id[i]) for i in ids_abiertos), key=lambda a: a.orden)
+    context.update({"abiertos": abiertos, "hay_procedimientos": bool(procedimientos)})
     return render(request, "journey/inicio.html", context)
+
+
+@require_GET
+@reading
+def fila(request, procedure_id):
+    """El resto de una fila del inicio: el procedimiento con su barra de siete pasos, sus acciones y
+    su cuenta, calculados como en la portada. Es lo que `recorrido.js` pide por cada fila (T-361)."""
+    if not is_viewer(request.user):
+        require_commission_role(request.user, CommissionRole.OPERATOR, operation=OPERATION,
+                                channel=Channel.SCREEN)
+    try:
+        procedure = Procedure.objects.get(pk=procedure_id)
+    except Procedure.DoesNotExist:
+        raise Http404("No hay un procedimiento con ese número.")
+    return render(request, "journey/_ini_proc.html", {
+        "a": _abierto(request.user, procedure), "next_url": reverse("expedientes:index"),
+        "puede_actuar": bool(request.user.commission_role)})
 
 
 @dataclass

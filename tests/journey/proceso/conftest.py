@@ -93,7 +93,12 @@ def caso_recien_cargado(evaluator_user, expected, fake_ai):
 @pytest.fixture
 def caso_varios_en_curso(matrix, evaluator_user, fake_ai):
     """La situación de la maqueta A (ver el módulo)."""
-    procedure = matrix.procedure
+    return armar_varios_en_curso(matrix.procedure, evaluator_user)
+
+
+def armar_varios_en_curso(procedure, evaluator_user):
+    """Arma la situación de la maqueta A sobre un procedimiento con la matriz validada (lo usan el
+    fixture y la medición del inicio con 20 copias, T-361)."""
     formal, tecnicas = _requirements(procedure)
     a = _oferta_con_documentos(procedure, evaluator_user, "Oferente A Sintético")
     b = _oferta_con_documentos(procedure, evaluator_user, "Oferente B Sintético")

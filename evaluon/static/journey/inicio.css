@@ -33,6 +33,10 @@
 .ini-fecha, .ini-sin-fecha { font-variant-numeric: tabular-nums; }
 .ini-sin-fecha { font-weight: 400; color: var(--ink-2); }
 
+/* La fila antes de calcular sus pasos (T-361): la lista sale enseguida y cada fila se completa aparte. */
+.ini-cargando { grid-column: 2 / -1; font-size: .875rem; color: var(--ink-2); }
+.ini-cargando a { margin-left: .5rem; }
+
 .ini-foto { grid-column: 2 / -1; display: block; margin-top: .25rem; }
 .ini-foto .pr-foto { gap: .5rem; }
 .ini-foto .pr-foto-paso { border-top-width: 5px; padding-top: .4375rem; line-height: 1.3; }
