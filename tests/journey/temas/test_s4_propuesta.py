@@ -147,7 +147,7 @@ def test_without_a_validated_matrix_the_button_is_off_and_says_why(client, opera
     log_in(client, operator_user)
     html = page(client, bare)
     assert 'id="evaluar-todas" type="submit" disabled' in html
-    assert "Falta una matriz de cumplimiento validada." in html
+    assert "Falta una matriz de requisitos validada." in html
     assert "Todavía no se evaluó ninguna oferta" in html
 
 

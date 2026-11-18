@@ -88,15 +88,15 @@ Los del plan, «Criterio numérico y umbrales». T-354, T-360 y T-361 se miden c
 | T-352 | Dibujar el cuadro de cumplimiento con el panel lado a lado | REQ-143, REQ-152, REQ-154, REQ-156 | T-343, T-351 | terminada |
 | T-353 | Llevar pasos y acciones al lugar donde se resuelven (cuadro incluido) | REQ-149, REQ-154 | T-348, T-352 | terminada |
 | T-354 | Medir el corte vertical con el caso chico y revisar con el Coordinador | REQ-144, REQ-146, REQ-152, REQ-154, REQ-158 | T-350, T-353 | terminada |
-| T-355 | Agregar filtros, grupos resumidos y «Siguiente a decidir» al cuadro | REQ-153, REQ-154 | T-354 | pendiente |
-| T-356 | Separar abiertos y terminados con dos consultas | REQ-150 | T-354 | pendiente |
-| T-357 | Reemplazar la entrada y la lista «Expedientes» por el inicio | REQ-143, REQ-150, REQ-151, REQ-157 | T-348, T-356 | pendiente |
-| T-358 | Unificar el vocabulario en pantalla | REQ-155 | T-355, T-357 | pendiente |
-| T-359 | Cierre técnico: guía visual y glosario | REQ-156, REQ-157, REQ-158 | T-358 | pendiente |
+| T-355 | Agregar filtros, grupos resumidos y «Siguiente a decidir» al cuadro | REQ-153, REQ-154 | T-354 | terminada |
+| T-356 | Separar abiertos y terminados con dos consultas | REQ-150 | T-354 | terminada |
+| T-357 | Reemplazar la entrada y la lista «Expedientes» por el inicio | REQ-143, REQ-150, REQ-151, REQ-157 | T-348, T-356 | terminada |
+| T-358 | Unificar el vocabulario en pantalla | REQ-155 | T-355, T-357 | terminada |
+| T-359 | Cierre técnico: guía visual y glosario | REQ-156, REQ-157, REQ-158 | T-358 | terminada |
 | T-360 | Medición final con el procedimiento del piloto y revisión visual | REQ-143 a REQ-158 | T-359 | pendiente |
 | T-361 | Corregir los hallazgos de la medición final (condicional) | los que correspondan | T-360 | pendiente |
 | T-362 | Corregir los hallazgos del corte vertical en el cuadro y en Indicadores | REQ-149, REQ-152, REQ-154, REQ-156 | T-354 | terminada |
-| T-363 | Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido | REQ-146, REQ-158 | T-354 | pendiente |
+| T-363 | Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido | REQ-146, REQ-158 | T-354 | terminada |
 
 ## Detalle
 
@@ -298,6 +298,7 @@ Los del plan, «Criterio numérico y umbrales». T-354, T-360 y T-361 se miden c
 - **Requisitos:** REQ-143 a REQ-158.
 - **Nivel:** plena (sin código).
 - **Qué hay que hacer:** una sola vez, con el procedimiento real del piloto en su instancia (ADR-0060; al repositorio solo cifras): tiempos de inicio (20 abiertos), portada y cuadro (hasta 60 requisitos y 10 ofertas), 21 de 21 y acciones 100 % en un procedimiento real, piezas en la primera pantalla, mapa y cuadro leídos en los dos temas y en pantalla angosta, y la revisión visual del Coordinador. Máximo dos rondas.
+- **Aviso de tareas anteriores:** Del lote 2 (verificacion/lote-2.md): el inicio con 20 procedimientos livianos tarda 1,7 a 2,1 s y con 21 «varios en curso» 2,3 a 2,5 s (113 consultas por procedimiento); el tope es 3 s (decisión del responsable del 2026-11-18): medirlo con el piloto. `test_inicio_rendimiento.py` da falso rojo con la máquina ocupada (5,4 s corriendo junto a Chrome y otro Compose). Sin verificar: Edge, táctil, flechas del teclado dentro de la caja del mapa, tamaño mínimo de letra real del navegador, la impresión en PDF de la matriz. Desparejo en las capturas: filas de arriba del mapa con alturas distintas y 60 a 100 px de aire entre filas; eje de plazos de unos 200 px con cronograma; barra de pasos del inicio con 2 a 4 px entre «5 Comparación de ofertas» y «6 Evaluación Comisión»; el encabezado del inicio dice «Elegir procedimiento».
 - **Archivos:** `specs/018-proceso-a-la-vista/verificacion/T-360.md`.
 - **Verificación:** informe con cada umbral y su resultado; lo que no llegue pasa con su impacto a la lista de revisión.
 - **No tocar:** código.
@@ -307,6 +308,7 @@ Los del plan, «Criterio numérico y umbrales». T-354, T-360 y T-361 se miden c
 - **Requisitos:** los de cada hallazgo.
 - **Nivel:** según el hallazgo.
 - **Qué hay que hacer:** corregir lo que T-360 haya marcado; si no hay hallazgos, se cierra sin cambios. Si el inicio supera 2 s, aplicar la salida prevista del ADR-0079 (fila al instante y cada procedimiento por el sondeo existente).
+- **Aviso de tareas anteriores:** Del lote 2, para corregir si la medición final lo confirma: (A-1) con letra mínima de 16 px el mapa esconde la tercera tarea sin avisar; (A-2) «+ N más» no cuenta lo que la red de seguridad oculta; (A-3) con Tab sobre una tarea oculta la caja de tareas se desplaza y desaparecen las visibles; (C-1) con el filtro «a decidir», tras la última celda «Siguiente» lleva a una celda que la tabla filtrada no muestra; (C-2) el filtro cuenta filas y la acción «Decidir N puntos» cuenta celdas, sin que un texto lo explique; (C-3) «Con algo pendiente» marca filas «Cumple sin confirmar» en un caso todo hecho; `test_sections.py` ya no prueba la cuenta de acciones del inicio; `docs/glosario.md` es de códigos y no tiene términos. Lista de revisión (anterior a la feature): el rol sin Comisión ve enlaces que le dan 403 en Pliego, Evaluación, documentos originales y «+ Nuevo procedimiento».
 - **Archivos:** los que indique `verificacion/T-360.md` (el Coordinador los declara al lanzar la tarea).
 - **Verificación:** los tests de las áreas tocadas y una nueva medición de lo corregido.
 - **No tocar:** nada fuera de los hallazgos.

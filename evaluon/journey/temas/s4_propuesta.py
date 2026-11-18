@@ -506,7 +506,7 @@ def _why_not(page):
         return "Todavía no hay ofertas cargadas."
     if len(page.without_documents) == len(page.offers):
         return "Ninguna oferta tiene documentos cargados."
-    return "Falta una matriz de cumplimiento validada."
+    return "Falta una matriz de requisitos validada."
 
 
 def _externals(page):
