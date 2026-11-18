@@ -35,7 +35,7 @@ Qué significa cada prefijo:
 | **P10** |  | Simplicidad |  |
 | **P11** |  | Compuertas humanas |  |
 
-## Features (17)
+## Features (18)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -48,6 +48,7 @@ Qué significa cada prefijo:
 | **015** | 015 | Uso y elección del modelo: Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal… |  |
 | **016** | 016 | Calidad medible y modelos por clase de dato: Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un… |  |
 | **017** | 017 | Tableros de primer nivel y estética nueva: Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico… |  |
+| **018** | 018 | El proceso a la vista: Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los… |  |
 | **004** | 004 | Evaluación asistida de ofertas: Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su… |  |
 | **005** | 005 | Hojas de compliance: La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no… |  |
 | **009** | 009 | Validación continua con la Comisión: Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus… |  |
@@ -408,7 +409,7 @@ Qué significa cada prefijo:
 | **T-338** | 017 | Pliego y matriz más claros: Hay/Falta coherente, cumplimiento desglosado, renglones técnicos con su bien y cláusulas… | terminada |
 | **T-339** | 017 | Renglones técnicos de Evaluación sin repetir (mismo criterio que T-338) | terminada |
 
-## Requisitos (133)
+## Requisitos (148)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -545,6 +546,21 @@ Qué significa cada prefijo:
 | **REQ-140** | 017 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su… |  |
 | **REQ-141** | 017 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente»… |  |
 | **REQ-142** | 017 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el… |  |
+| **REQ-143** | 018 | El proceso de un procedimiento se muestra en siete pasos, siempre con estos nombres y en este orden de lectura: 1… |  |
+| **REQ-144** | 018 | Cada paso tiene su propio estado, independiente del de los demás: «Hecho», «En curso», «Todavía no» o «Con error».… |  |
+| **REQ-145** | 018 | El estado de cada paso se calcula con los datos que el sistema ya tiene; no se guarda una fase del procedimiento ni se… |  |
+| **REQ-146** | 018 | La portada de un procedimiento muestra, en este orden: la foto de los siete pasos con su estado; la lista «Qué se puede… |  |
+| **REQ-147** | 018 | «Qué se puede hacer ahora» lista las acciones disponibles de cualquier paso, sin orden obligatorio entre ellas; cada… |  |
+| **REQ-148** | 018 | Los plazos importantes (REQ-131) se ven en la portada del procedimiento. El tablero de mosaicos del primer panel… |  |
+| **REQ-149** | 018 | Las cinco secciones y sus tableros (features 014 y 017) se mantienen. Cada paso y cada acción de la portada llevan al… |  |
+| **REQ-150** | 018 | El inicio de la aplicación es la lista de procedimientos abiertos. Por cada uno muestra: nombre y número, el estado de… |  |
+| **REQ-151** | 018 | El inicio muestra todas las acciones disponibles de todos los procedimientos abiertos, agrupadas por procedimiento.… |  |
+| **REQ-152** | 018 | Hay un cuadro de cumplimiento: los requisitos de la matriz vigente en filas, agrupados por tipo, y las ofertas en… |  |
+| **REQ-153** | 018 | El cuadro se puede filtrar por: todos, con algo pendiente, a decidir, no cumple y los que esperan informe técnico. Un… |  |
+| **REQ-154** | 018 | Al tocar una celda se ve, sin salir del cuadro: qué pide el pliego (texto y dónde está), qué trajo esa oferta (texto y… |  |
+| **REQ-155** | 018 | Vocabulario único en pantalla: «Procedimientos» (no «Expedientes») para la lista; «Matriz de requisitos» para la lista… |  |
+| **REQ-156** | 018 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). |  |
+| **REQ-157** | 018 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece… |  |
 
 ## Decisiones (ADR) (77)
 
