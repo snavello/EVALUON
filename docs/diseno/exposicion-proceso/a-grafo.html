@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>A con grafo · Portada del procedimiento</title>
+<title>Portada con mapa del proceso</title>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* Maquetas de exposición del proceso (17/11/2026). Mismos colores y tipografía que la 017. Datos inventados. */
@@ -65,14 +65,49 @@ td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:to
 .foto li.h::before{background:var(--ink)}
 .foto li.c::before{background:var(--lime);outline:1px solid var(--ink);outline-offset:-1px}
 .foto li b{display:block;color:var(--ink);font-weight:600}
-.grafo{margin:0 0 1.5rem;background:var(--tile);border-radius:var(--r);padding:1rem 1rem .8rem}
-.grafo svg{width:100%;height:auto;display:block}
-.grafo .tn{font:700 17px var(--f)}.grafo .tp{font:600 14px var(--f);fill:var(--ink)}.grafo .te{font:400 12.5px var(--f);fill:var(--ink-2)}
-.grafo .tt{font:500 13px var(--f);fill:var(--ink)}
-.grafo a:hover circle{stroke-width:4}.grafo a:hover .tt,.grafo a:hover .tp{text-decoration:underline}
-.grafo figcaption{display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;font-size:.8rem;color:var(--ink-2);border-top:1px solid var(--line);padding-top:.6rem}
-.grafo .b{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:.35rem;vertical-align:-1px;border:1.5px solid var(--ink)}
-.b.h{background:var(--ink)}.b.c{background:var(--lime)}.b.n{background:#fff;border-color:#C9C9C9}.b.v{background:#8C7AB0;border-color:#4B3A78}.b.r{background:#D10F2F;border-color:#D10F2F}.b.a{background:#fff;border:3px solid #C29A4F}
+.mapa{background:var(--tile);border-radius:var(--r);padding:1.1rem 1.25rem 1.2rem;margin:0 0 1.5rem}
+.mapa-cab{display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap;margin-bottom:.4rem}
+.mapa-cab h2{margin:0;font-size:1.05rem}
+.leyenda{display:flex;flex-wrap:wrap;gap:.2rem 1rem;font-size:.78rem;color:var(--ink-2);margin-left:auto}
+.leyenda .k{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.3rem;border:1.5px solid var(--ink)}
+.k.h{background:var(--ink)}.k.c{background:var(--lime)}.k.n{background:#fff;border-color:#B5B5B5}.k.v{background:#8C7AB0;border-color:#4B3A78}.k.r{background:#D10F2F;border-color:#D10F2F}.k.a{background:#fff;border:3px solid #C29A4F}
+.leyenda .ln{display:inline-block;width:22px;border-top:2px solid var(--ink);vertical-align:middle;margin-right:.3rem}.leyenda .ln.p{border-top:2.5px dotted #8E8E8E}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:8px;padding:2px;font-size:.82rem}
+.seg a{padding:.25rem .7rem;border-radius:6px;text-decoration:none;color:var(--ink-2)}.seg a.on{background:var(--ink);color:#fff;font-weight:600}
+.lienzo-w{overflow-x:auto}
+.lienzo{position:relative;width:1130px;height:650px;margin:0 auto;background-image:radial-gradient(#DADADA 1px,transparent 1px);background-size:22px 22px;border-radius:12px}
+.colh span{position:absolute;top:0;width:172px;font-size:.74rem;font-weight:600;color:var(--ink-3);letter-spacing:.02em}
+.hilos{position:absolute;inset:0;width:1130px;height:650px}
+.hilos path{fill:none;stroke-width:2;stroke-linecap:round}
+.hilos .lleno{stroke:var(--ink)}.hilos .punt{stroke:#8E8E8E;stroke-dasharray:1 7;stroke-width:2.5}
+.hilos .punta{fill:var(--ink);stroke:none}.hilos .sale{fill:#fff;stroke:var(--ink);stroke-width:2}
+.nodo{position:absolute;width:172px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:.7rem .75rem .55rem;box-shadow:0 1px 0 rgba(23,26,32,.04),0 8px 20px -14px rgba(23,26,32,.35)}
+.nodo.c{border-color:var(--ink)}
+.nodo.n{background:#FAFAFA;border-style:dashed;border-color:#B5B5B5;box-shadow:none}
+.nodo header{display:flex;align-items:center;gap:.5rem;min-height:32px}
+.nodo .num{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:.8rem;font-weight:700;background:var(--tile);color:var(--ink-2)}
+.nodo.h .num{background:var(--ink);color:#fff}.nodo.c .num{background:var(--lime);color:var(--ink);box-shadow:0 0 0 1.5px var(--ink)}
+.nodo .nom{font-weight:700;font-size:.92rem;line-height:1.15;text-decoration:none}.nodo .nom:hover{text-decoration:underline}
+.nodo.n .nom{color:var(--ink-2)}
+.nodo .dato{margin:.35rem 0 .45rem;font-size:.78rem;color:var(--ink-2);line-height:1.3}
+.av{height:4px;border-radius:2px;background:var(--line);overflow:hidden}.av i{display:block;height:100%;background:var(--ink)}
+.pie-n{display:flex;justify-content:space-between;align-items:center;margin:.45rem 0 .1rem}
+.pie-n .est{font-size:.7rem;padding:.1rem .5rem}.cta{font-size:.74rem;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tar{display:flex;align-items:center;gap:.4rem;font-size:.78rem;padding:.32rem 0;border-top:1px solid var(--line);text-decoration:none;line-height:1.2;margin-top:.25rem}
+.tar+.tar{margin-top:0}
+.tar i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 1.5px var(--ink)}
+.tar.adv i{background:#fff;box-shadow:0 0 0 2.5px #C29A4F}
+.tar.dep{color:var(--ink-3)}.tar.dep i{background:#fff;box-shadow:0 0 0 1.5px #B5B5B5}
+.tar span{flex:1}.tar b{color:var(--ink-3);font-weight:400}.tar:hover span{text-decoration:underline}
+.tar.mas{color:var(--ink-2);font-weight:600;padding-left:1.1rem}
+.regla{position:relative;height:58px;margin:1rem .6rem 0 .6rem}
+.eje{height:4px;border-radius:2px;background:#D5D5D5;margin-top:8px}.eje .hasta{display:block;height:100%;background:var(--ink);border-radius:2px}
+.hito{position:absolute;top:0;font-size:.76rem;color:var(--ink-2);padding-top:24px;white-space:nowrap;line-height:1.25}
+.hito::before{content:"";position:absolute;top:1px;left:0;width:12px;height:12px;border-radius:50%;background:var(--ink);border:3px solid var(--tile);margin-left:-9px}
+.hito b{display:block;color:var(--ink)}
+.hito.hoy{transform:translateX(-50%);text-align:center}.hito.hoy::before{left:50%;background:var(--lime);border-color:var(--ink);border-width:2px;margin-left:-8px}
+.hito.hoy b{background:var(--ink);color:#fff;border-radius:999px;padding:.1rem .6rem}
+.hito.fin{transform:translateX(-100%);text-align:right}.hito.fin::before{left:100%;background:#fff;border-color:var(--ink);border-width:2px;margin-left:-8px}
 .pasos{list-style:none;margin:0;padding:0}
 .paso{display:grid;grid-template-columns:2.6rem 1fr auto;gap:.2rem 1rem;padding:1rem 0;border-bottom:1px solid var(--line);align-items:start}
 .paso .n{width:2.2rem;height:2.2rem;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--tile);color:var(--ink-2)}
@@ -101,35 +136,19 @@ dl{margin:0}dt{font-size:.82rem;color:var(--ink-2)}dd{margin:0 0 .8rem;font-weig
   <h1>Adquisición de sillas ergonómicas para oficinas</h1>
   <p class="sub">Licitación pública · 3 ofertas · 2 pasos completos, 4 en curso, 1 sin empezar</p>
 
-<figure class="grafo"><svg viewBox="0 0 1180 450" role="img" aria-label="Grafo del proceso: siete pasos con sus dependencias y sus tareas. El detalle está en la lista de abajo.">
-<defs><marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8E8E8E"/></marker></defs>
-<line x1="115" y1="242" x2="311" y2="179" stroke="#171A20" stroke-width="2"  marker-end="url(#fl)"/>
-<line x1="365" y1="179" x2="542" y2="240" stroke="#171A20" stroke-width="2"  marker-end="url(#fl)"/>
-<line x1="365" y1="321" x2="542" y2="260" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
-<line x1="366" y1="330" x2="790" y2="330" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
-<line x1="595" y1="258" x2="791" y2="321" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
-<line x1="595" y1="242" x2="791" y2="179" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
-<line x1="596" y1="250" x2="1040" y2="250" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
-<line x1="845" y1="178" x2="1041" y2="241" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
-<line x1="90" y1="226" x2="90" y2="188" stroke="#8E8E8E" stroke-width="1.5"/>
-<a href="#"><circle cx="90" cy="188" r="7" fill="#fff" stroke="#C29A4F" stroke-width="3"/><text x="104" y="192" class="tt">Falta el n.º de expediente</text></a>
-<line x1="340" y1="396" x2="340" y2="422" stroke="#8E8E8E" stroke-width="1.5"/>
-<a href="#"><circle cx="340" cy="422" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="354" y="426" class="tt">Revisar 1 documento nuevo (Oferta 3)</text></a>
-<line x1="570" y1="316" x2="570" y2="362" stroke="#8E8E8E" stroke-width="1.5"/>
-<a href="#"><circle cx="570" cy="362" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="584" y="366" class="tt">Cargar el informe técnico</text></a>
-<line x1="820" y1="146" x2="820" y2="36" stroke="#8E8E8E" stroke-width="1.5"/>
-<a href="#"><circle cx="820" cy="108" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="834" y="112" class="tt">Confirmar 50 propuestas «cumple»</text></a>
-<a href="#"><circle cx="820" cy="84" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="834" y="88" class="tt">Contestar 4 preguntas</text></a>
-<a href="#"><circle cx="820" cy="60" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="834" y="64" class="tt">Revisar 1 «no cumple»</text></a>
-<a href="#"><circle cx="820" cy="36" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="834" y="40" class="tt">Decidir 12 puntos</text></a>
-<a href="#paso1"><circle cx="90" cy="250" r="24" fill="#171A20" stroke="#171A20" stroke-width="2"/><text x="90" y="256" text-anchor="middle" class="tn" fill="#fff">✓</text><text x="90" y="294" text-anchor="middle" class="tp">1 Pliego publicado</text><text x="90" y="310" text-anchor="middle" class="te">Hecho</text></a>
-<a href="#paso2"><circle cx="340" cy="170" r="24" fill="#171A20" stroke="#171A20" stroke-width="2"/><text x="340" y="176" text-anchor="middle" class="tn" fill="#fff">✓</text><text x="340" y="214" text-anchor="middle" class="tp">2 Matriz de requisitos</text><text x="340" y="230" text-anchor="middle" class="te">Hecho</text></a>
-<a href="#paso3"><circle cx="340" cy="330" r="24" fill="#C6F432" stroke="#171A20" stroke-width="2"/><text x="340" y="336" text-anchor="middle" class="tn" fill="#171A20">3</text><text x="340" y="374" text-anchor="middle" class="tp">3 Ofertas recibidas</text><text x="340" y="390" text-anchor="middle" class="te">En curso</text></a>
-<a href="#paso4"><circle cx="570" cy="250" r="24" fill="#C6F432" stroke="#171A20" stroke-width="2"/><text x="570" y="256" text-anchor="middle" class="tn" fill="#171A20">4</text><text x="570" y="294" text-anchor="middle" class="tp">4 Cumplimiento</text><text x="570" y="310" text-anchor="middle" class="te">En curso</text></a>
-<a href="#paso5"><circle cx="820" cy="330" r="24" fill="#C6F432" stroke="#171A20" stroke-width="2"/><text x="820" y="336" text-anchor="middle" class="tn" fill="#171A20">5</text><text x="820" y="374" text-anchor="middle" class="tp">5 Comparación</text><text x="820" y="390" text-anchor="middle" class="te">En curso</text></a>
-<a href="#paso6"><circle cx="820" cy="170" r="24" fill="#C6F432" stroke="#171A20" stroke-width="2"/><text x="820" y="176" text-anchor="middle" class="tn" fill="#171A20">6</text><text x="820" y="214" text-anchor="middle" class="tp">6 Evaluación</text><text x="820" y="230" text-anchor="middle" class="te">En curso</text></a>
-<a href="#paso7"><circle cx="1070" cy="250" r="24" fill="#fff" stroke="#C9C9C9" stroke-width="2"/><text x="1070" y="256" text-anchor="middle" class="tn" fill="#8E8E8E">7</text><text x="1070" y="294" text-anchor="middle" class="tp">7 Dictamen</text><text x="1070" y="310" text-anchor="middle" class="te">Todavía no</text></a>
-</svg><figcaption><span><i class="b h"></i>Paso hecho</span><span><i class="b c"></i>En curso o tarea para hacer</span><span><i class="b n"></i>Todavía no</span><span><i class="b v"></i>Vence hoy</span><span><i class="b r"></i>Vencido</span><span><i class="b a"></i>Advertencia</span><span>— — depende de</span></figcaption></figure>
+  <section class="mapa" aria-label="Mapa del proceso">
+    <div class="mapa-cab"><h2>Mapa del proceso</h2>
+      <div class="leyenda"><span><i class="k h"></i>Hecho</span><span><i class="k c"></i>En curso</span><span><i class="k n"></i>Todavía no</span><span><i class="k v"></i>Vence hoy</span><span><i class="k r"></i>Vencido</span><span><i class="k a"></i>Advertencia</span><span><i class="ln"></i>completo</span><span><i class="ln p"></i>puede cambiar</span></div>
+      <div class="seg"><a class="on" href="#">Mapa</a><a href="#">Lista</a></div></div>
+    <div class="lienzo-w"><div class="lienzo"><div class="colh"><span style="left:10px">Publicación</span><span style="left:245px">Requisitos y ofertas</span><span style="left:480px">Cruce</span><span style="left:715px">Análisis y decisión</span><span style="left:950px">Cierre</span></div><svg class="hilos" viewBox="0 0 1130 650" aria-hidden="true"><path d="M182 138H238" class="lleno"/><path d="M417 138H436Q448 138 448 150V291Q448 303 460 303H473" class="lleno"/><path d="M417 488H436Q448 488 448 476V315Q448 303 460 303H473" class="punt"/><path d="M417 488H708" class="punt"/><path d="M652 303H671Q683 303 683 315V476Q683 488 695 488H708" class="punt"/><path d="M652 303H671Q683 303 683 291V70Q683 58 695 58H708" class="punt"/><path d="M652 303H943" class="punt"/><path d="M887 58H906Q918 58 918 70V291Q918 303 930 303H943" class="punt"/><path d="M237 133L245 138L237 143z" class="punta"/><path d="M472 298L480 303L472 308z" class="punta"/><path d="M707 483L715 488L707 493z" class="punta"/><path d="M707 53L715 58L707 63z" class="punta"/><path d="M942 298L950 303L942 308z" class="punta"/><circle cx="182" cy="138" r="4" class="sale"/><circle cx="417" cy="138" r="4" class="sale"/><circle cx="417" cy="488" r="4" class="sale"/><circle cx="652" cy="303" r="4" class="sale"/><circle cx="887" cy="58" r="4" class="sale"/></svg> <article class="nodo h" style="left:10px;top:110px"><header><span class="num">✓</span><a class="nom" href="#paso1">Pliego publicado</a></header><p class="dato">Pliego, 2 anexos, 1 circular</p><div class="av"><i style="width:100%"></i></div><p class="pie-n"><span class="est ok">Hecho</span></p><a class="tar adv" href="#"><i></i><span>Falta el n.º de expediente</span><b>›</b></a></article><article class="nodo h" style="left:245px;top:110px"><header><span class="num">✓</span><a class="nom" href="#paso2">Matriz de requisitos</a></header><p class="dato">27 requisitos · validada</p><div class="av"><i style="width:100%"></i></div><p class="pie-n"><span class="est ok">Hecho</span></p></article><article class="nodo c" style="left:245px;top:460px"><header><span class="num">3</span><a class="nom" href="#paso3">Ofertas recibidas</a></header><p class="dato">3 ofertas · 41 documentos</p><div class="av"><i style="width:90%"></i></div><p class="pie-n"><span class="est cur">En curso</span><span class="cta">90 %</span></p><a class="tar t" href="#"><i></i><span>Revisar 1 documento nuevo</span><b>›</b></a></article><article class="nodo c" style="left:480px;top:275px"><header><span class="num">4</span><a class="nom" href="#paso4">Cumplimiento</a></header><p class="dato">50 cumplen · 1 no · 12 a decidir</p><div class="av"><i style="width:78%"></i></div><p class="pie-n"><span class="est cur">En curso</span><span class="cta">78 %</span></p><a class="tar t" href="#"><i></i><span>Cargar el informe técnico</span><b>›</b></a></article><article class="nodo c" style="left:715px;top:460px"><header><span class="num">5</span><a class="nom" href="#paso5">Comparación</a></header><p class="dato">La más baja: Oferta 2</p><div class="av"><i style="width:60%"></i></div><p class="pie-n"><span class="est cur">En curso</span><span class="cta">60 %</span></p><a class="tar dep" href="#"><i></i><span>Espera el cumplimiento</span></a></article><article class="nodo c" style="left:715px;top:30px"><header><span class="num">6</span><a class="nom" href="#paso6">Evaluación</a></header><p class="dato">0 de 4 tareas</p><div class="av"><i style="width:8%"></i></div><p class="pie-n"><span class="est cur">En curso</span><span class="cta">8 %</span></p><a class="tar t" href="#"><i></i><span>Decidir 12 puntos</span><b>›</b></a><a class="tar t" href="#"><i></i><span>Revisar 1 «no cumple»</span><b>›</b></a><a class="tar t" href="#"><i></i><span>Contestar 4 preguntas</span><b>›</b></a><a class="tar mas" href="#">+ 1 más</a></article><article class="nodo n" style="left:950px;top:275px"><header><span class="num">7</span><a class="nom" href="#paso7">Dictamen</a></header><p class="dato">Se carga al cerrar la evaluación</p><div class="av"><i style="width:0%"></i></div><p class="pie-n"><span class="est na">Todavía no</span></p><a class="tar dep" href="#"><i></i><span>Espera cumplimiento y evaluación</span></a></article></div></div>
+    <div class="regla" aria-label="Plazos">
+      <div class="eje"><i class="hasta" style="width:70.5%"></i></div>
+      <span class="hito" style="left:0%"><b>02/03</b>Pliego publicado</span>
+      <span class="hito" style="left:23%"><b>20/03</b>Apertura de ofertas</span>
+      <span class="hito hoy" style="left:70.5%"><b>Hoy · 26/04</b></span>
+      <span class="hito fin" style="left:100%"><b>19/05</b>Vence el mantenimiento · 23 días</span>
+    </div>
+  </section>
 
   <section class="tile oscuro" style="margin-bottom:1.5rem">
     <span class="tenue chico">Qué se puede hacer ahora · en cualquier orden</span>
@@ -145,7 +164,7 @@ dl{margin:0}dt{font-size:.82rem;color:var(--ink-2)}dd{margin:0 0 .8rem;font-weig
   <div class="grid g-2-1">
     <section>
       <ol class="pasos">
-        <li class="paso hecho"><span class="n">1</span><div><h3><a href="#">Pliego publicado</a></h3><p>Pliego y 2 anexos tomados del Portal el 02/03 · 1 circular aclaratoria</p></div><span class="est ok">Hecho</span> <span class="est falta">1 advertencia</span></li>
+        <li class="paso hecho"><span class="n">1</span><div><h3><a href="#">Pliego publicado</a></h3><p>Pliego y 2 anexos tomados del Portal el 02/03 · 1 circular aclaratoria</p></div><span class="est ok">Hecho</span></li>
         <li class="paso hecho"><span class="n">2</span><div><h3><a href="#">Matriz de requisitos</a></h3><p>27 requisitos (18 formales, 3 económicos, 6 técnicos) · validada el 05/03</p></div><span class="est ok">Hecho</span></li>
         <li class="paso curso"><span class="n">3</span><div><h3><a href="#">Ofertas recibidas</a></h3><p>3 ofertas del acta de apertura del 20/03 · 41 documentos cargados</p></div><span class="est cur">En curso</span>
           <ul class="sub-t"><li><a href="#">Revisar 1 documento nuevo de la Oferta 3 (subsanación)</a><span class="est falta">Falta</span></li></ul></li>
@@ -171,5 +190,5 @@ dl{margin:0}dt{font-size:.82rem;color:var(--ink-2)}dd{margin:0 0 .8rem;font-weig
         <a class="btn sec" href="#">Abrir indicadores</a></div>
     </aside>
   </div>
-  <p class="pie">Portada con grafo tipo PERT (pedido del responsable del 17/11): cada bolita grande es un paso, con el color de su estado; las flechas dicen de qué depende cada uno; las bolitas chicas son las tareas de ese paso. Todo se puede tocar. La lista de abajo dice lo mismo con texto. Datos inventados.</p>
+  <p class="pie">Portada con mapa del proceso (pedido del responsable del 17/11): cada tarjeta es un paso con su estado, su avance y sus tareas; las líneas muestran qué depende de qué (llena: lo anterior está completo; punteada: todavía puede cambiar); abajo, los plazos. Todo se puede tocar. Datos inventados.</p>
 </main></body></html>
