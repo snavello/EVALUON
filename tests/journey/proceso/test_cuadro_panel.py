@@ -154,6 +154,52 @@ def test_una_celda_mal_escrita_da_404(client, caso_varios_en_curso, celda_mala):
     assert response.status_code == 404
 
 
+@pytest.mark.parametrize("sufijo", ["%0A", "x", "%20", "-1", "%0D%0A"])
+def test_una_celda_valida_con_un_sufijo_da_404(client, caso_varios_en_curso, sufijo):
+    """Una celda de verdad (oferta y requisito del procedimiento) seguida de un salto de línea u
+    otro sufijo no es una celda: 404 (no se acepta con `$`)."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    offer, req = celda(caso, 0, "garantía de mantenimiento")
+    ok = client.get(url_de(caso.procedure, f"?celda={offer.pk}-{req.pk}"))
+    assert ok.status_code == 200 and 'id="cu-panel"' in ok.content.decode()
+    mala = client.get(url_de(caso.procedure, f"?celda={offer.pk}-{req.pk}{sufijo}"))
+    assert mala.status_code == 404
+
+
+def test_los_enlaces_de_las_celdas_no_arrastran_un_filtro_desconocido(client, caso_varios_en_curso):
+    """REQ-154: un `?filtro=` inventado no llega a ningún enlace de celda ni al panel; uno conocido
+    sí, en todos."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    offer, req = celda(caso, 0, "garantía de mantenimiento")
+    base = f"?celda={offer.pk}-{req.pk}"
+    mala = client.get(url_de(caso.procedure, base + "&filtro=inventado")).content.decode()
+    enlaces = re.findall(r'<a class="cu-cel [^"]*"[^>]*href="([^"]+)"', mala)
+    assert len(enlaces) == 18 and not any("filtro" in e for e in enlaces)
+    buena = client.get(url_de(caso.procedure, base + "&filtro=no-cumple")).content.decode()
+    enlaces = re.findall(r'<a class="cu-cel [^"]*"[^>]*href="([^"]+)"', buena)
+    assert len(enlaces) == 18 and all("&amp;filtro=no-cumple#c-" in e for e in enlaces)
+
+
+def test_el_lector_no_recibe_el_enlace_al_archivo_original(client, caso_varios_en_curso, lector,
+                                                            evaluator_user):
+    """Quien no tiene rol de la Comisión no puede abrir el original (403): el panel dice el
+    documento y la página sin enlace; el evaluador sí lo tiene."""
+    caso = caso_varios_en_curso
+    offer, req = celda(caso, 0, "garantía de mantenimiento")
+    query = f"?celda={offer.pk}-{req.pk}"
+    entrar(client, evaluator_user)
+    con = client.get(url_de(caso.procedure, query)).content.decode()
+    assert "offers/" in con or "original" in con
+    assert re.search(r'<a href="[^"]*original[^"]*">oferta\.pdf · página 1</a>', con)
+    client.logout()
+    entrar(client, lector)
+    sin = client.get(url_de(caso.procedure, query)).content.decode()
+    assert "oferta.pdf · página 1" in sin
+    assert "original" not in sin[sin.index('id="cu-panel"'):]
+
+
 def test_oferta_o_requisito_de_otro_procedimiento_dan_404(client, caso_varios_en_curso):
     caso = caso_varios_en_curso
     entrar(client, caso.user)

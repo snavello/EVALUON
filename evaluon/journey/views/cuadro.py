@@ -36,7 +36,7 @@ from evaluon.portal.models import PortalOfferData
 from evaluon.tenders.models import MatrixVersion, RequirementClass
 
 SECTION = "evaluacion"
-CELDA = re.compile(r"^(\d{1,9})-(\d{1,9})$")
+CELDA = re.compile(r"(\d{1,9})-(\d{1,9})")
 RESUMEN_MAX = 110
 
 # El texto de cada celda (decisión del responsable: seis textos) y su clase de color. El color
@@ -73,7 +73,7 @@ def _celda_pedida(request, procedure, page):
     raw = request.GET.get("celda", "")
     if not raw:
         return None
-    found = CELDA.match(raw)
+    found = CELDA.fullmatch(raw)  # `$` aceptaría un salto de línea al final
     if found is None:
         raise Http404("La celda no es válida.")
     offer_id, requirement_id = int(found.group(1)), int(found.group(2))
@@ -117,7 +117,8 @@ def _grupos(page, base_url, selected, filtro):
                 continue
             quotes = texts[requirement.pk].quotes if requirement.pk in texts else []
             title = _resumen(quotes[0].text if quotes else "Sin cita")
-            if kind == RequirementClass.TECNICO:
+            if kind == RequirementClass.TECNICO and not quotes:
+                # La cita del pliego ya dice «1. RENGLÓN N° 1 - …»: solo sin cita se escribe el renglón.
                 items = ", ".join(str(i) for i in requirement.items)
                 title = f"Renglón {items or '—'} · {title}"
             cells = []
@@ -149,7 +150,14 @@ def _panel(request, procedure, selected, filtro):
                                            filtro=filtro or None)
     except Http404:
         return ""
-    return render_to_string("journey/_par.html", context, request=request)
+    html = render_to_string("journey/_par.html", context, request=request)
+    if not request.user.commission_role:
+        # Quien no tiene rol de la Comisión no puede abrir el archivo original (403): no se le
+        # ofrece el enlace, queda el texto. `_par.html` no cambia (la página del par es igual).
+        base = re.escape(reverse("offers:document_original", args=[123456789])).replace(
+            "123456789", r"\d+")
+        html = re.sub(rf'<a href="{base}[^"]*">(.*?)</a>', r"\1", html, flags=re.S)
+    return html
 
 
 @require_GET

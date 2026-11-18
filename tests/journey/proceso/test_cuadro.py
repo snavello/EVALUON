@@ -40,7 +40,7 @@ def texto_de(html, offer_id, requirement_id):
     return " ".join(re.sub(r"<[^>]+>", " ", inner).split())
 
 
-def sintetico(procedure, user, requisitos, ofertas):
+def sintetico(procedure, user, requisitos, ofertas, na=()):
     """Una matriz validada nueva con `requisitos` filas (60 % formales, 20 % económicas, 20 %
     técnicas) y `ofertas` ofertas con un resultado por par, salvo una de cada seis (sin resultado).
     Devuelve `(version, requisitos, ofertas)`."""
@@ -73,8 +73,16 @@ def sintetico(procedure, user, requisitos, ofertas):
         oferta = make_offer(procedure, user, f"Oferente {j + 1} Sintético",
                             {"oferta.pdf": [f"Texto inventado de la oferta {j + 1}."]})
         resultados = {fila: ciclo[(i + j) % 6] for i, fila in enumerate(filas)
-                      if ciclo[(i + j) % 6] is not None}
+                      if ciclo[(i + j) % 6] is not None and (i, j) not in na}
         add_run(user, procedure, oferta, resultados, version=version)
+        run = am.Run.objects.get(offer=oferta)
+        for i, fila in enumerate(filas):
+            if (i, j) in na:  # «cumple» con `facts.aplica = false`: así se guarda un «no aplica»
+                assert ciclo[(i + j) % 6] == am.Outcome.CUMPLE
+                am.Result.objects.create(
+                    run=run, offer=oferta, requirement=fila, outcome=am.Outcome.CUMPLE,
+                    exigence=am.Exigence.CONDICION, explanation="No aplica a la oferta.",
+                    facts={"aplica": False, "regla": not_applicable.GUARANTEE_RULE})
         hechas.append(oferta)
     return version, filas, hechas
 
@@ -241,3 +249,46 @@ def test_la_hoja_y_la_plantilla_no_traen_colores_sueltos_ni_estilos_en_linea():
     assert not re.search(r"\sstyle=", plantilla) and "<script" not in plantilla
     for clase in ("ok", "no", "nd", "esp", "sin"):
         assert f".cu-cel.{clase}::before" in css, clase
+
+
+def test_la_linea_secundaria_del_pie_dice_cada_cifra_en_su_lugar(client, caso_varios_en_curso):
+    """REQ-152: «No cumple N · A decidir N · Espera informe N» de cada oferta, con cada cifra en su
+    lugar (Oferta 1: 1, 2, 3; Oferta 2: 0, 4, 3); si se cruzan dos, falla."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    html = client.get(url_de(caso.procedure)).content.decode()
+    assert "No cumple 1 · A decidir 2 · Espera informe 3" in html
+    assert "No cumple 0 · A decidir 4 · Espera informe 3" in html
+    assert "Sin resultado" not in html[html.index("<tfoot>"):]  # ninguna oferta tiene pares sin resultado
+
+
+def test_las_celdas_no_aplica_se_muestran_y_no_entran_en_los_totales(
+        client, procedure, evaluator_user, fake_ai):
+    """REQ-152, decisión P5: «No aplica» está escrito en la celda y no suma ni en «N de M» ni en el
+    resto del pie; el pie sigue siendo el de `figures_of`."""
+    na = {(0, 0), (1, 0), (6, 0)}  # filas 0, 1 y 6 de la oferta 1 (todas «cumple» en el ciclo)
+    sintetico(procedure, evaluator_user, 12, 1, na=na)
+    entrar(client, evaluator_user)
+    response = client.get(url_de(procedure))
+    html = response.content.decode()
+    celdas = [c for g in response.context["groups"] for r in g["rows"] for c in r["cells"]]
+    assert sorted(c["key"] for c in celdas).count("na") == 3
+    assert all(c["text"] == "No aplica" for c in celdas if c["key"] == "na")
+    with memo.scope():
+        figuras = s4_propuesta.figures_of(memo.matrix_page(evaluator_user, procedure.pk))
+    oferta = figuras.offers[0]
+    assert oferta.na == 3
+    assert f"<b>{oferta.ok} de {oferta.ok + oferta.no + oferta.nd + oferta.pe}</b>" in html
+    assert oferta.ok + oferta.no + oferta.nd + oferta.pe == 12 - 3
+    assert response.context["columns"][0]["count"] == 9
+    assert "No aplica" in html[html.index("<tbody>"):html.index("<tfoot>")]
+    assert "No aplica" not in html[html.index("<tfoot>"):html.index("</tfoot>")]
+
+
+def test_un_tecnico_con_cita_no_repite_el_renglon(client, caso_varios_en_curso):
+    """La fila técnica lee su renglón una sola vez: lo que dice la cita del pliego."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    html = client.get(url_de(caso.procedure)).content.decode()
+    assert "Renglón 1 · 1." not in html
+    assert re.search(r"<span class=\"cu-num\">6\.</span> 1\. RENGLÓN N° 1 - RESMA", html)
