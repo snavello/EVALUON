@@ -428,8 +428,8 @@ Qué significa cada prefijo:
 | **T-357** | 018 | Reemplazar la entrada y la lista «Expedientes» por el inicio | terminada |
 | **T-358** | 018 | Unificar el vocabulario en pantalla | terminada |
 | **T-359** | 018 | Cierre técnico: guía visual y glosario | terminada |
-| **T-360** | 018 | Medición final con el procedimiento del piloto y revisión visual | pendiente |
-| **T-361** | 018 | Corregir los hallazgos de la medición final (condicional) | pendiente |
+| **T-360** | 018 | Medición final con el procedimiento del piloto y revisión visual | terminada |
+| **T-361** | 018 | Corregir los hallazgos de la medición final (condicional) | terminada |
 | **T-362** | 018 | Corregir los hallazgos del corte vertical en el cuadro y en Indicadores | terminada |
 | **T-363** | 018 | Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido | terminada |
 
