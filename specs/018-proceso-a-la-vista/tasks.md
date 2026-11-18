@@ -78,7 +78,7 @@ Los del plan, «Criterio numérico y umbrales». T-354, T-360 y T-361 se miden c
 | T-342 | Preparar el cálculo sin cambiar comportamiento (origen de renglones, cuentas públicas, dictamen cargado, guarda de esquema) | REQ-145, REQ-147 | — | terminada |
 | T-343 | Crear los tipos y nombres de los siete pasos y la marca de vencimientos | REQ-143, REQ-157 | — | terminada |
 | T-344 | Calcular las acciones: pendientes, cierres, faltantes, orden y corte de 6 | REQ-146, REQ-147, REQ-157 | T-340, T-342, T-343 | terminada |
-| T-345 | Calcular el estado de los pasos 1 a 3 y armar `proceso_de` | REQ-144, REQ-145 | T-342, T-343, T-344 | pendiente |
+| T-345 | Calcular el estado de los pasos 1 a 3 y armar `proceso_de` | REQ-144, REQ-145 | T-342, T-343, T-344 | terminada |
 | T-346 | Calcular los pasos 4 a 7, datos, resúmenes y advertencias; pasar 21 de 21 | REQ-143, REQ-144, REQ-145, REQ-146, REQ-147 | T-341, T-345 | pendiente |
 | T-347 | Definir los tokens de «Vence hoy» y «Vencido» y la hoja `proceso.css` | REQ-156, REQ-157 | — | terminada |
 | T-348 | Dibujar la portada: acciones, lista de pasos, advertencias e «Indicadores» | REQ-143, REQ-144, REQ-146, REQ-147, REQ-148, REQ-157 | T-346, T-347 | pendiente |
