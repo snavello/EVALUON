@@ -177,9 +177,9 @@ def test_los_enlaces_de_las_celdas_no_arrastran_un_filtro_desconocido(client, ca
     mala = client.get(url_de(caso.procedure, base + "&filtro=inventado")).content.decode()
     enlaces = re.findall(r'<a class="cu-cel [^"]*"[^>]*href="([^"]+)"', mala)
     assert len(enlaces) == 18 and not any("filtro" in e for e in enlaces)
-    buena = client.get(url_de(caso.procedure, base + "&filtro=no-cumple")).content.decode()
+    buena = client.get(url_de(caso.procedure, base + "&filtro=pendiente")).content.decode()
     enlaces = re.findall(r'<a class="cu-cel [^"]*"[^>]*href="([^"]+)"', buena)
-    assert len(enlaces) == 18 and all("&amp;filtro=no-cumple#c-" in e for e in enlaces)
+    assert len(enlaces) == 18 and all("&amp;filtro=pendiente#c-" in e for e in enlaces)
 
 
 def test_el_lector_no_recibe_el_enlace_al_archivo_original(client, caso_varios_en_curso, lector,

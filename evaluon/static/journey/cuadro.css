@@ -65,3 +65,26 @@ a.cu-cel:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .cu-pie small { display: block; font-size: .75rem; color: var(--ink-2); }
 .cu-sin { color: var(--ink-2); }
 .cu-ayuda { margin: .6rem 0 0; font-size: .8125rem; color: var(--ink-2); }
+
+/* Filtros, grupo resumido, «Siguiente» y columna fija (T-355). */
+.cu-filtros { display: flex; flex-wrap: wrap; gap: .375rem; margin: 0 0 .75rem; }
+.cu-filtros a { padding: .3rem .75rem; border-radius: 999px; background: var(--tile); color: var(--ink-2); text-decoration: none; font-size: .875rem; }
+.cu-filtros a b { color: var(--ink); }
+.cu-filtros a.act { background: var(--bg); color: var(--ink); font-weight: 700; box-shadow: inset 0 0 0 2px var(--ink); }
+.cu-filtros a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cu-pista { margin: 0 0 .5rem; font-size: .8125rem; color: var(--ink-2); }
+.cu-cuadro tr.cu-resumen td { background: var(--tile); text-align: left; padding: .5rem .6rem; }
+.cu-resumen summary { cursor: pointer; font-weight: 600; font-size: .8125rem; color: var(--ink); }
+.cu-lista { margin: .4rem 0 0; padding-left: 1.5rem; font-size: .8125rem; color: var(--ink-2); }
+.cu-sig { margin: 0 0 .75rem; }
+.cu-sig-fin { color: var(--ink-2); font-size: .875rem; }
+
+/* La columna del requisito queda fija al desplazar; la sombra del borde avisa que hay más. */
+.cu-scroll { border-right: 1px solid var(--line); }
+.cu-cuadro th.cu-req { position: sticky; left: 0; z-index: 1; background: var(--bg); box-shadow: 1px 0 0 var(--line); }
+.cu-gl { display: inline-block; position: sticky; left: .6rem; }
+.cu-sig .btn { border: 1px solid var(--ink); color: var(--ink); text-decoration: none; }
+.cu-cuadro thead th.cu-req { z-index: 2; }
+
+/* La leyenda «sin confirmar» no baja de 12 px. */
+.cu-nota { font-size: .75rem; }
