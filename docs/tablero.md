@@ -26,6 +26,7 @@ flowchart LR
   F016["▶ 016 · Calidad medible y modelos por…"]:::active
   F017["▶ 017 · Tableros de primer nivel y es…"]:::active
   F018["▶ 018 · El proceso a la vista"]:::active
+  F019["▶ 019 · Las filas técnicas se deciden…"]:::active
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -55,6 +56,7 @@ flowchart LR
   F015 --> F016
   F014 --> F017
   F017 --> F018
+  F004 --> F019
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -82,6 +84,7 @@ flowchart LR
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
 | [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 5 de 7 · Verificación | 24/24 | ██████████ 100% |
+| [019 · Las filas técnicas se deciden solo con el ok del informe técnico](#019) | El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica por renglón, llegue por donde llegue; la pantalla no cambia (decisión del responsable del 2026-11-18, carril completo) | 1 de 7 · Spec | — | — |
 
 <a id="001"></a>
 
@@ -2005,3 +2008,36 @@ flowchart TD
 | REQ-156 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). | T-347, T-350, T-352, T-359, T-362 | ✓ cubierto |
 | REQ-158 | El mapa del proceso es un grafo de los siete pasos. Cada paso es una tarjeta con su número, nombre, un dato clave, su estado escrito y con su color, y sus tareas (hasta 3 y «+N más»; las advertencias y lo que espera a otro paso se distinguen). Las líneas muestran de qué depende cada paso: 1→2, 2→4, 3→4, 3→5, 4→5, 4→6, 4→7 y 6→7; una línea llena dice que lo anterior está completo y una punteada, que todavía puede cambiar. Debajo, una línea de plazos con los hitos que el sistema conoce (REQ-131) y el día de hoy. Cada tarjeta y cada tarea llevan a donde se resuelven. Un selector «Mapa / Lista» permite ver solo la lista de pasos, y en pantallas angostas se muestra la lista. «Vence hoy» (lila) y «Vencido» (rojo brillante) marcan la tarjeta y la tarea (REQ-157). No se muestra porcentaje de avance. | T-349, T-350, T-354, T-359, T-360, T-363 | ✓ cubierto |
 | REQ-157 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece el vencimiento, en el inicio y en la portada del procedimiento. En esas pantallas el lila no se usa para ninguna otra cosa. Lo que ya venció y sigue sin resolverse se marca en rojo brillante con el texto «Vencido», hasta que se resuelva. | T-343, T-344, T-347, T-348, T-350, T-357, T-359 | ✓ cubierto |
+
+<a id="019"></a>
+
+## 019 · Las filas técnicas se deciden solo con el ok del informe técnico
+
+**Etapa actual:** 1 de 7 · Spec (spec en borrador, 1 dudas abiertas) · [carpeta](../specs/019-decision-de-filas-tecnicas)
+
+```mermaid
+flowchart LR
+  E0["▶ 1. Spec"]:::active --> E1["○ 2. Plan"]:::todo --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** Resolver 1 duda marcada en la spec y aprobar la spec (compuerta del responsable).
+
+### Qué se hizo
+
+- Nada terminado todavía.
+
+### Requisitos
+
+| Requisito | Descripción | Tareas | Estado |
+|---|---|---|---|
+| REQ-159 | El sistema debe rechazar todo pedido de confirmar, corregir o rechazar un cruce requisito–oferta de una fila técnica por renglón. Lo rechaza siempre: llegue por donde llegue el pedido, lo haga quien lo haga, y tenga o no la oferta el ok del informe técnico (dado, retirado o nunca dado). | — | — |
+| REQ-160 | Un pedido rechazado por REQ-159 no debe cambiar nada del cruce: ni su resultado, ni su estado, ni su historial de decisiones. Debe quedar registrado quién lo intentó, cuándo, sobre qué cruce, qué acción pidió y por qué se rechazó. La persona recibe un mensaje en lenguaje llano que dice que esa fila se decide con el ok del informe técnico. | — | — |
+| REQ-161 | Lo demás no cambia: la decisión de la Comisión sobre los cruces de filas no técnicas, y dar o retirar el ok del informe técnico, deben funcionar igual que antes de esta feature. La pantalla no cambia. | — | — |
+| REQ-162 | El sistema debe poder listar las decisiones ya guardadas sobre cruces de filas técnicas por renglón (procedimiento, oferta, requisito, acción, quién y cuándo). El listado no modifica ni borra nada. | — | — |
