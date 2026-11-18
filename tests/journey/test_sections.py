@@ -166,7 +166,7 @@ def test_the_front_page_has_two_separate_blocks_for_pending_and_suggestions(
         client, procedure, matrix, evaluator_user):
     """REQ-098: pendientes y sugerencias, en dos bloques aparte y visibles."""
     log_in(client, evaluator_user)
-    response = client.get(reverse("expedientes:portada", args=[procedure.pk]), follow=True)
+    response = client.get(reverse("expedientes:procedimiento", args=[procedure.pk]))
     assert response.status_code == 200
     html = response.content.decode()
     assert 'id="pendientes"' in html and 'id="sugerencias"' in html

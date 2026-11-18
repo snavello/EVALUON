@@ -3,10 +3,11 @@ procedimiento, las cinco secciones, y los bloques que pide el sondeo (la barra y
 proceso). Solo traducen y llaman a `sections_for`: no tienen formularios de decisión (P3)."""
 
 import re
+from dataclasses import dataclass, field
 from functools import wraps
 
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_GET
@@ -15,11 +16,11 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role, viewing
 from evaluon.audit.models import Channel
 from evaluon.journey import memo
+from evaluon.journey.proceso import acciones, calculo, pasos
 from evaluon.journey.sections import sections_for
 from evaluon.journey.stages import is_viewer
 from evaluon.journey.tablero.ingreso import KEY as INGRESO_KEY
 from evaluon.journey.tablero.tiles import build_board
-from evaluon.journey.views import inicio
 from evaluon.journey.window import window_for
 from evaluon.tenders.models import Procedure
 
@@ -94,16 +95,93 @@ def lista(request):
     return render(request, "journey/expedientes.html", {"rows": rows})
 
 
+@dataclass
+class _Linea:
+    """Una línea de «Qué se puede hacer ahora»: la acción y el nombre de su paso."""
+
+    accion: object
+    paso_nombre: str
+
+
+@dataclass
+class _Fila:
+    """Un paso de la lista, con lo que la plantilla necesita: la clase de su etiqueta, lo que
+    falta (pendientes y cierres abiertos; los faltantes menores van como advertencias) y las notas
+    que aclaran un dato que de otro modo confunde (REQ-146)."""
+
+    paso: object
+    clase: str
+    faltan: list = field(default_factory=list)
+    nota: str = ""
+
+
+_CLASE_DE_ESTADO = {estado: estado.value.replace("_", "-") for estado in pasos.Estado}
+
+
+def _enumerar(partes):
+    """«a», «a y b», «a, b y c»."""
+    return partes[0] if len(partes) == 1 else ", ".join(partes[:-1]) + " y " + partes[-1]
+
+
+def _nota_del_paso(paso):
+    """El desglose que explica el dato de un paso (avisos de T-345/T-346). El «D de T puntos
+    decididos» del paso 6 cuenta como pendientes los «cumple» y «no cumple» que nadie confirmó; el
+    dato del paso 4 suma todas las ofertas y las filas técnicas."""
+    if paso.numero == 6:
+        cuentas = {t.kind: t.cuenta for t in paso.tareas}
+        partes = [formato.format(cuentas[kind]) for kind, formato in (
+            (acciones.K_DECIDIR, "{} sin determinar"), (acciones.K_NO_CUMPLE, "{} «no cumple»"),
+            (acciones.K_CUMPLE, "{} «cumple» sin confirmar")) if cuentas.get(kind)]
+        return f"Los puntos sin decidir son {_enumerar(partes)}." if partes else ""
+    if paso.numero == 4 and "cumplen" in paso.dato:
+        return "Suma de todas las ofertas, con las filas técnicas."
+    return ""
+
+
+def _resumen(proceso, cantidad_ofertas):
+    """«N ofertas · X pasos hechos, Y en curso, Z sin empezar» (y los que tienen error)."""
+    cuentas = {estado: sum(1 for p in proceso.pasos if p.estado is estado)
+               for estado in pasos.Estado}
+    partes = [f"{cuentas[pasos.Estado.HECHO]} hechos", f"{cuentas[pasos.Estado.EN_CURSO]} en curso",
+              f"{cuentas[pasos.Estado.TODAVIA_NO]} sin empezar"]
+    if cuentas[pasos.Estado.CON_ERROR]:
+        partes.append(f"{cuentas[pasos.Estado.CON_ERROR]} con error")
+    ofertas = f"{cantidad_ofertas} oferta" + ("" if cantidad_ofertas == 1 else "s")
+    return f"{ofertas} · {', '.join(partes)}"
+
+
 @require_GET
+@memo.scoped
+@reading
 def portada(request, procedure_id):
-    """La portada del procedimiento es el primer panel (REQ-128): redirige (302) a
-    `procedimiento/` conservando la consulta, así las anclas y los enlaces de la 014 siguen
-    andando. El procedimiento que no existe da 404."""
-    if not Procedure.objects.filter(pk=procedure_id).exists():
-        raise Http404("No hay un procedimiento con ese número.")
-    target = reverse("expedientes:procedimiento", args=[procedure_id])
-    query = request.META.get("QUERY_STRING", "")
-    return redirect(f"{target}?{query}" if query else target)
+    """La portada del procedimiento (REQ-143, REQ-146, REQ-147, REQ-148; plan 018): el título con
+    su resumen y «Abrir indicadores», «Qué se puede hacer ahora» (6 líneas y «ver las N
+    restantes») y la lista de los siete pasos con su estado propio. El mapa del proceso va arriba de
+    «Qué se puede hacer ahora» (T-350). Un solo `sections_for` y un solo `proceso_de` por pedido;
+    la plantilla no calcula nada. El procedimiento que no existe da 404."""
+    overview = overview_of(request, procedure_id)
+    procedure = overview.procedure
+    proceso = calculo.proceso_de(request.user, procedure, overview)
+    nombres = {p.numero: p.nombre for p in proceso.pasos}
+    visibles, restantes = acciones.cortar(proceso.acciones)
+    vencimiento = proceso.vencimiento
+    context = shell(request, overview)
+    context.update({
+        "proceso": proceso,
+        "resumen": _resumen(proceso, len(memo.offers(procedure))),
+        "visibles": [_Linea(a, nombres[a.paso]) for a in visibles],
+        "restantes": [_Linea(a, nombres[a.paso]) for a in restantes],
+        "filas": [_Fila(p, _CLASE_DE_ESTADO[p.estado],
+                        [_Linea(t, p.nombre) for t in p.tareas if t.tipo != pasos.FALTANTE],
+                        _nota_del_paso(p))
+                  for p in proceso.pasos],
+        "vencimiento": vencimiento,
+        "vencimiento_paso": nombres[vencimiento.paso] if vencimiento else "",
+        "puede_actuar": bool(request.user.commission_role),
+        "next_url": request.path,
+        "indicadores_url": reverse("expedientes:procedimiento", args=[procedure.pk]),
+    })
+    return render(request, "journey/portada.html", context)
 
 
 @require_GET
@@ -136,8 +214,7 @@ def seccion(request, procedure_id, key):
         "blocks": [{"key": tema.KEY, "partial": tema.PARTIAL, "t": contexts[tema.KEY]}
                    for tema in board.leftover],
     })
-    return inicio.remember(render(request, "journey/seccion.html", context), request.user,
-                           procedure_id)
+    return render(request, "journey/seccion.html", context)
 
 
 @require_GET
