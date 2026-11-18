@@ -113,3 +113,23 @@ def test_req158_el_mapa_cuenta_como_una_pieza(client, caso_varios_en_curso):
     html = html_de(client, caso_varios_en_curso)
     mp = html[html.index('class="mp mp-mapa"'):html.index('data-pieza="acciones"')]
     assert re.findall(r'data-pieza="([^"]+)"', mp) == ["mapa"]
+
+
+def test_req158_entre_900_y_1241_px_el_mapa_se_desplaza_en_su_caja_y_la_pagina_no(
+        client, caso_varios_en_curso):
+    """REQ-158 (H1): lo que garantiza que la página no tenga desplazamiento horizontal propio. `.mp`
+    puede encogerse dentro de la grilla de `.portada` (`min-width: 0`), la caja del lienzo se desplaza
+    (`overflow-x: auto`, `max-width: 100%`), tiene el foco del teclado (`tabindex="0"`, región con
+    nombre) y una pista escrita visible solo en ese rango. La medición real (`scrollWidth` contra el
+    ancho de la ventana) se hizo con Chrome sin cabeza; ver el informe de T-350."""
+    texto = css()
+    assert re.search(r"\.mp\s*\{[^}]*min-width:\s*0", texto)
+    assert re.search(r"\.mp-lienzo-w\s*\{[^}]*overflow-x:\s*auto[^}]*max-width:\s*100%", texto)
+    assert re.search(r"\.mp-lienzo-w:focus-visible\s*\{[^}]*outline:\s*3px", texto)
+    assert re.search(r"@media \(min-width: 900px\) and \(max-width: 1241px\)\s*\{\s*\.mp-pista\s*\{\s*display:\s*block", texto)
+    assert re.search(r"\.mp-pista\s*\{\s*display:\s*none", texto)
+    html = html_de(client, caso_varios_en_curso)
+    assert re.search(r'<div class="mp-lienzo-w" role="region" aria-label="[^"]+" aria-describedby="mp-pista" tabindex="0">', html)
+    assert 'id="mp-pista"' in html and "desplazalo de costado" in html
+    # El ancho del mapa (lienzo + márgenes de la caja) más el de la página es lo que fija el umbral.
+    assert mapa.LIENZO[0] + 2 * 20 + 2 * 36 <= 1241 + 1

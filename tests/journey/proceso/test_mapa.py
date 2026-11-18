@@ -4,6 +4,7 @@ según el paso de origen, hasta 3 tareas y «+ N más», sin porcentaje ni barra
 plazos y marcas con texto. Material inventado (P4)."""
 
 import re
+from pathlib import Path
 from datetime import date, timedelta
 
 import pytest
@@ -137,7 +138,7 @@ def test_req158_cada_tarea_y_cada_tarjeta_llevan_a_su_destino(client, caso_vario
     html = html_de(client, caso_varios_en_curso)
     enlaces = set()
     for carta in tarjetas(html).values():
-        enlaces.update(re.findall(r'<a href="([^"]+)"', carta))
+        enlaces.update(h for h in re.findall(r'<a href="([^"]+)"', carta) if not h.startswith("#"))
     assert len(enlaces) >= 3
     for destino in enlaces:
         assert client.get(destino).status_code == 200, destino
@@ -207,3 +208,41 @@ def test_cantidad_de_consultas_con_el_mapa(client, caso_varios_en_curso):
         assert client.get(url_de(caso_varios_en_curso)).status_code == 200
     print(f"CONSULTAS portada con mapa varios_en_curso: {len(q)}")
     assert len(q) <= 400
+
+
+def test_req157_los_plazos_dicen_vencido_y_vence_hoy_con_texto(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-157 (H4): la línea de plazos lleva la etiqueta con texto, «Vencido» o «Vence hoy», sola
+    (no vale la de la tarjeta) y nunca la del otro caso."""
+    _fechas(monkeypatch, HOY - timedelta(days=1))
+    html = html_de(client, caso_varios_en_curso)
+    plazos = html[html.index('class="mp-plazos"'):html.index('data-pieza="acciones"')]
+    assert '<span class="mp-vencido">Vencido</span>' in plazos and "mp-hoy" not in plazos
+    _fechas(monkeypatch, HOY)
+    html = html_de(client, caso_varios_en_curso)
+    plazos = html[html.index('class="mp-plazos"'):html.index('data-pieza="acciones"')]
+    assert '<span class="mp-hoy">Vence hoy</span>' in plazos and "mp-vencido" not in plazos
+
+
+def test_req157_la_tarea_marcada_se_lee_entera_y_la_etiqueta_va_debajo(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-157 (H2): en «Cargar el dictamen» la etiqueta va en el mismo cuerpo, debajo del texto, y no
+    en la fila, donde se comía el ancho y dejaba «Cargar e…»."""
+    for due, clase, etiqueta in ((HOY, "hoy", "Vence hoy"), (HOY - timedelta(days=1), "vencido", "Vencido")):
+        _fechas(monkeypatch, due)
+        siete = tarjetas(html_de(client, caso_varios_en_curso))[7]
+        tarea = re.search(rf'<li class="mp-tarea {clase}".*?</li>', siete, re.S).group(0)
+        assert (f'<span class="mp-cuerpo"><span class="mp-txt">Cargar el dictamen</span>'
+                f'<span class="mp-{clase}">{etiqueta}</span></span>') in tarea
+    css = (Path(__file__).resolve().parents[3] / "evaluon/static/journey/mapa.css").read_text(encoding="utf-8")
+    assert re.search(r"\.mp-cuerpo\s*\{[^}]*flex-direction:\s*column", css)
+
+
+def test_req158_mas_n_mas_dice_y_hace_lo_mismo(client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (A2): «+ N más» lleva a la fila del paso en la lista de abajo y su `title` lo dice."""
+    _con_tareas(monkeypatch, 5)
+    html = html_de(client, caso_varios_en_curso)
+    carta = tarjetas(html)[6]
+    assert ('<a class="mp-mas" href="#paso-6" title="Ver todas las tareas del paso 6 en la lista de '
+            'abajo">+ 2 más</a>') in carta
+    assert 'id="paso-6"' in html[html.index('id="pasos"'):]

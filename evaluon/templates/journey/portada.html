@@ -33,7 +33,7 @@
       {% for f in filas %}{% with p=f.paso %}<li class="pr-paso {{ f.clase }}" data-pieza="paso" data-paso="{{ p.numero }}">
         <span class="pr-num" aria-hidden="true">{{ p.numero }}</span>
         <div class="pr-paso-cuerpo">
-          <h3><a href="{{ p.destino }}"><span class="sr-only">Paso </span>{{ p.nombre }}</a></h3>
+          <h3 id="paso-{{ p.numero }}"><a href="{{ p.destino }}"><span class="sr-only">Paso </span>{{ p.nombre }}</a></h3>
           {% if p.dato %}<p class="pr-dato">{{ p.dato }}</p>{% endif %}
           {% if f.nota %}<p class="pr-nota">{{ f.nota }}</p>{% endif %}
           <p class="pr-resumen">{{ p.resumen }}</p>

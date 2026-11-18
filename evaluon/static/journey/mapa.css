@@ -7,7 +7,7 @@
    su texto escrito, además del color o el símbolo. Bajo 900 px el mapa y el selector se ocultan y queda
    la lista de pasos (que siempre está) y los plazos. */
 
-.mp { background: var(--tile); border-radius: var(--r); padding: 1.1rem 1.25rem 1.25rem; }
+.mp { min-width: 0; background: var(--tile); border-radius: var(--r); padding: 1.1rem 1.25rem 1.25rem; }
 .mp-cab { display: flex; align-items: center; gap: .5rem 1.25rem; flex-wrap: wrap; margin-bottom: .75rem; }
 .mp .mp-titulo { margin: 0; font-size: 1.25rem; font-weight: 600; }
 .mp-leyenda { display: flex; flex-wrap: wrap; gap: .25rem 1rem; list-style: none; margin: 0; padding: 0; font-size: .8125rem; color: var(--ink-2); flex: 1 1 24rem; }
@@ -28,10 +28,15 @@
 .mp-k.hoy { background: var(--hoy); border-color: var(--hoy); }
 .mp-k.vencido { background: var(--vencido); border-color: var(--vencido); }
 .mp-ln { display: inline-block; flex: none; width: 24px; height: 0; border-top: 2px solid var(--ink); }
-.mp-ln.punt { border-top: 2.5px dotted var(--ink-3); }
+.mp-ln.punt { border-top: 2.5px dashed var(--ink-3); }
 
 /* El lienzo */
-.mp-lienzo-w { overflow-x: auto; padding-bottom: .25rem; }
+.mp-lienzo-w { overflow-x: auto; padding-bottom: .5rem; max-width: 100%; }
+.mp-lienzo-w:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.mp-pista { display: none; margin: 0 0 .5rem; font-size: .8125rem; color: var(--ink-2); }
+/* Entre 900 px y el ancho en que el mapa entra entero (1130 px de lienzo + márgenes de la caja y de la página: 1242 px), el mapa se
+   desplaza de costado dentro de su caja y la página no tiene desplazamiento propio. */
+@media (min-width: 900px) and (max-width: 1241px) { .mp-pista { display: block; } }
 .mp-columnas { position: relative; width: 1130px; height: 22px; margin: 0 auto; }
 .mp-columnas span { position: absolute; top: 0; width: 172px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--ink-2); }
 .col-1 { left: 10px; }
@@ -46,7 +51,7 @@
 .mp-hilos { position: absolute; left: 0; top: 0; width: 1130px; height: 740px; pointer-events: none; }
 .mp-hilos path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .mp-hilos path.lleno { stroke: var(--ink); stroke-width: 2; }
-.mp-hilos path.punt { stroke: var(--ink-3); stroke-width: 2.5; stroke-dasharray: 1 7; }
+.mp-hilos path.punt { stroke: var(--ink-3); stroke-width: 2.5; stroke-dasharray: 7 5; stroke-linecap: butt; }
 .mp-hilos path.punta { stroke: none; stroke-dasharray: none; }
 .mp-hilos path.punta.lleno { fill: var(--ink); }
 .mp-hilos path.punta.punt { fill: var(--ink-3); }
@@ -124,13 +129,14 @@
 .mp-tarea { height: 30px; border-top: 1px solid var(--line); }
 .mp-tarea a { display: flex; align-items: center; gap: 6px; height: 100%; color: var(--ink); text-decoration: none; }
 .mp-tarea a:hover .mp-txt { text-decoration: underline; }
-.mp-txt { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-cuerpo { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+.mp-txt { max-width: 100%; line-height: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mp-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 1.5px var(--ink); margin: 0 1.5px; }
 .mp-tarea.hoy .mp-punto { background: var(--hoy); box-shadow: 0 0 0 2px var(--mapa-nodo), 0 0 0 4px var(--hoy); margin: 0 3px; }
 .mp-tarea.vencido .mp-punto { background: var(--vencido); box-shadow: 0 0 0 2px var(--mapa-nodo), 0 0 0 4px var(--vencido); margin: 0 3px; }
 .mp-tarea.espera a { color: var(--ink-2); }
 .mp-tarea.espera .mp-punto { background: var(--mapa-nodo-n); box-shadow: 0 0 0 1.5px var(--ink-3); }
-.mp-tarea .mp-hoy, .mp-tarea .mp-vencido { padding: 0 4px; }
+.mp-tarea .mp-hoy, .mp-tarea .mp-vencido { padding: 0 4px; border-width: 1px; line-height: 13px; margin-top: 1px; }
 
 /* Último renglón: «+ N más» y las advertencias */
 .mp-resto { display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 26px; margin: 0; border-top: 1px solid var(--line); }
