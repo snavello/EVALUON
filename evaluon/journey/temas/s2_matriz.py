@@ -582,13 +582,13 @@ def _heat(user, procedure):
             value = sum(1 for key in found if key == "cumple")
             cells.append(charts.HeatCell(value, total))
         rows.append(charts.HeatRow(label, cells))
-    heat = charts.Heat(uid="s2-cumplimiento", title="Cumplimiento por tipo y oferta",
+    heat = charts.Heat(uid="s2-cumplimiento", title="Cuadro de cumplimiento (resumen por tipo)",
                        columns=[f"Of. {offer.number}" for offer in page.offers], rows=rows)
     if not heat.has_data:
         return None
     waiting = sum(1 for status in page.statuses if status.evaluated
                   for r in page.requirements if r.category == RequirementClass.TECNICO
-                  if s4_propuesta._bucket(page.cells[(status.offer.pk, r.pk)]) == "pe")
+                  if s4_propuesta.bucket(page.cells[(status.offer.pk, r.pk)]) == "pe")
     counts = Compliance(
         ok=sum(o.ok for o in figures.offers), no=figures.no, nd=figures.nd,
         pe=sum(o.pe for o in figures.offers), na=figures.na, waiting=waiting,
@@ -635,19 +635,19 @@ class Compliance:
 
 
 def tiles(user, procedure, ctx):
-    """«Requisitos», «Versiones de la matriz» y «Cumplimiento por tipo y oferta». Sin pliego
+    """«Requisitos», «Versiones de la matriz» y «Cuadro de cumplimiento (resumen por tipo)». Sin pliego
     dicen «Falta el pliego»; sin evaluación el de cumplimiento dice «Pendiente» y lleva a la
     propuesta (REQ-141): nunca una cifra que el sistema no tiene."""
     version = ctx["version"]
-    evaluation = reverse("expedientes:evaluacion", args=[procedure.pk]) + "#d-s4-propuesta"
+    evaluation = reverse("expedientes:cuadro", args=[procedure.pk])
     found = _heat(user, procedure)
     if found is None:
-        heat = Tile(key="cumplimiento", title="Cumplimiento por tipo y oferta", width=4,
+        heat = Tile(key="cumplimiento", title="Cuadro de cumplimiento (resumen por tipo)", width=4,
                     href=evaluation, missing="Pendiente",
                     sub="Aparece cuando el sistema evalúa las ofertas")
     else:
         chart, counts = found
-        heat = Tile(key="cumplimiento", title="Cumplimiento por tipo y oferta", width=4,
+        heat = Tile(key="cumplimiento", title="Cuadro de cumplimiento (resumen por tipo)", width=4,
                     href=evaluation, big=counts.ok, unit="cumplen", sub=counts.line(),
                     chart=chart)
     if version is None:
