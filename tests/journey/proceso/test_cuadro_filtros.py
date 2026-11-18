@@ -114,3 +114,24 @@ def test_con_10_ofertas_la_pista_aparece(client, procedure, evaluator_user, fake
     entrar(client, evaluator_user)
     html = client.get(url_de(procedure)).content.decode()
     assert "se desplaza hacia los costados" in html
+
+
+def test_T361_C1_con_filtro_siguiente_no_sale_del_filtro(client, caso_varios_en_curso):
+    """REQ-154 (T-361, C-1): con un filtro puesto, «Siguiente a decidir ›» solo sigue dentro de ese
+    filtro; en la última celda dice que no hay otro punto en el filtro (no lleva a una celda que la
+    tabla filtrada no muestra)."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    r = client.get(url_de(caso.procedure, "?filtro=a-decidir"))
+    ultima = [c for g in r.context["groups"] for row in g["rows"] for c in row["cells"]][-1]
+    celdas = [c for g in r.context["groups"] for row in g["rows"] for c in row["cells"]]
+    en_filtro = {c["id"] for c in celdas if c["key"] == "nd"}
+    for c in celdas:
+        if c["id"] in en_filtro:
+            sig = client.get(c["url"].split("#")[0]).context["siguiente"]
+            assert not sig or sig.split("#")[1] in en_filtro
+    ultima_nd = [c for c in celdas if c["id"] in en_filtro][-1]
+    pagina = client.get(ultima_nd["url"].split("#")[0])
+    assert pagina.context["siguiente"] == ""
+    assert "No hay otro punto en este filtro." in pagina.content.decode()
+    assert ultima

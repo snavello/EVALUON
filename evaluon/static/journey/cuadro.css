@@ -23,6 +23,7 @@
 @media (max-width: 1000px) {
   .cu-dos.con-panel { grid-template-columns: minmax(0, 1fr); }
   .cu-panel { position: static; max-height: none; overflow: visible; }
+  .cu-sig { position: static; margin: 0 0 .75rem; padding: 0; background: none; }
 }
 
 .cu-scroll { position: relative; overflow-x: auto; }
@@ -76,7 +77,8 @@ a.cu-cel:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .cu-cuadro tr.cu-resumen td { background: var(--tile); text-align: left; padding: .5rem .6rem; }
 .cu-resumen summary { cursor: pointer; font-weight: 600; font-size: .8125rem; color: var(--ink); }
 .cu-lista { margin: .4rem 0 0; padding-left: 1.5rem; font-size: .8125rem; color: var(--ink-2); }
-.cu-sig { margin: 0 0 .75rem; }
+/* «Ir a decidir» y «Siguiente» quedan a la vista aunque el panel (con textos reales, más de 1.400 px) se recorra por dentro. */
+.cu-sig { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; position: sticky; top: -1rem; z-index: 3; margin: -1rem -1.25rem .75rem; padding: 1rem 1.25rem .5rem; background: var(--tile); }
 .cu-sig-fin { color: var(--ink-2); font-size: .875rem; }
 
 /* La columna del requisito queda fija al desplazar; la sombra del borde avisa que hay más. */

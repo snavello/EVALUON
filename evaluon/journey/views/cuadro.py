@@ -203,20 +203,22 @@ def _siguiente(groups, filtro, selected, base_url):
 
 
 def _panel(request, procedure, selected, filtro):
-    """El HTML del panel de la celda elegida, o `""` si no hay celda o su par ya no existe (por
-    ejemplo tras una evaluación nueva): entonces se muestra el cuadro sin panel."""
+    """`(HTML, con_acciones)` del panel de la celda elegida: `("", False)` si no hay celda o su par ya
+    no existe (por ejemplo tras una evaluación nueva), y entonces se muestra el cuadro sin panel.
+    `con_acciones`: el panel trae los botones de decidir (para ofrecer «Ir a decidir», T-361)."""
     if selected is None:
-        return ""
+        return "", False
     try:
         context = s4_propuesta.par_context(request, procedure, *selected, desde="cuadro",
                                            filtro=filtro or None)
     except Http404:
-        return ""
+        return "", False
     # Quien no tiene rol de la Comisión no puede abrir el archivo original (403): la plantilla no le
     # ofrece el enlace y dibuja solo el nombre. El HTML sale entero de la plantilla (nada se reemplaza
     # a mano sobre el texto ya dibujado); `_par.html` no cambia sin `sin_original`.
     context["sin_original"] = not request.user.commission_role
-    return render_to_string("journey/_par.html", context, request=request)
+    con_acciones = bool(context.get("can_decide")) and not context.get("technical")
+    return render_to_string("journey/_par.html", context, request=request), con_acciones
 
 
 @require_GET
@@ -231,7 +233,7 @@ def cuadro(request, procedure_id):
     filtro = filtro if filtro in acciones.FILTROS_CUADRO else ""
     figures = s4_propuesta.figures_of(page)
     groups = _grupos(page, reverse("expedientes:cuadro", args=[procedure.pk]), selected, filtro)
-    panel = _panel(request, procedure, selected, filtro)
+    panel, con_acciones = _panel(request, procedure, selected, filtro)
     base = reverse("expedientes:cuadro", args=[procedure.pk])
     siguiente = _siguiente(groups, filtro, selected, base)
     groups, counts = _filtrar(groups, filtro)
@@ -239,7 +241,7 @@ def cuadro(request, procedure_id):
     context.update({
         "section": overview.get(SECTION), "columns": _columnas(page, figures), "groups": groups,
         "total_rows": len(page.requirements), "evaluated": figures is not None,
-        "filtro": filtro, "panel": panel, "siguiente": siguiente,
+        "filtro": filtro, "panel": panel, "con_acciones": con_acciones, "siguiente": siguiente,
         "filtros": [{"clave": c, "texto": t, "n": counts[c], "url": f"{base}?filtro={c}"}
                     for c, t in FILTROS], "pasos": pasos.PASOS, "pasos_aqui": (4, 6),
         "tab_url": acciones.tab_url(procedure),

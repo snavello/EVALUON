@@ -43,7 +43,7 @@
     {% if technical %}
     <div class="bloque-pie"><span class="suave">Esta fila se decide con el ok del informe técnico del área.</span></div>
     {% elif can_decide %}
-    <div class="bloque-pie acciones-fila">
+    <div class="bloque-pie acciones-fila"{% if desde == "cuadro" %} id="cu-decidir"{% endif %}>
       <form class="en-linea" method="post" action="{% url 'expedientes:s4_decidir' pid page.result.pk %}">{% csrf_token %}<input type="hidden" name="action" value="confirmar"><input type="hidden" name="desde" value="{{ desde|default:'par' }}">{% if filtro %}<input type="hidden" name="filtro" value="{{ filtro }}">{% endif %}<button class="btn primario" type="submit">Confirmar</button></form>
       <details class="acc"><summary class="btn secundario">Corregir</summary>
         <form method="post" action="{% url 'expedientes:s4_decidir' pid page.result.pk %}">{% csrf_token %}

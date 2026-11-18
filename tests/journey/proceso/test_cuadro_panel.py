@@ -225,3 +225,22 @@ def test_una_celda_que_ya_no_existe_muestra_el_cuadro_sin_panel(
     con = next(f for i, f in enumerate(filas) if i % 6 == 0)
     assert 'id="cu-panel"' in client.get(
         url_de(procedure, f"?celda={ofertas[0].pk}-{con.pk}")).content.decode()
+
+
+def test_T361_H4_el_panel_ofrece_ir_a_decidir_junto_a_siguiente(client, caso_varios_en_curso):
+    """REQ-154 (T-361, H-4): con botones de decidir el panel trae «Ir a decidir» arriba, junto a
+    «Siguiente a decidir», y el ancla existe en los botones; sin botones (fila técnica, lectura) no
+    hay enlace. La página del par no lleva el ancla (su HTML no cambia)."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    _, html, offer, req = abrir(client, caso, 0, "declaración jurada")
+    assert 'href="#cu-decidir"' in html and 'id="cu-decidir"' in html
+    assert html.index('href="#cu-decidir"') < html.index("Siguiente a decidir") or \
+        "Siguiente a decidir" not in html
+    assert html.index('href="#cu-decidir"') < html.index('id="cu-decidir"')
+    par = client.get(acciones.pair_url(caso.procedure, offer.pk, req.pk)).content.decode()
+    assert "cu-decidir" not in par
+    tecnico = caso.procedure.matrix_versions.get(number=1).requirements.get(
+        category="tecnico", items=[1])
+    html = client.get(url_de(caso.procedure, f"?celda={offer.pk}-{tecnico.pk}")).content.decode()
+    assert "cu-decidir" not in html

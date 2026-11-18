@@ -59,7 +59,7 @@
     </section>
 
     {% if panel %}
-    <aside class="cu-panel s4-prop" id="cu-panel" aria-label="Detalle de la celda elegida">{% if siguiente %}<p class="cu-sig"><a class="btn" href="{{ siguiente }}">Siguiente a decidir ›</a></p>{% else %}<p class="cu-sig cu-sig-fin">No hay otro punto para decidir.</p>{% endif %}{{ panel }}</aside>
+    <aside class="cu-panel s4-prop" id="cu-panel" aria-label="Detalle de la celda elegida"><p class="cu-sig">{% if con_acciones %}<a class="btn primario" href="#cu-decidir">Ir a decidir ↓</a>{% endif %}{% if siguiente %}<a class="btn" href="{{ siguiente }}">Siguiente a decidir ›</a>{% else %}<span class="cu-sig-fin">{% if filtro and filtro != "todos" %}No hay otro punto en este filtro.{% else %}No hay otro punto para decidir.{% endif %}</span>{% endif %}</p>{{ panel }}</aside>
     {% endif %}
   </div>
   {% endif %}
