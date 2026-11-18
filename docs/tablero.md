@@ -81,7 +81,7 @@ flowchart LR
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
-| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 4 de 7 · Desarrollo | 4/22 | ██░░░░░░░░ 18% |
+| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 4 de 7 · Desarrollo | 5/22 | ██░░░░░░░░ 23% |
 
 <a id="001"></a>
 
@@ -1889,8 +1889,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 18 tareas sin terminar.
-- ○ T-341 · Escribir la tabla de 21 estados como test, antes del cálculo (pendiente)
+- **Próximo paso:** Desarrollar: 17 tareas sin terminar.
 - ○ T-344 · Calcular las acciones: pendientes, cierres, faltantes, orden y corte de 6 (pendiente)
 - ○ T-345 · Calcular el estado de los pasos 1 a 3 y armar `proceso_de` (pendiente)
 - ○ T-346 · Calcular los pasos 4 a 7, datos, resúmenes y advertencias; pasar 21 de 21 (pendiente)
@@ -1913,6 +1912,7 @@ flowchart LR
 
 - Etapas completas: Spec, Plan, Tareas.
 - ✓ T-340 · Armar los fixtures de los tres procedimientos de la tabla con el caso chico (`9faa3726` 2026-11-17)
+- ✓ T-341 · Escribir la tabla de 21 estados como test, antes del cálculo (`a8cd09bd` 2026-11-17, `24c1ed15` 2026-11-17)
 - ✓ T-342 · Preparar el cálculo sin cambiar comportamiento (origen de renglones, cuentas públicas, dictamen cargado, guarda de esquema) (`3e720175` 2026-11-17, `6fa0663b` 2026-11-17)
 - ✓ T-343 · Crear los tipos y nombres de los siete pasos y la marca de vencimientos (`547f8bc6` 2026-11-17)
 - ✓ T-349 · Escribir la geometría constante del mapa y los hitos de la línea de plazos (`53b7445e` 2026-11-17)
@@ -1922,7 +1922,7 @@ flowchart LR
 ```mermaid
 flowchart TD
   T340["✓ T-340 · Armar los fixtures de los tres procedimient…"]:::done
-  T341["○ T-341 · Escribir la tabla de 21 estados como test,…"]:::todo
+  T341["✓ T-341 · Escribir la tabla de 21 estados como test,…"]:::done
   T342["✓ T-342 · Preparar el cálculo sin cambiar comportamie…"]:::done
   T343["✓ T-343 · Crear los tipos y nombres de los siete paso…"]:::done
   T344["○ T-344 · Calcular las acciones: pendientes, cierres,…"]:::todo
