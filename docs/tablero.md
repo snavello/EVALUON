@@ -81,7 +81,7 @@ flowchart LR
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
-| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 4 de 7 · Desarrollo | 23/24 | ██████████ 96% |
+| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 5 de 7 · Verificación | 24/24 | ██████████ 100% |
 
 <a id="001"></a>
 
@@ -1875,11 +1875,11 @@ flowchart TD
 
 ## 018 · El proceso a la vista
 
-**Etapa actual:** 4 de 7 · Desarrollo (1 dudas abiertas) · [carpeta](../specs/018-proceso-a-la-vista)
+**Etapa actual:** 5 de 7 · Verificación (1 dudas abiertas) · [carpeta](../specs/018-proceso-a-la-vista)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["✓ 4. Desarrollo"]:::done --> E4["▶ 5. Verificación"]:::active --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1889,12 +1889,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 1 tarea sin terminar.
-- ○ T-361 · Corregir los hallazgos de la medición final (condicional) (pendiente)
+- **Próximo paso:** Verificar: el testeador evaluador cierra las tareas y entrega `informe-pruebas.md`.
 
 ### Qué se hizo
 
-- Etapas completas: Spec, Plan, Tareas.
+- Etapas completas: Spec, Plan, Tareas, Desarrollo.
 - ✓ T-340 · Armar los fixtures de los tres procedimientos de la tabla con el caso chico (`9faa3726` 2026-11-17)
 - ✓ T-341 · Escribir la tabla de 21 estados como test, antes del cálculo (`a8cd09bd` 2026-11-17, `24c1ed15` 2026-11-17)
 - ✓ T-342 · Preparar el cálculo sin cambiar comportamiento (origen de renglones, cuentas públicas, dictamen cargado, guarda de esquema) (`3e720175` 2026-11-17, `6fa0663b` 2026-11-17)
@@ -1916,6 +1915,7 @@ flowchart LR
 - ✓ T-358 · Unificar el vocabulario en pantalla (`d4e5aaca` 2026-11-18, `0fd7f037` 2026-11-18)
 - ✓ T-359 · Cierre técnico: guía visual y glosario (`b6e0dad2` 2026-11-18)
 - ✓ T-360 · Medición final con el procedimiento del piloto y revisión visual
+- ✓ T-361 · Corregir los hallazgos de la medición final (condicional) (`1a18e099` 2026-11-18, `584b952c` 2026-11-18, `dbd4967e` 2026-11-18, `55880748` 2026-11-18, `1796cb31` 2026-11-18, `3598dec3` 2026-11-18)
 - ✓ T-362 · Corregir los hallazgos del corte vertical en el cuadro y en Indicadores (`ffdf004c` 2026-11-18)
 - ✓ T-363 · Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido (`8f440574` 2026-11-18, `6c987481` 2026-11-18, `e5e9ec37` 2026-11-18, `a7e941ad` 2026-11-18)
 
@@ -1944,7 +1944,7 @@ flowchart TD
   T358["✓ T-358 · Unificar el vocabulario en pantalla"]:::done
   T359["✓ T-359 · Cierre técnico: guía visual y glosario"]:::done
   T360["✓ T-360 · Medición final con el procedimiento del pil…"]:::done
-  T361["○ T-361 · Corregir los hallazgos de la medición final…"]:::todo
+  T361["✓ T-361 · Corregir los hallazgos de la medición final…"]:::done
   T362["✓ T-362 · Corregir los hallazgos del corte vertical e…"]:::done
   T363["✓ T-363 · Rehacer las tarjetas del mapa: más anchas,…"]:::done
   T340 --> T341
