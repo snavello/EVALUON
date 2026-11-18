@@ -19,7 +19,8 @@ CLAVES = ("pliego", "matriz", "ofertas", "cumplimiento", "comparacion", "evaluac
 
 
 def _texto(estado):
-    return str(getattr(estado, "value", estado))
+    # El texto que se muestra («Hecho»); `value` es la clave para las hojas de estilo (T-343).
+    return str(getattr(estado, "texto", getattr(estado, "value", estado)))
 
 
 def _casos_y_pasos():
