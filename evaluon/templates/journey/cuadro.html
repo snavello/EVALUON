@@ -1,0 +1,58 @@
+{% extends "journey/seccion_base.html" %}
+{% load static %}
+{% comment %}Cuadro de cumplimiento con el panel lado a lado (018, T-352; REQ-152 a REQ-154, REQ-156): los requisitos del pliego en filas, las ofertas en columnas, el estado de cada celda escrito con todas sus letras y, con ?celda=, el panel del par a la derecha (debajo bajo 1000 px). El estado sale de `_bucket`; los nombres de los pasos, de pasos.py. Sin JavaScript.{% endcomment %}
+
+{% block title %}Cuadro de cumplimiento · {{ procedure.number }} · EVALUON{% endblock %}
+{% block section_css %}<link rel="stylesheet" href="{% static section.css %}"><link rel="stylesheet" href="{% static 'journey/s4_propuesta.css' %}"><link rel="stylesheet" href="{% static 'journey/punto.css' %}"><link rel="stylesheet" href="{% static 'journey/cuadro.css' %}">{% endblock %}
+
+{% block cuerpo %}
+<div class="seccion seccion-evaluacion cuadro">
+  <p class="volver"><a href="{{ tab_url }}">← Volver a Evaluación y dictamen</a></p>
+  <div class="encab-parte"><h2 id="seccion-titulo">Cuadro de cumplimiento</h2></div>
+  <p class="resumen-linea">Lo que pide el pliego, lo que trajo cada oferta y lo que falta decidir. El sistema propone; decide la Comisión.</p>
+
+  <ol class="cu-hilo" aria-label="Los siete pasos del proceso">
+    {% for paso in pasos %}<li{% if paso.numero in pasos_aqui %} class="aca"{% endif %}>Paso {{ paso.numero }} · {{ paso.nombre }}{% if paso.numero in pasos_aqui %}<span class="cu-sr"> (se resuelve en este cuadro)</span>{% endif %}</li>{% endfor %}
+  </ol>
+
+  {% if not total_rows or not columns %}
+  <p class="cu-vacio">Todavía no hay {% if not total_rows %}una matriz de requisitos validada{% else %}ofertas cargadas{% endif %}: el cuadro se arma cuando están el pliego y las ofertas.</p>
+  {% else %}
+  <div class="cu-dos{% if panel %} con-panel{% endif %}">
+    <section class="cu-tabla" aria-label="Requisitos por oferta">
+      <div class="cu-scroll" role="region" aria-label="Cuadro de cumplimiento, requisitos por oferta" tabindex="0">
+        <table class="cu-cuadro">
+          <caption class="cu-sr">Estado de cada requisito del pliego en cada oferta</caption>
+          <thead><tr>
+            <th scope="col" class="cu-req">Requisito del pliego</th>
+            {% for col in columns %}<th scope="col" class="cu-of">Oferta {{ col.number }}<small>{{ col.bidder }}{% if col.total %}<br>{{ col.total }}{% endif %}</small></th>{% endfor %}
+          </tr></thead>
+          {% for group in groups %}
+          <tbody>
+            <tr class="cu-grupo"><th scope="colgroup" colspan="{{ columns|length|add:1 }}">{{ group.label }} · {{ group.rows|length }} requisito{{ group.rows|length|pluralize }}</th></tr>
+            {% for row in group.rows %}
+            <tr>
+              <th scope="row" class="cu-req"><span class="cu-num">{{ row.number }}.</span> {{ row.title }}</th>
+              {% for cell in row.cells %}
+              <td class="cu-c">{% if cell.url %}<a class="cu-cel {{ cell.css }}{% if cell.selected %} sel{% endif %}" id="{{ cell.id }}" href="{{ cell.url }}"{% if cell.selected %} aria-current="true"{% endif %}><span class="cu-sr">{{ cell.label }}: </span>{{ cell.text }}{% if cell.unconfirmed %}<small class="cu-nota">sin confirmar</small>{% endif %}</a>{% else %}<span class="cu-cel {{ cell.css }}" id="{{ cell.id }}"><span class="cu-sr">{{ cell.label }}: </span>{{ cell.text }}</span>{% endif %}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+          {% endfor %}
+          <tfoot><tr>
+            <th scope="row" class="cu-req">Cumple hasta ahora</th>
+            {% for col in columns %}<td class="cu-pie">{% if col.figures %}<b>{{ col.figures.ok }} de {{ col.count }}</b><small>No cumple {{ col.figures.no }} · A decidir {{ col.figures.nd }} · Espera informe {{ col.waiting }}{% if col.without %} · Sin resultado {{ col.without }}{% endif %}</small>{% else %}<span class="cu-sin">Sin evaluar</span>{% endif %}</td>{% endfor %}
+          </tr></tfoot>
+        </table>
+      </div>
+      <p class="cu-ayuda">Cada celda abre el detalle del par a la derecha. «No aplica» no se cuenta en los totales; «sin confirmar» es una propuesta del sistema que nadie confirmó todavía.</p>
+    </section>
+
+    {% if panel %}
+    <aside class="cu-panel s4-prop" id="cu-panel" aria-label="Detalle de la celda elegida">{{ panel }}</aside>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

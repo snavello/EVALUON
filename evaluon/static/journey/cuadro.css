@@ -1,0 +1,66 @@
+/* Cuadro de cumplimiento con el panel lado a lado (feature 018: REQ-152 a REQ-154, REQ-156; T-352).
+   Todo color sale de `var(--…)` de tokens.css (nada en hexadecimal ni `style=`). Cada estado de
+   celda lleva su texto escrito además del color y de un símbolo. Sin lila: no se usan `--ext*`,
+   `--hoy*` ni `--vencido*` (lo vigila test_lila_exclusivo.py). */
+
+.cuadro .cu-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Hilo de los siete pasos (nombres de pasos.py); los dos que se resuelven acá van marcados. */
+.cu-hilo { display: flex; flex-wrap: wrap; gap: .375rem; list-style: none; margin: 0 0 1.25rem; padding: 0; font-size: .8125rem; }
+.cu-hilo li { padding: .25rem .75rem; border-radius: 999px; background: var(--tile); color: var(--ink-2); }
+.cu-hilo li.aca { background: var(--bg); color: var(--ink); font-weight: 700; box-shadow: inset 0 0 0 2px var(--ink); }
+
+.cu-vacio { background: var(--tile); border-radius: var(--r-sm); padding: 1rem 1.25rem; color: var(--ink-2); }
+
+/* Tabla a la izquierda y panel a la derecha; debajo bajo 1000 px. */
+.cu-dos { display: grid; gap: 1rem; align-items: start; }
+.cu-dos.con-panel { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+.cu-panel { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; background: var(--tile); border-radius: var(--r); padding: 1rem 1.25rem; }
+.cu-panel .dos { grid-template-columns: minmax(0, 1fr); }
+.cu-panel .bloque { background: var(--bg); }
+.cu-panel .encab-parte h2 { font-size: 1.05rem; }
+@media (max-width: 1000px) {
+  .cu-dos.con-panel { grid-template-columns: minmax(0, 1fr); }
+  .cu-panel { position: static; max-height: none; overflow: visible; }
+}
+
+.cu-scroll { overflow-x: auto; }
+.cu-scroll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cu-cuadro { border-collapse: collapse; width: 100%; font-size: .875rem; }
+.cu-cuadro th, .cu-cuadro td { padding: .5rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cu-cuadro th { font-weight: 600; text-align: left; color: var(--ink-2); }
+.cu-cuadro th.cu-req { color: var(--ink); font-weight: 500; min-width: 14rem; }
+.cu-num { color: var(--ink-2); font-weight: 600; }
+.cu-cuadro th.cu-of { text-align: center; min-width: 8.5rem; color: var(--ink); }
+.cu-cuadro th.cu-of small { display: block; font-weight: 400; color: var(--ink-2); }
+.cu-cuadro tr.cu-grupo th { background: var(--tile); color: var(--ink); font-size: .8125rem; }
+.cu-cuadro td.cu-c { text-align: center; padding: .3rem; }
+
+/* La celda: borde sólido, símbolo y texto. El estado nunca es solo color. */
+.cu-cel {
+  display: block; border: 1px solid currentColor; border-radius: 6px; padding: .35rem .25rem;
+  font-size: .8125rem; font-weight: 600; line-height: 1.3; text-decoration: none;
+}
+a.cu-cel { cursor: pointer; }
+a.cu-cel:hover { filter: brightness(.96); }
+a.cu-cel:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cu-cel.sel { box-shadow: 0 0 0 3px var(--ink); }
+.cu-cel::before { margin-right: .3rem; font-weight: 700; }
+.cu-cel.ok { color: var(--ok-ink); background: var(--ok-bg); }
+.cu-cel.ok::before { content: "\2713"; }
+.cu-cel.no { color: var(--no-ink); background: var(--no-bg); }
+.cu-cel.no::before { content: "\00D7"; }
+.cu-cel.nd { color: var(--nd-ink); background: var(--nd-bg); }
+.cu-cel.nd::before { content: "?"; }
+/* «Espera informe» y «Sin resultado»: estilo punteado neutro de la maqueta C (sin lila). */
+.cu-cel.esp, .cu-cel.sin { color: var(--ink-2); background: var(--bg); border-style: dashed; }
+.cu-cel.esp::before { content: "\2026"; }
+.cu-cel.sin::before { content: "\2013"; }
+.cu-cel.na { color: var(--ink-3); background: var(--bg); border-style: dotted; }
+.cu-nota { display: block; font-size: .6875rem; font-weight: 500; font-style: italic; }
+
+.cu-cuadro tfoot th, .cu-cuadro tfoot td { border-top: 2px solid var(--ink); border-bottom: 0; }
+.cu-pie { text-align: center; color: var(--ink); }
+.cu-pie small { display: block; font-size: .75rem; color: var(--ink-2); }
+.cu-sin { color: var(--ink-2); }
+.cu-ayuda { margin: .6rem 0 0; font-size: .8125rem; color: var(--ink-2); }
