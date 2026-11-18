@@ -145,7 +145,7 @@ def test_req158_hasta_tres_tareas_y_mas_n_mas(client, caso_varios_en_curso, monk
     carta = tarjetas(html_de(client, caso_varios_en_curso))[6]
     assert re.findall(r'data-accion="(6-pendiente-x\d)"', carta) == [
         f"6-pendiente-x{i}" for i in range(3)]
-    assert "+ 2 más" in carta
+    assert "Ver las 5 tareas" in carta and "+ 2 más" not in carta  # T-361 (A-2): el total, no un resto que la red de seguridad puede dejar corto
     _con_tareas(monkeypatch, 3)
     carta = tarjetas(html_de(client, caso_varios_en_curso))[6]
     assert len(re.findall(r'data-accion="', carta)) == 3 and "más" not in carta
@@ -274,7 +274,7 @@ def test_req158_mas_n_mas_dice_y_hace_lo_mismo(client, caso_varios_en_curso, mon
     html = html_de(client, caso_varios_en_curso)
     carta = tarjetas(html)[6]
     assert ('<a class="mp-mas" href="#paso-6" title="Ver todas las tareas del paso 6 en la lista de '
-            'abajo">+ 2 más</a>') in carta
+            'abajo">Ver las 5 tareas</a>') in carta
     assert 'id="paso-6"' in html[html.index('id="pasos"'):]
 
 

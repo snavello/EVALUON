@@ -223,3 +223,15 @@ def test_req156_el_inicio_no_trae_estilos_en_linea_ni_colores_sueltos(client, ca
     assert not re.search(r"#[0-9A-Fa-f]{3,8}\b", css)
     assert "--hoy" not in css and "--vencido" not in css
     assert not [t for t in re.findall(r"font-size:\s*([\d.]+)rem", css) if float(t) < .75]
+
+
+def test_T361_V1_V2_V3_el_encabezado_del_inicio_y_su_alineacion(client, caso_varios_en_curso):
+    """REQ-143 (T-361): el camino del inicio dice «Procedimientos» (sin el selector «Elegir
+    procedimiento»), el contenido toma el margen lateral del encabezado y la barra de pasos deja
+    aire entre rótulos."""
+    entrar(client, caso_varios_en_curso.user)
+    html = client.get(RAIZ).content.decode()
+    assert "Elegir procedimiento" not in html and "Ir a un procedimiento" in html
+    css = CSS.read_text(encoding="utf-8")
+    assert "body.pag-inicio .wrap { padding: 0 clamp(14px, 3vw, 36px); }" in css
+    assert ".ini-foto .pr-foto { gap: .5rem 1.25rem; }" in css
