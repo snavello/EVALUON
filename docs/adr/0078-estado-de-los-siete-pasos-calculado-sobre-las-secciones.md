@@ -1,6 +1,6 @@
 # ADR-0078 · El estado de los siete pasos se calcula sobre las secciones y etapas existentes, sin guardar nada
 
-Estado: propuesto · Fecha: 2026-11-17 · Propuso: Planificador (plan 018) · Decidió: —
+Estado: aceptado · Fecha: 2026-11-17 · Propuso: Planificador (plan 018) · Decidió: responsable del proyecto (2026-11-17, al aprobar el plan 018)
 
 ## Contexto
 

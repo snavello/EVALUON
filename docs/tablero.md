@@ -81,7 +81,7 @@ flowchart LR
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
-| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 2 de 7 · Plan | — | — |
+| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 3 de 7 · Tareas | — | — |
 
 <a id="001"></a>
 
@@ -1875,11 +1875,11 @@ flowchart TD
 
 ## 018 · El proceso a la vista
 
-**Etapa actual:** 2 de 7 · Plan (1 dudas abiertas) · [carpeta](../specs/018-proceso-a-la-vista)
+**Etapa actual:** 3 de 7 · Tareas (1 dudas abiertas) · [carpeta](../specs/018-proceso-a-la-vista)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["▶ 3. Tareas"]:::active --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1889,28 +1889,29 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+- **Próximo paso:** El planificador desglosa el plan en `tasks.md`.
 
 ### Qué se hizo
 
-- Etapas completas: Spec.
+- Etapas completas: Spec, Plan.
 
 ### Requisitos
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-143 | El proceso de un procedimiento se muestra en siete pasos, siempre con estos nombres y en este orden de lectura: 1 Pliego publicado, 2 Matriz de requisitos, 3 Ofertas recibidas, 4 Cumplimiento de cada oferta, 5 Comparación de ofertas, 6 Evaluación de la Comisión, 7 Dictamen. El número da el orden de lectura, no un orden obligatorio de trabajo. | — | — |
+| REQ-143 | El proceso de un procedimiento se muestra en siete pasos, siempre con estos nombres y en este orden de lectura: 1 Carga de pliego, 2 Matriz de requisitos de pliego, 3 Recepción de ofertas, 4 Cumplimiento de ofertas (matriz), 5 Comparación de ofertas, 6 Evaluación Comisión, 7 Dictamen. El número da el orden de lectura, no un orden obligatorio de trabajo. | — | — |
 | REQ-144 | Cada paso tiene su propio estado, independiente del de los demás: «Hecho», «En curso», «Todavía no» o «Con error». Varios pasos pueden estar en curso a la vez. No existe un «paso actual» del procedimiento. | — | — |
 | REQ-145 | El estado de cada paso se calcula con los datos que el sistema ya tiene; no se guarda una fase del procedimiento ni se pide a nadie que la marque. Un paso «Hecho» vuelve a «En curso» cuando aparece algo nuevo que le corresponde (por ejemplo, una circular modificatoria o un documento agregado a una oferta). | — | — |
-| REQ-146 | La portada de un procedimiento muestra, en este orden: la foto de los siete pasos con su estado; la lista «Qué se puede hacer ahora»; y los siete pasos, cada uno con un resumen de una línea de lo que ya hay y, si está en curso, lo que le falta con su acción a mano. | — | — |
-| REQ-147 | «Qué se puede hacer ahora» lista las acciones disponibles de cualquier paso, sin orden obligatorio entre ellas; cada una dice a qué paso pertenece. Una acción que depende de otra todavía no hecha no aparece en la lista: el paso dice de qué depende. | — | — |
+| REQ-146 | La portada de un procedimiento muestra, en este orden: el mapa del proceso (REQ-158); la lista «Qué se puede hacer ahora»; y los siete pasos, cada uno con un resumen de una línea de lo que ya hay y, si está en curso, lo que le falta con su acción a mano. Los faltantes menores (un dato o un documento opcional que falta completar, como el número de expediente o una hoja de compliance) no cambian el estado del paso: un paso «Hecho» con faltantes muestra el aviso «N advertencias» con su detalle. | — | — |
+| REQ-147 | «Qué se puede hacer ahora» lista todo lo que falta y se puede hacer en cualquier paso: los pendientes que el sistema ya cuenta, las acciones de cierre (proponer y validar la matriz, tomar del Portal lo que falta, agregar las ofertas del acta, evaluar las ofertas, resolver un error, cargar el dictamen) y cada faltante que hoy muestra la línea «Hay / Falta» de las secciones. No hay orden obligatorio entre ellas; cada una dice a qué paso pertenece. Una acción que depende de otra todavía no hecha no aparece en la lista: el paso dice de qué depende. | — | — |
 | REQ-148 | Los plazos importantes (REQ-131) se ven en la portada del procedimiento. El tablero de mosaicos del primer panel (REQ-128) deja de ser la portada y queda a un clic con el nombre «Indicadores», sin perder ningún dato. | — | — |
 | REQ-149 | Las cinco secciones y sus tableros (features 014 y 017) se mantienen. Cada paso y cada acción de la portada llevan al lugar de la sección donde se resuelven. | — | — |
 | REQ-150 | El inicio de la aplicación es la lista de procedimientos abiertos. Por cada uno muestra: nombre y número, el estado de los siete pasos, qué se puede hacer ahora y el vencimiento más próximo. Enmienda a REQ-128 solo en esto: entrar al sistema ya no abre el último procedimiento visto. Un procedimiento pasa solo a «Terminados» cuando su dictamen está cargado, y vuelve solo a la lista de abiertos si el dictamen se quita; no se guarda un estado final ni lo archiva una persona. | — | — |
 | REQ-151 | El inicio muestra todas las acciones disponibles de todos los procedimientos abiertos, agrupadas por procedimiento. Cada procedimiento se puede colapsar y expandir: colapsado muestra su línea (REQ-150) y cuántas acciones tiene; expandido lista sus acciones, cada una con un botón que lleva a resolverla. | — | — |
-| REQ-152 | Hay un cuadro de cumplimiento: los requisitos de la matriz vigente en filas, agrupados por tipo, y las ofertas en columnas con su total. Cada celda muestra con texto uno de estos estados: «Cumple», «No cumple», «A decidir», «Espera informe» o «Sin resultado». Al pie, cuántos requisitos cumple cada oferta hasta ahora. Se llega desde los pasos 4 y 6. | — | — |
+| REQ-152 | Hay un cuadro de cumplimiento: los requisitos de la matriz vigente en filas, agrupados por tipo, y las ofertas en columnas con su total. Cada celda muestra con texto uno de estos estados: «Cumple», «No cumple», «A decidir», «Espera informe», «Sin resultado» o «No aplica» (no cuenta en los totales). «A decidir» es solo lo que el sistema no pudo concluir (no determinado); un «Cumple» o «No cumple» propuesto que ninguna persona confirmó conserva su texto con la leyenda «sin confirmar». Al pie, cuántos requisitos cumple cada oferta hasta ahora. Se llega desde los pasos 4 y 6. | — | — |
 | REQ-153 | El cuadro se puede filtrar por: todos, con algo pendiente, a decidir, no cumple y los que esperan informe técnico. Un grupo donde todas las ofertas cumplen todo se muestra resumido en una línea. | — | — |
 | REQ-154 | Al tocar una celda se ve, sin salir del cuadro: qué pide el pliego (texto y dónde está), qué trajo esa oferta (texto y dónde está), por qué el sistema propone lo que propone, y las mismas acciones de decisión que existen hoy. Desde ahí se pasa al siguiente punto a decidir. | — | — |
 | REQ-155 | Vocabulario único en pantalla: «Procedimientos» (no «Expedientes») para la lista; «Matriz de requisitos» para la lista de lo que pide el pliego; «Cuadro de cumplimiento» para requisitos por ofertas. Los nombres de los siete pasos no cambian de una pantalla a otra. | — | — |
 | REQ-156 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). | — | — |
-| REQ-157 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece el vencimiento, en el inicio y en la portada del procedimiento. En esas pantallas el lila no se usa para ninguna otra cosa. | — | — |
+| REQ-158 | El mapa del proceso es un grafo de los siete pasos. Cada paso es una tarjeta con su número, nombre, un dato clave, su estado escrito y con su color, y sus tareas (hasta 3 y «+N más»; las advertencias y lo que espera a otro paso se distinguen). Las líneas muestran de qué depende cada paso: 1→2, 2→4, 3→4, 3→5, 4→5, 4→6, 4→7 y 6→7; una línea llena dice que lo anterior está completo y una punteada, que todavía puede cambiar. Debajo, una línea de plazos con los hitos que el sistema conoce (REQ-131) y el día de hoy. Cada tarjeta y cada tarea llevan a donde se resuelven. Un selector «Mapa / Lista» permite ver solo la lista de pasos, y en pantallas angostas se muestra la lista. «Vence hoy» (lila) y «Vencido» (rojo brillante) marcan la tarjeta y la tarea (REQ-157). No se muestra porcentaje de avance. | — | — |
+| REQ-157 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece el vencimiento, en el inicio y en la portada del procedimiento. En esas pantallas el lila no se usa para ninguna otra cosa. Lo que ya venció y sigue sin resolverse se marca en rojo brillante con el texto «Vencido», hasta que se resuelva. | — | — |

@@ -1,6 +1,6 @@
 # ADR-0080 · Mapa del proceso: tarjetas de HTML y conectores SVG con geometría constante
 
-Estado: propuesto · Fecha: 2026-11-17 · Propuso: Planificador (plan 018) · Decidió: —
+Estado: aceptado · Fecha: 2026-11-17 · Propuso: Planificador (plan 018) · Decidió: responsable del proyecto (2026-11-17, al aprobar el plan 018)
 
 ## Contexto
 

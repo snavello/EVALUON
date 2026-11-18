@@ -409,7 +409,7 @@ Qué significa cada prefijo:
 | **T-338** | 017 | Pliego y matriz más claros: Hay/Falta coherente, cumplimiento desglosado, renglones técnicos con su bien y cláusulas… | terminada |
 | **T-339** | 017 | Renglones técnicos de Evaluación sin repetir (mismo criterio que T-338) | terminada |
 
-## Requisitos (148)
+## Requisitos (149)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -546,11 +546,11 @@ Qué significa cada prefijo:
 | **REQ-140** | 017 | Mientras corre un proceso largo (evaluar ofertas, proponer la matriz, leer un documento, explorar el Portal), se ve su… |  |
 | **REQ-141** | 017 | Los tableros muestran solo datos que el sistema tiene; lo que todavía no existe se muestra como «falta» o «pendiente»… |  |
 | **REQ-142** | 017 | La marca sigue siendo el logotipo «EVALU ON» y el isotipo «E + on» aprobados el 2026-10-13, con la misma forma, el… |  |
-| **REQ-143** | 018 | El proceso de un procedimiento se muestra en siete pasos, siempre con estos nombres y en este orden de lectura: 1… |  |
+| **REQ-143** | 018 | El proceso de un procedimiento se muestra en siete pasos, siempre con estos nombres y en este orden de lectura: 1 Carga… |  |
 | **REQ-144** | 018 | Cada paso tiene su propio estado, independiente del de los demás: «Hecho», «En curso», «Todavía no» o «Con error».… |  |
 | **REQ-145** | 018 | El estado de cada paso se calcula con los datos que el sistema ya tiene; no se guarda una fase del procedimiento ni se… |  |
-| **REQ-146** | 018 | La portada de un procedimiento muestra, en este orden: la foto de los siete pasos con su estado; la lista «Qué se puede… |  |
-| **REQ-147** | 018 | «Qué se puede hacer ahora» lista las acciones disponibles de cualquier paso, sin orden obligatorio entre ellas; cada… |  |
+| **REQ-146** | 018 | La portada de un procedimiento muestra, en este orden: el mapa del proceso (REQ-158); la lista «Qué se puede hacer… |  |
+| **REQ-147** | 018 | «Qué se puede hacer ahora» lista todo lo que falta y se puede hacer en cualquier paso: los pendientes que el sistema ya… |  |
 | **REQ-148** | 018 | Los plazos importantes (REQ-131) se ven en la portada del procedimiento. El tablero de mosaicos del primer panel… |  |
 | **REQ-149** | 018 | Las cinco secciones y sus tableros (features 014 y 017) se mantienen. Cada paso y cada acción de la portada llevan al… |  |
 | **REQ-150** | 018 | El inicio de la aplicación es la lista de procedimientos abiertos. Por cada uno muestra: nombre y número, el estado de… |  |
@@ -560,9 +560,10 @@ Qué significa cada prefijo:
 | **REQ-154** | 018 | Al tocar una celda se ve, sin salir del cuadro: qué pide el pliego (texto y dónde está), qué trajo esa oferta (texto y… |  |
 | **REQ-155** | 018 | Vocabulario único en pantalla: «Procedimientos» (no «Expedientes») para la lista; «Matriz de requisitos» para la lista… |  |
 | **REQ-156** | 018 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). |  |
+| **REQ-158** | 018 | El mapa del proceso es un grafo de los siete pasos. Cada paso es una tarjeta con su número, nombre, un dato clave, su… |  |
 | **REQ-157** | 018 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece… |  |
 
-## Decisiones (ADR) (77)
+## Decisiones (ADR) (80)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -643,6 +644,9 @@ Qué significa cada prefijo:
 | **ADR-0075** |  | Pase de página entre secciones: transiciones entre documentos declaradas en CSS | aceptado |
 | **ADR-0076** |  | Tablero de mosaicos: HTML dibujado por el servidor, gráficos en SVG y un script de unas 60 líneas | aceptado |
 | **ADR-0077** |  | Datos que la maqueta usa y el sistema no tiene: monto estimado, vencimiento del mantenimiento y avance | aceptado |
+| **ADR-0078** |  | El estado de los siete pasos se calcula sobre las secciones y etapas existentes, sin guardar nada | aceptado |
+| **ADR-0079** |  | Inicio de la aplicación: lista de abiertos calculada en el servidor y presupuesto de 2 segundos | aceptado |
+| **ADR-0080** |  | Mapa del proceso: tarjetas de HTML y conectores SVG con geometría constante | aceptado |
 
 ## Decisiones y definiciones de las instrucciones (D-NN) (68)
 

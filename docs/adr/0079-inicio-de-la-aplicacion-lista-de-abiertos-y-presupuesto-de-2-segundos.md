@@ -1,6 +1,6 @@
 # ADR-0079 · Inicio de la aplicación: lista de abiertos calculada en el servidor y presupuesto de 2 segundos
 
-Estado: propuesto · Fecha: 2026-11-17 · Propuso: Planificador (plan 018) · Decidió: —
+Estado: aceptado · Fecha: 2026-11-17 · Propuso: Planificador (plan 018) · Decidió: responsable del proyecto (2026-11-17, al aprobar el plan 018)
 
 ## Contexto
 
