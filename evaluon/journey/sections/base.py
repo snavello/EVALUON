@@ -14,7 +14,7 @@ lista con faltantes de sus temas a la vista. Una etapa opcional pendiente (el Po
 cuenta como falta.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from django.urls import reverse
 
@@ -40,6 +40,9 @@ class Missing:
     action: str = ""
     kind: str = ""  # con más de MISSING_LIMIT del mismo tipo se agrupan en una línea
     noun: str = ""  # p. ej. «ofertas sin informe técnico»
+    # De dónde sale (plan 018, T-342): `etapa:<clave>` o la clave del tema. Lo completa
+    # `build_section`; el tema puede ponerlo él mismo y se respeta.
+    origen: str = ""
 
 
 @dataclass(frozen=True)
@@ -61,10 +64,16 @@ class Item:
     why: str = ""  # por qué importa, escrito por el tema que sabe el motivo
     open: str = ""  # id del detalle del tablero donde está el formulario de la acción
     post: tuple | None = None  # (url, ((campo, valor), ...)) de una acción de un solo clic
+    origen: str = ""  # como en `Missing`: `etapa:<clave>` o la clave del tema (T-342)
 
 
 GROUP_LIMIT = 8
 MISSING_LIMIT = 3
+
+
+def _con_origen(one, origen):
+    """El renglón con su origen: si el tema ya lo puso se respeta, si no, es la clave del tema."""
+    return one if one.origen else replace(one, origen=origen)
 
 
 def group_items(items, limit=GROUP_LIMIT):
@@ -83,7 +92,8 @@ def group_items(items, limit=GROUP_LIMIT):
         elif item.kind not in done:
             done.add(item.kind)
             grouped.append(Item(f"{len(mine)} {item.noun}", item.group_url or item.url,
-                                sum(i.count for i in mine), item.group_action))
+                                sum(i.count for i in mine), item.group_action,
+                                origen=item.origen))
     return grouped
 
 
@@ -100,7 +110,8 @@ def group_missing(missing, limit=MISSING_LIMIT):
             grouped.append(one)
         elif one.kind not in done:
             done.add(one.kind)
-            grouped.append(Missing(f"{len(mine)} {one.noun}", one.url, one.action))
+            grouped.append(Missing(f"{len(mine)} {one.noun}", one.url, one.action,
+                                   origen=one.origen))
     return grouped
 
 
@@ -223,18 +234,20 @@ def build_section(module, user, procedure, stages_by_key):
 
     detailed = {key for status in statuses for key in status.detailed_stages}
     pending_items = [Item(f"{s.label}: {s.pending} por decidir", s.decide_url or s.view_url,
-                          s.pending) for s in stages if s.pending and s.key not in detailed]
+                          s.pending, origen=f"etapa:{s.key}")
+                     for s in stages if s.pending and s.key not in detailed]
     suggestion_items = [Item(f"{s.label}: {s.suggestions} del sistema", s.view_url,
-                             s.suggestions) for s in stages
+                             s.suggestions, origen=f"etapa:{s.key}") for s in stages
                         if s.suggestions and s.key not in detailed]
-    missing = [Missing(s.detail, s.view_url, "Ir") for s in stages
+    missing = [Missing(s.detail, s.view_url, "Ir", origen=f"etapa:{s.key}") for s in stages
                if s.state == stage_base.PENDIENTE and not s.optional]
     tema_missing = []
-    for status in statuses:
-        pending_items += status.pending_items
-        suggestion_items += status.suggestion_items
-        missing += status.missing
-        tema_missing += status.missing
+    for tema, status in zip(tema_modules, statuses):
+        pending_items += [_con_origen(i, tema.KEY) for i in status.pending_items]
+        suggestion_items += [_con_origen(i, tema.KEY) for i in status.suggestion_items]
+        found = [_con_origen(m, tema.KEY) for m in status.missing]
+        missing += found
+        tema_missing += found
 
     summary = (module.summary(user, procedure, stages) if hasattr(module, "summary")
                else tuple((s.label, s.detail) for s in stages if s.detail))
@@ -246,7 +259,8 @@ def build_section(module, user, procedure, stages_by_key):
     else:
         said = " ".join(detail for _, detail in summary)
         shown_missing = [Missing(m.text, m.url if (m.url or "").startswith("/expedientes/")
-                                 else None, m.action) for m in missing if m.text not in said]
+                                 else None, m.action, origen=m.origen)
+                         for m in missing if m.text not in said]
 
     missing = group_missing(missing)
     tema_missing = group_missing(tema_missing)
