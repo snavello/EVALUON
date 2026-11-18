@@ -294,7 +294,11 @@ def status(user, procedure):
     """Lo que hay, de dónde vino y lo que falta. No suma pendientes: nada espera decisión acá."""
     data = _portal_data(procedure)
     schedule = _schedule(data)
-    take = _portal_link_url(procedure)
+    # El alta de un procedimiento la abren el operador y el evaluador; a quien no puede (403) se le
+    # dice lo que falta, sin enlace (T-362, H-A2). La regla es la de `s1_portal.can_load`.
+    from evaluon.journey.temas.s1_portal import can_load
+
+    take = _portal_link_url(procedure) if can_load(user) else None
     missing = []
     if data is None:
         missing.append(Missing("Falta el expediente, el cronograma y las garantías", take,

@@ -150,14 +150,11 @@ def _panel(request, procedure, selected, filtro):
                                            filtro=filtro or None)
     except Http404:
         return ""
-    html = render_to_string("journey/_par.html", context, request=request)
-    if not request.user.commission_role:
-        # Quien no tiene rol de la Comisión no puede abrir el archivo original (403): no se le
-        # ofrece el enlace, queda el texto. `_par.html` no cambia (la página del par es igual).
-        base = re.escape(reverse("offers:document_original", args=[123456789])).replace(
-            "123456789", r"\d+")
-        html = re.sub(rf'<a href="{base}[^"]*">(.*?)</a>', r"\1", html, flags=re.S)
-    return html
+    # Quien no tiene rol de la Comisión no puede abrir el archivo original (403): la plantilla no le
+    # ofrece el enlace y dibuja solo el nombre. El HTML sale entero de la plantilla (nada se reemplaza
+    # a mano sobre el texto ya dibujado); `_par.html` no cambia sin `sin_original`.
+    context["sin_original"] = not request.user.commission_role
+    return render_to_string("journey/_par.html", context, request=request)
 
 
 @require_GET

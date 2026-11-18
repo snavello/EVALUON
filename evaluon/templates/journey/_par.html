@@ -1,4 +1,4 @@
-{% comment %}Cuerpo del par oferta × requisito (T-351, REQ-154): lo usan la página del par (desde="par", por omisión) y el panel del cuadro de cumplimiento (desde="cuadro"). Los formularios envían a la misma ruta de decisión; `desde` (y `filtro`, si viene) solo dicen adónde se vuelve.{% endcomment %}  {% if desde != "cuadro" %}<p class="volver"><a href="{{ tab_url }}#ev-{{ page.requirement.number }}">← Volver a Evaluación</a></p>{% endif %}
+{% comment %}Cuerpo del par oferta × requisito (T-351, REQ-154): lo usan la página del par (desde="par", por omisión) y el panel del cuadro de cumplimiento (desde="cuadro"). Los formularios envían a la misma ruta de decisión; `desde` (y `filtro`, si viene) solo dicen adónde se vuelve.  `sin_original` (el panel del cuadro para quien no tiene rol de la Comisión, T-362): la cita dice el documento y la página sin enlace al archivo original, que esa persona no puede abrir; por omisión no está y la página del par queda igual.{% endcomment %}  {% if desde != "cuadro" %}<p class="volver"><a href="{{ tab_url }}#ev-{{ page.requirement.number }}">← Volver a Evaluación</a></p>{% endif %}
   <div class="encab-parte">
     <h2{% if desde != "cuadro" %} id="seccion-titulo"{% endif %}>Oferta {{ page.offer.number }} × requisito {{ page.requirement.number }}</h2>
   </div>
@@ -21,7 +21,7 @@
       {% else %}{% for c in page.requirement_citations %}<blockquote class="cita">{{ c.text }}</blockquote>{% empty %}<p class="suave">Este requisito no tiene cita guardada.</p>{% endfor %}{% endif %}
       <p class="ayuda">Matriz versión {{ page.run.matrix_version.number }}</p></div>
     <div class="bloque"><div class="bloque-cab"><h3>Lo que presentó la oferta</h3></div>
-      {% for c in page.offer_citations %}<blockquote class="cita">{{ c.text }}</blockquote><p class="ayuda"><a href="{% url 'offers:document_original' c.document.pk %}#page={{ c.page }}">{{ c.document.title }} · página {{ c.page }}</a></p>
+      {% for c in page.offer_citations %}<blockquote class="cita">{{ c.text }}</blockquote><p class="ayuda">{% if sin_original %}{{ c.document.title }} · página {{ c.page }}{% else %}<a href="{% url 'offers:document_original' c.document.pk %}#page={{ c.page }}">{{ c.document.title }} · página {{ c.page }}</a>{% endif %}</p>
       {% if c.by_vision %}{% include "journey/_cita_vision.html" with document_id=c.document_id page=c.page %}
       <figure class="vision-page"><img src="{% url 'assessment:vision_page' page.offer.pk page.requirement.pk c.document.pk c.page %}" alt="Imagen de la página {{ c.page }} de {{ c.document.title }}, que el sistema leyó por visión" width="480" loading="lazy"><figcaption class="ayuda">Página {{ c.page }} tal como la vio el sistema.</figcaption></figure>{% endif %}
       {% empty %}<p class="suave">Sin texto de la oferta que respalde una conclusión.{% if read_note %} {{ read_note }}{% endif %}</p>{% endfor %}
