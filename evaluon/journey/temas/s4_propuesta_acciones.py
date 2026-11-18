@@ -69,7 +69,7 @@ def cuadro_url(procedure, offer_id, requirement_id, filtro=""):
     query = f"celda={offer_id}-{requirement_id}"
     if filtro in FILTROS_CUADRO:
         query += f"&filtro={filtro}"
-    return reverse("expedientes:portada", args=[procedure.pk]) + f"cuadro/?{query}"
+    return reverse("expedientes:cuadro", args=[procedure.pk]) + f"?{query}"
 
 
 def back(procedure, text, ok=True, *, pair=None, anchor=ANCHOR, cuadro=None):

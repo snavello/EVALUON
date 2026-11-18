@@ -121,7 +121,7 @@ def _paso1(c):
     documentos = s2_documentos.documents_of(c.procedure)
     hay_pliego = any(d.kind == DocumentKind.PLIEGO for d in documentos)
     anexos = sum(1 for d in documentos if d.kind != DocumentKind.PLIEGO)
-    circulares = len(s3_circulares._states(c.procedure))
+    circulares = len(s3_circulares.states(c.procedure))
     paso.dato = (f"Pliego, {_plural(anexos, 'anexo', 'anexos')}, "
                  f"{_plural(circulares, 'circular', 'circulares')}" if hay_pliego
                  else "Sin pliego cargado")
@@ -153,7 +153,7 @@ def _paso2(c):
     paso = pasos.Paso.vacio(pasos.POR_NUMERO[2], c.procedure)
     etapa, pliego = c.etapas["matriz"], c.etapas["pliego"]
     version = s2_matriz.latest_version(c.procedure)
-    circulares = circular_version.pending(c.procedure, s3_circulares._states(c.procedure))
+    circulares = circular_version.pending(c.procedure, s3_circulares.states(c.procedure))
     if version is None:
         paso.dato = "Sin versión de la matriz"
     else:

@@ -104,6 +104,9 @@ def _states(procedure):
     return memo.once(("s3_circulares", procedure.pk),
                      lambda: circular_version.states(procedure))
 
+# Nombre público: lo usan otros módulos (T-359).
+states = _states
+
 
 def portal_url(procedure):
     """Al bloque del Portal de este procedimiento, en su pestaña «Procedimiento» (T-232, O-3):

@@ -75,9 +75,6 @@ body.procedimientos .matriz td.n, body.procedimientos .matriz th.n { font-family
 body.procedimientos .num { font-family: var(--f); font-variant-numeric: tabular-nums; }
 @media (hover: hover) { body.procedimientos .matriz tbody tr:hover { background: var(--tile-h); } }
 /* El listado va sobre una superficie propia, no dentro de un mosaico */
-body.procedimientos #t-expedientes { background: var(--tile); border-radius: var(--r); overflow: hidden; }
-body.procedimientos #t-expedientes th, body.procedimientos #t-expedientes td { padding: .875rem 1rem; }
-body.procedimientos #t-expedientes tbody th a { font-weight: 600; }
 
 /* Etiquetas: pastilla; el lima resalta solo lo que espera a la Comisión */
 body.procedimientos .tag {

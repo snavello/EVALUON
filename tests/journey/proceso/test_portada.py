@@ -131,7 +131,7 @@ def test_req148_abrir_indicadores_lleva_al_primer_panel_con_su_titulo(client, ca
     panel = client.get(destino)
     assert panel.status_code == 200
     contenido = panel.content.decode()
-    assert ">Indicadores</h2>" in contenido
+    assert ">Indicadores</p>" in contenido
     assert f'href="{url_de(caso)}">Volver al proceso</a>' in contenido
     assert 'id="ingreso"' in contenido and 'id="detalles"' in contenido
 

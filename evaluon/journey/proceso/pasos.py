@@ -48,23 +48,21 @@ TEXTOS_MARCA = {MARCA_HOY: "Vence hoy", MARCA_VENCIDO: "Vencido"}
 
 @dataclass(frozen=True)
 class DefPaso:
-    """La definición fija de un paso. `seccion` es la sección de `expedientes:` donde se
-    resuelve por omisión."""
+    """La definición fija de un paso. Dónde se resuelve lo dice `DESTINOS`."""
 
     numero: int
     clave: str
     nombre: str
-    seccion: str
 
 
 PASOS = (
-    DefPaso(1, "pliego", "Carga de pliego", "pliego"),
-    DefPaso(2, "matriz", "Matriz de requisitos de pliego", "pliego"),
-    DefPaso(3, "ofertas", "Recepción de ofertas", "ofertas"),
-    DefPaso(4, "cumplimiento", "Cumplimiento de ofertas (matriz)", "evaluacion"),
-    DefPaso(5, "comparacion", "Comparación de ofertas", "procedimiento"),
-    DefPaso(6, "evaluacion", "Evaluación Comisión", "evaluacion"),
-    DefPaso(7, "dictamen", "Dictamen", "evaluacion"),
+    DefPaso(1, "pliego", "Carga de pliego"),
+    DefPaso(2, "matriz", "Matriz de requisitos de pliego"),
+    DefPaso(3, "ofertas", "Recepción de ofertas"),
+    DefPaso(4, "cumplimiento", "Cumplimiento de ofertas (matriz)"),
+    DefPaso(5, "comparacion", "Comparación de ofertas"),
+    DefPaso(6, "evaluacion", "Evaluación Comisión"),
+    DefPaso(7, "dictamen", "Dictamen"),
 )
 
 POR_NUMERO = {p.numero: p for p in PASOS}
