@@ -8,7 +8,8 @@ escriben y no deciden estados (P3). Tres familias, todas con un `Accion` (`pasos
   su `origen` (`PASO_DE_ORIGEN`) y agrupados por `(paso, kind)` con la cuenta sumada. La suma de
   sus cuentas es `Overview.pending` menos las de Normativas. El `par` de la evaluación (paso 6)
   se parte con `s4_propuesta._bucket`, la definición única del estado de una celda, en «Decidir N
-  puntos no determinados», «Revisar N «no cumple»» y «Confirmar N propuestas «cumple»».
+  puntos no determinados», «Revisar N «no cumple»» y «Confirmar N propuestas «cumple»»; cada
+  una lleva al cuadro de cumplimiento con su filtro y la primera celda abierta (T-353).
 - **Cierres** (`tipo = cierre`, cuenta 0): siete acciones, cada una con su disparador.
 - **Faltantes** (`tipo = faltante`, cuenta 0): los `Missing` de `Section.tema_missing` que ninguna
   línea de pendiente o de cierre cubre. No cambian el estado del paso: cada uno es además una
@@ -41,6 +42,8 @@ from evaluon.journey.window import plain_reason
 from evaluon.offers.models import DocumentKind as OfferDocumentKind
 from evaluon.offers.services import document_history
 from evaluon.offers.services.offers import offer_ids_with_documents
+from evaluon.portal.models import ItemState
+from evaluon.tenders.models import RequirementClass
 from evaluon.tenders.services.validation import latest_validated
 
 TOPE_VISIBLES = 6
@@ -139,19 +142,50 @@ def _secciones(overview):
 # --- Pendientes -----------------------------------------------------------------------------------
 
 
+def _url_celda(procedure, oferta, requisito, filtro):
+    """El cuadro con su filtro y la celda abierta, parado en ella: pliego y oferta lado a lado."""
+    ancla = f"c-{oferta}-{requisito}"
+    return (reverse("expedientes:cuadro", args=[procedure.pk])
+            + f"?filtro={filtro}&celda={oferta}-{requisito}#{ancla}")
+
+
 def _pares_por_estado(user, procedure):
-    """`{decidir, no_cumple, cumple}`: los pares `propuesto` de las filas no técnicas, partidos por
-    `s4_propuesta._bucket`. Los de las filas técnicas se deciden con el ok del informe."""
+    """`{decidir, no_cumple, cumple}`: `(cuenta, url)` de los pares `propuesto` de las filas no
+    técnicas, partidos por `s4_propuesta._bucket`. Los de las filas técnicas se deciden con el ok
+    del informe. La `url` lleva al cuadro, con el filtro de la línea y la PRIMERA celda de su
+    grupo, en el orden del cuadro (tipo de requisito, fila, oferta): el panel abre solo (REQ-154).
+    En «Decidir» se prefiere la primera celda «no determinada» (filtro `a-decidir`); si lo único
+    que hay es «sin resultado» o «no aplica», el filtro es `pendiente`, que sí las muestra."""
     with permissions.viewing(user):
         page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     tecnicas = s4_propuesta._technical_cells(page)
     cuentas = {K_DECIDIR: 0, K_NO_CUMPLE: 0, K_CUMPLE: 0}
-    for clave, celda in page.cells.items():
-        if celda.state != matrix_service.PENDING or clave in tecnicas:
-            continue
-        balde = s4_propuesta._bucket(celda)
-        cuentas[{"ok": K_CUMPLE, "no": K_NO_CUMPLE}.get(balde, K_DECIDIR)] += 1
-    return cuentas
+    primeras = {}  # (kind, balde) -> (oferta, requisito), la primera en el orden del cuadro
+    for tipo in (RequirementClass.FORMAL, RequirementClass.ECONOMICO, RequirementClass.TECNICO):
+        for requisito in (r for r in page.requirements if r.category == tipo):
+            for oferta in page.offers:
+                clave = (oferta.pk, requisito.pk)
+                celda = page.cells[clave]
+                if celda.state != matrix_service.PENDING or clave in tecnicas:
+                    continue
+                balde = s4_propuesta._bucket(celda)
+                kind = {"ok": K_CUMPLE, "no": K_NO_CUMPLE}.get(balde, K_DECIDIR)
+                cuentas[kind] += 1
+                if celda.result is not None:
+                    primeras.setdefault((kind, balde), clave)
+    resultado = {}
+    for kind, n in cuentas.items():
+        if kind == K_DECIDIR:
+            nd = primeras.get((kind, "nd"))
+            otra = next((v for (k, _), v in primeras.items() if k == kind), None)
+            url = (_url_celda(procedure, *nd, "a-decidir") if nd
+                   else _url_celda(procedure, *otra, "pendiente") if otra else "")
+        else:
+            primera = next((v for (k, _), v in primeras.items() if k == kind), None)
+            filtro = "no-cumple" if kind == K_NO_CUMPLE else "pendiente"
+            url = _url_celda(procedure, *primera, filtro) if primera else ""
+        resultado[kind] = (n, url)
+    return resultado
 
 
 # El rótulo del botón es el verbo de su línea (los cuatro «Resolver» seguidos no se distinguían).
@@ -243,11 +277,10 @@ def _pendientes(user, procedure, overview):
                                      url, post))
     if (6, "par") in grupos:
         base = grupos[(6, "par")]["primero"]
-        url = base.group_url or base.url or ""
-        for kind, n in _pares_por_estado(user, procedure).items():
+        for kind, (n, url) in _pares_por_estado(user, procedure).items():
             if n:
                 acciones.append(pasos.Accion(6, pasos.PENDIENTE, kind, _texto_pares(kind, n), n,
-                                             BOTON_DE_PAR[kind], url))
+                                             BOTON_DE_PAR[kind], url or base.group_url or base.url or ""))
     return acciones
 
 
@@ -328,6 +361,14 @@ def _cierres(procedure, overview, pendientes, plazos, hoy, dictamen_cargado, hec
                 PASO_DE_ETAPA[clave], pasos.CIERRE, f"{K_ERROR}_{clave}",
                 f"Resolver el error: «{plain_reason(etapa.error)}»", 0, "Ver", etapa.view_url or ""))
 
+    if not dictamen_cargado:
+        portal = s4_dictamen.portal_dictamen(procedure)
+        if portal is not None and portal.state == ItemState.FALLIDO:
+            acciones.append(pasos.Accion(
+                7, pasos.CIERRE, f"{K_ERROR}_dictamen",
+                f"Resolver el error: «{plain_reason(portal.failure)}»", 0, "Ver",
+                f"{s4_dictamen._tab(procedure)}{s4_dictamen.ANCHOR}"))
+
     if not dictamen_cargado and not s4_dictamen_pendiente(overview):
         mant = plazos.maintenance
         vence = mant.state == "computed" and mant.due <= hoy
@@ -371,7 +412,7 @@ def advertencias(overview):
     return por_paso
 
 
-def _faltantes(overview):
+def _faltantes(procedure, overview):
     grupos = {}
     for paso, m in _faltantes_sueltos(overview):
         kind = {"s1_datos": K_DATOS, "s2_documentos": K_SIN_BAJAR, "s3_anexos": K_COMPLIANCE,
@@ -391,8 +432,10 @@ def _faltantes(overview):
             texto = "Subir los archivos de una oferta"
         else:
             texto = primero.text if n == 1 else f"{primero.text} ({n})"
+        # Los datos del procedimiento se toman en su bloque del Portal, no en el alta de uno nuevo.
+        url = s2_documentos.portal_url(procedure) if kind == K_DATOS else primero.url or ""
         acciones.append(pasos.Accion(paso, pasos.FALTANTE, kind, texto, 0,
-                                     primero.action or "Ver", primero.url or ""))
+                                     primero.action or "Ver", url))
     return acciones
 
 
@@ -433,7 +476,7 @@ def armar(user, procedure, overview, *, pasos_4_y_6_hechos=False, plazos=None, h
     todas = (pendientes
              + _cierres(procedure, overview, pendientes, plazos, hoy, dictamen_cargado,
                         pasos_4_y_6_hechos)
-             + _faltantes(overview))
+             + _faltantes(procedure, overview))
     if latest_validated(procedure) is None:
         todas = [a for a in todas if not _depende_de_la_matriz(a)]
     for accion in todas:
