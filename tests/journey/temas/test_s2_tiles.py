@@ -146,14 +146,14 @@ def test_documentos_dice_cuantos_estan_cargados_y_el_de_n_solo_si_el_portal_los_
 # --- Cumplimiento por tipo y oferta ------------------------------------------------------------
 
 
-def test_sin_evaluacion_el_cumplimiento_dice_pendiente_y_enlaza_a_la_propuesta(
+def test_sin_evaluacion_el_cumplimiento_dice_pendiente_y_enlaza_al_cuadro(
         procedure, matrix, offer, operator_user, rf):
     """REQ-141: con ofertas y sin evaluación el mosaico dice «Pendiente», sin cifra, y enlaza a
-    la propuesta de la sección Evaluación."""
+    el cuadro de cumplimiento."""
     tile = tiles_of(operator_user, procedure, rf)["cumplimiento"]
     assert not tile.has_data and tile.missing == "Pendiente"
     assert tile.width == 4 and tile.detail == ""
-    assert tile.href == reverse("expedientes:evaluacion", args=[procedure.pk]) + "#d-s4-propuesta"
+    assert tile.href == reverse("expedientes:cuadro", args=[procedure.pk])
 
 
 def test_con_evaluacion_el_cumplimiento_es_una_tabla_de_calor_con_las_cuentas_reales(
@@ -172,7 +172,7 @@ def test_con_evaluacion_el_cumplimiento_es_una_tabla_de_calor_con_las_cuentas_re
         assert cell.value == mine.filter(outcome="cumple").count()
         assert cell.total == matrix.version.requirements.filter(category="formal").exclude(
             state__in=("quitado", "sugerido")).count()
-    assert tile.href.endswith("#d-s4-propuesta")
+    assert tile.href.endswith("/cuadro/")
 
 
 def test_una_oferta_sin_evaluar_deja_su_columna_vacia(evaluated, procedure, operator_user,
@@ -218,7 +218,7 @@ def test_la_pagina_abre_con_su_tablero_y_conserva_las_anclas_de_la_014(
     pagina = revisar(response.content.decode())
     assert [t.get("id") for t in pagina.tiles] == [
         "m-documentos", "m-requisitos", "m-versiones", "m-cumplimiento"]
-    assert pagina.tiles[3].get("href").endswith("#d-s4-propuesta")
+    assert pagina.tiles[3].get("href").endswith("/cuadro/")
     assert "data-detail" not in pagina.tiles[3]
     assert {"d-s2-documentos", "d-s2-matriz"} == set(pagina.details)
     assert {"s2-documentos", "s2-subir"} <= set(pagina.details["d-s2-documentos"]["ids"])

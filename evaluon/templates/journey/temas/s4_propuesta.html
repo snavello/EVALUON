@@ -6,7 +6,7 @@
 
 <div class="bloque" id="s4-propuesta">
   <div class="bloque-cab">
-    <h3>Propuesta por oferta y requisito{% if t.version and t.evaluated %} <span class="cta">matriz versión {{ t.version.number }}</span>{% endif %}</h3>
+    <h3>Propuesta del sistema, requisito por requisito{% if t.version and t.evaluated %} <span class="cta">matriz versión {{ t.version.number }}</span>{% endif %}</h3>
     <span class="barra-evaluar">
       {% if t.offers %}
       <form class="en-linea" method="post" action="{% url 'expedientes:s4_evaluar' t.pid %}">{% csrf_token %}<button class="btn primario" id="evaluar-todas" type="submit"{% if not t.can_request %} disabled{% endif %}>Evaluar todas las ofertas</button></form>

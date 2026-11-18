@@ -39,7 +39,7 @@
         </form></details>
       <details class="acc"><summary class="btn acento chico">Retirar</summary>
         <form method="post" action="{% url 'expedientes:s4_dictamen_retirar' t.pid u.document.pk %}">{% csrf_token %}
-          <p class="ayuda">No se borra: sale del expediente y queda en «Retirados» con el motivo. Se puede restituir.</p>
+          <p class="ayuda">No se borra: sale del procedimiento y queda en «Retirados» con el motivo. Se puede restituir.</p>
           <label for="dic-retirar-{{ u.document.pk }}">Motivo (obligatorio)</label>
           <textarea name="note" id="dic-retirar-{{ u.document.pk }}" rows="2" required></textarea>
           <button class="btn acento chico" type="submit">Retirar</button>
@@ -65,7 +65,7 @@
         {% if t.can_load %}
         <details class="acc"><summary class="btn secundario chico">Restituir</summary>
           <form method="post" action="{% url 'expedientes:s4_dictamen_restituir' t.pid w.document.pk %}">{% csrf_token %}
-            <p class="ayuda">Vuelve al expediente; queda registrado.</p>
+            <p class="ayuda">Vuelve al procedimiento; queda registrado.</p>
             <label for="dic-restituir-{{ w.document.pk }}">Motivo (obligatorio)</label>
             <textarea name="note" id="dic-restituir-{{ w.document.pk }}" rows="2" required></textarea>
             <button class="btn primario chico" type="submit">Restituir</button>

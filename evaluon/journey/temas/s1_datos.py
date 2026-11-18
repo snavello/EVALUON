@@ -162,6 +162,9 @@ _STAMP = re.compile(r"^(\d{2})/(\d{2})/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?
                     re.IGNORECASE)
 _PERCENT = re.compile(r"(\d+(?:[.,]\d+)?)\s*%")
 
+# Nombre público: lo usan otros módulos (T-359).
+money = _money
+
 
 def _stamp(value):
     """Fecha y hora de un hito como `datetime` (o `None` si no es una fecha) y su texto en

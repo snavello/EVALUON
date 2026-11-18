@@ -310,7 +310,7 @@ def _number(value):
 
 def _money(value):
     try:
-        return s1_datos._money(Decimal(str(value)))
+        return s1_datos.money(Decimal(str(value)))
     except (InvalidOperation, ValueError):
         return "No consta"
 
