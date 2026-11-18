@@ -81,7 +81,7 @@ flowchart LR
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
-| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 4 de 7 · Desarrollo | 14/22 | ██████░░░░ 64% |
+| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 4 de 7 · Desarrollo | 15/24 | ██████░░░░ 62% |
 
 <a id="001"></a>
 
@@ -1889,8 +1889,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 8 tareas sin terminar.
-- ○ T-354 · Medir el corte vertical con el caso chico y revisar con el Coordinador (pendiente)
+- **Próximo paso:** Desarrollar: 9 tareas sin terminar.
 - ○ T-355 · Agregar filtros, grupos resumidos y «Siguiente a decidir» al cuadro (pendiente)
 - ○ T-356 · Separar abiertos y terminados con dos consultas (pendiente)
 - ○ T-357 · Reemplazar la entrada y la lista «Expedientes» por el inicio (pendiente)
@@ -1898,6 +1897,8 @@ flowchart LR
 - ○ T-359 · Cierre técnico: guía visual y glosario (pendiente)
 - ○ T-360 · Medición final con el procedimiento del piloto y revisión visual (pendiente)
 - ○ T-361 · Corregir los hallazgos de la medición final (condicional) (pendiente)
+- ○ T-362 · Corregir los hallazgos del corte vertical en el cuadro y en Indicadores (pendiente)
+- ○ T-363 · Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido (pendiente)
 
 ### Qué se hizo
 
@@ -1916,6 +1917,7 @@ flowchart LR
 - ✓ T-351 · Extraer el panel del par para reutilizarlo y aceptar `desde=cuadro` (`ed1d1d51` 2026-11-18, `8dd73e97` 2026-11-17)
 - ✓ T-352 · Dibujar el cuadro de cumplimiento con el panel lado a lado (`d902f407` 2026-11-18, `3fbb0eff` 2026-11-18)
 - ✓ T-353 · Llevar pasos y acciones al lugar donde se resuelven (cuadro incluido) (`109d5de5` 2026-11-18)
+- ✓ T-354 · Medir el corte vertical con el caso chico y revisar con el Coordinador
 
 ### Mapa de tareas
 
@@ -1935,7 +1937,7 @@ flowchart TD
   T351["✓ T-351 · Extraer el panel del par para reutilizarlo…"]:::done
   T352["✓ T-352 · Dibujar el cuadro de cumplimiento con el pa…"]:::done
   T353["✓ T-353 · Llevar pasos y acciones al lugar donde se r…"]:::done
-  T354["○ T-354 · Medir el corte vertical con el caso chico y…"]:::todo
+  T354["✓ T-354 · Medir el corte vertical con el caso chico y…"]:::done
   T355["○ T-355 · Agregar filtros, grupos resumidos y «Siguie…"]:::todo
   T356["○ T-356 · Separar abiertos y terminados con dos consu…"]:::todo
   T357["○ T-357 · Reemplazar la entrada y la lista «Expedient…"]:::todo
@@ -1943,6 +1945,8 @@ flowchart TD
   T359["○ T-359 · Cierre técnico: guía visual y glosario"]:::todo
   T360["○ T-360 · Medición final con el procedimiento del pil…"]:::todo
   T361["○ T-361 · Corregir los hallazgos de la medición final…"]:::todo
+  T362["○ T-362 · Corregir los hallazgos del corte vertical e…"]:::todo
+  T363["○ T-363 · Rehacer las tarjetas del mapa: más anchas,…"]:::todo
   T340 --> T341
   T340 --> T344
   T342 --> T344
@@ -1972,6 +1976,8 @@ flowchart TD
   T358 --> T359
   T359 --> T360
   T360 --> T361
+  T354 --> T362
+  T354 --> T363
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1984,18 +1990,18 @@ flowchart TD
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
 | REQ-143 | El proceso de un procedimiento se muestra en siete pasos, siempre con estos nombres y en este orden de lectura: 1 Carga de pliego, 2 Matriz de requisitos de pliego, 3 Recepción de ofertas, 4 Cumplimiento de ofertas (matriz), 5 Comparación de ofertas, 6 Evaluación Comisión, 7 Dictamen. El número da el orden de lectura, no un orden obligatorio de trabajo. | T-341, T-343, T-346, T-348, T-352, T-357, T-360 | ▶ en proceso |
-| REQ-144 | Cada paso tiene su propio estado, independiente del de los demás: «Hecho», «En curso», «Todavía no» o «Con error». Varios pasos pueden estar en curso a la vez. No existe un «paso actual» del procedimiento. | T-340, T-341, T-345, T-346, T-348, T-354 | ▶ en proceso |
+| REQ-144 | Cada paso tiene su propio estado, independiente del de los demás: «Hecho», «En curso», «Todavía no» o «Con error». Varios pasos pueden estar en curso a la vez. No existe un «paso actual» del procedimiento. | T-340, T-341, T-345, T-346, T-348, T-354 | ✓ cubierto |
 | REQ-145 | El estado de cada paso se calcula con los datos que el sistema ya tiene; no se guarda una fase del procedimiento ni se pide a nadie que la marque. Un paso «Hecho» vuelve a «En curso» cuando aparece algo nuevo que le corresponde (por ejemplo, una circular modificatoria o un documento agregado a una oferta). | T-340, T-342, T-345, T-346 | ✓ cubierto |
-| REQ-146 | La portada de un procedimiento muestra, en este orden: el mapa del proceso (REQ-158); la lista «Qué se puede hacer ahora»; y los siete pasos, cada uno con un resumen de una línea de lo que ya hay y, si está en curso, lo que le falta con su acción a mano. Los faltantes menores (un dato o un documento opcional que falta completar, como el número de expediente o una hoja de compliance) no cambian el estado del paso: un paso «Hecho» con faltantes muestra el aviso «N advertencias» con su detalle. | T-344, T-346, T-348, T-350, T-354 | ▶ en proceso |
+| REQ-146 | La portada de un procedimiento muestra, en este orden: el mapa del proceso (REQ-158); la lista «Qué se puede hacer ahora»; y los siete pasos, cada uno con un resumen de una línea de lo que ya hay y, si está en curso, lo que le falta con su acción a mano. Los faltantes menores (un dato o un documento opcional que falta completar, como el número de expediente o una hoja de compliance) no cambian el estado del paso: un paso «Hecho» con faltantes muestra el aviso «N advertencias» con su detalle. | T-344, T-346, T-348, T-350, T-354, T-363 | ▶ en proceso |
 | REQ-147 | «Qué se puede hacer ahora» lista todo lo que falta y se puede hacer en cualquier paso: los pendientes que el sistema ya cuenta, las acciones de cierre (proponer y validar la matriz, tomar del Portal lo que falta, agregar las ofertas del acta, evaluar las ofertas, resolver un error, cargar el dictamen) y cada faltante que hoy muestra la línea «Hay / Falta» de las secciones. No hay orden obligatorio entre ellas; cada una dice a qué paso pertenece. Una acción que depende de otra todavía no hecha no aparece en la lista: el paso dice de qué depende. | T-342, T-344, T-346, T-348 | ✓ cubierto |
 | REQ-148 | Los plazos importantes (REQ-131) se ven en la portada del procedimiento. El tablero de mosaicos del primer panel (REQ-128) deja de ser la portada y queda a un clic con el nombre «Indicadores», sin perder ningún dato. | T-348, T-350 | ✓ cubierto |
-| REQ-149 | Las cinco secciones y sus tableros (features 014 y 017) se mantienen. Cada paso y cada acción de la portada llevan al lugar de la sección donde se resuelven. | T-353 | ✓ cubierto |
+| REQ-149 | Las cinco secciones y sus tableros (features 014 y 017) se mantienen. Cada paso y cada acción de la portada llevan al lugar de la sección donde se resuelven. | T-353, T-362 | ▶ en proceso |
 | REQ-150 | El inicio de la aplicación es la lista de procedimientos abiertos. Por cada uno muestra: nombre y número, el estado de los siete pasos, qué se puede hacer ahora y el vencimiento más próximo. Enmienda a REQ-128 solo en esto: entrar al sistema ya no abre el último procedimiento visto. Un procedimiento pasa solo a «Terminados» cuando su dictamen está cargado, y vuelve solo a la lista de abiertos si el dictamen se quita; no se guarda un estado final ni lo archiva una persona. | T-356, T-357 | ○ pendiente |
 | REQ-151 | El inicio muestra todas las acciones disponibles de todos los procedimientos abiertos, agrupadas por procedimiento. Cada procedimiento se puede colapsar y expandir: colapsado muestra su línea (REQ-150) y cuántas acciones tiene; expandido lista sus acciones, cada una con un botón que lleva a resolverla. | T-357 | ○ pendiente |
-| REQ-152 | Hay un cuadro de cumplimiento: los requisitos de la matriz vigente en filas, agrupados por tipo, y las ofertas en columnas con su total. Cada celda muestra con texto uno de estos estados: «Cumple», «No cumple», «A decidir», «Espera informe», «Sin resultado» o «No aplica» (no cuenta en los totales). «A decidir» es solo lo que el sistema no pudo concluir (no determinado); un «Cumple» o «No cumple» propuesto que ninguna persona confirmó conserva su texto con la leyenda «sin confirmar». Al pie, cuántos requisitos cumple cada oferta hasta ahora. Se llega desde los pasos 4 y 6. | T-352, T-354 | ▶ en proceso |
+| REQ-152 | Hay un cuadro de cumplimiento: los requisitos de la matriz vigente en filas, agrupados por tipo, y las ofertas en columnas con su total. Cada celda muestra con texto uno de estos estados: «Cumple», «No cumple», «A decidir», «Espera informe», «Sin resultado» o «No aplica» (no cuenta en los totales). «A decidir» es solo lo que el sistema no pudo concluir (no determinado); un «Cumple» o «No cumple» propuesto que ninguna persona confirmó conserva su texto con la leyenda «sin confirmar». Al pie, cuántos requisitos cumple cada oferta hasta ahora. Se llega desde los pasos 4 y 6. | T-352, T-354, T-362 | ▶ en proceso |
 | REQ-153 | El cuadro se puede filtrar por: todos, con algo pendiente, a decidir, no cumple y los que esperan informe técnico. Un grupo donde todas las ofertas cumplen todo se muestra resumido en una línea. | T-355 | ○ pendiente |
-| REQ-154 | Al tocar una celda se ve, sin salir del cuadro: qué pide el pliego (texto y dónde está), qué trajo esa oferta (texto y dónde está), por qué el sistema propone lo que propone, y las mismas acciones de decisión que existen hoy. Desde ahí se pasa al siguiente punto a decidir. | T-351, T-352, T-353, T-354, T-355 | ▶ en proceso |
+| REQ-154 | Al tocar una celda se ve, sin salir del cuadro: qué pide el pliego (texto y dónde está), qué trajo esa oferta (texto y dónde está), por qué el sistema propone lo que propone, y las mismas acciones de decisión que existen hoy. Desde ahí se pasa al siguiente punto a decidir. | T-351, T-352, T-353, T-354, T-355, T-362 | ▶ en proceso |
 | REQ-155 | Vocabulario único en pantalla: «Procedimientos» (no «Expedientes») para la lista; «Matriz de requisitos» para la lista de lo que pide el pliego; «Cuadro de cumplimiento» para requisitos por ofertas. Los nombres de los siete pasos no cambian de una pantalla a otra. | T-358 | ○ pendiente |
-| REQ-156 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). | T-347, T-350, T-352, T-359 | ▶ en proceso |
-| REQ-158 | El mapa del proceso es un grafo de los siete pasos. Cada paso es una tarjeta con su número, nombre, un dato clave, su estado escrito y con su color, y sus tareas (hasta 3 y «+N más»; las advertencias y lo que espera a otro paso se distinguen). Las líneas muestran de qué depende cada paso: 1→2, 2→4, 3→4, 3→5, 4→5, 4→6, 4→7 y 6→7; una línea llena dice que lo anterior está completo y una punteada, que todavía puede cambiar. Debajo, una línea de plazos con los hitos que el sistema conoce (REQ-131) y el día de hoy. Cada tarjeta y cada tarea llevan a donde se resuelven. Un selector «Mapa / Lista» permite ver solo la lista de pasos, y en pantallas angostas se muestra la lista. «Vence hoy» (lila) y «Vencido» (rojo brillante) marcan la tarjeta y la tarea (REQ-157). No se muestra porcentaje de avance. | T-349, T-350, T-354, T-359, T-360 | ▶ en proceso |
+| REQ-156 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). | T-347, T-350, T-352, T-359, T-362 | ▶ en proceso |
+| REQ-158 | El mapa del proceso es un grafo de los siete pasos. Cada paso es una tarjeta con su número, nombre, un dato clave, su estado escrito y con su color, y sus tareas (hasta 3 y «+N más»; las advertencias y lo que espera a otro paso se distinguen). Las líneas muestran de qué depende cada paso: 1→2, 2→4, 3→4, 3→5, 4→5, 4→6, 4→7 y 6→7; una línea llena dice que lo anterior está completo y una punteada, que todavía puede cambiar. Debajo, una línea de plazos con los hitos que el sistema conoce (REQ-131) y el día de hoy. Cada tarjeta y cada tarea llevan a donde se resuelven. Un selector «Mapa / Lista» permite ver solo la lista de pasos, y en pantallas angostas se muestra la lista. «Vence hoy» (lila) y «Vencido» (rojo brillante) marcan la tarjeta y la tarea (REQ-157). No se muestra porcentaje de avance. | T-349, T-350, T-354, T-359, T-360, T-363 | ▶ en proceso |
 | REQ-157 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece el vencimiento, en el inicio y en la portada del procedimiento. En esas pantallas el lila no se usa para ninguna otra cosa. Lo que ya venció y sigue sin resolverse se marca en rojo brillante con el texto «Vencido», hasta que se resuelva. | T-343, T-344, T-347, T-348, T-350, T-357, T-359 | ▶ en proceso |
