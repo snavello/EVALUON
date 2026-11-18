@@ -39,15 +39,13 @@ def test_req144_estados_de_los_pasos_1_a_3_de_la_tabla(nombre, request):
 
 @pytest.mark.parametrize("nombre", CASOS)
 def test_req144_los_siete_pasos_sin_paso_actual(nombre, request):
-    """REQ-144: siete pasos con los nombres de `pasos.py`; ningún «paso actual»; los pasos 4 a 7
-    son provisionales («Todavía no», sin `espera`)."""
+    """REQ-144: siete pasos con los nombres de `pasos.py`; ningún «paso actual». (Los pasos 4 a 7
+    dejaron de ser provisionales en T-346; sus estados los prueba `test_pasos_4_a_7.py`.)"""
     caso = request.getfixturevalue(FIXTURE[nombre])
     proceso = calculo.proceso_de(caso.user, caso.procedure)
     assert [(p.numero, p.nombre) for p in proceso.pasos] == [
         (d.numero, d.nombre) for d in pasos.PASOS]
     assert not hasattr(proceso, "paso_actual")
-    for paso in proceso.pasos[3:]:
-        assert paso.estado is pasos.Estado.TODAVIA_NO and paso.espera == ""
 
 
 @pytest.mark.parametrize("nombre", CASOS)
