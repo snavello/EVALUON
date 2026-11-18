@@ -1,6 +1,6 @@
 # Spec 018 · El proceso a la vista
 
-Estado: aprobada · Fecha: 2026-11-17 · Aprobó: responsable del proyecto (2026-11-17, «Si ok.  Los que vencen hoy marcamos el paso o  tarea  en lila 🟪 color  de alerta») · Enmienda: 2026-11-17, respuestas del responsable a las preguntas del plan (REQ-147, REQ-152, REQ-157 y reglas de estado) y mapa del proceso (REQ-158)
+Estado: aprobada · Fecha: 2026-11-17 · Aprobó: responsable del proyecto (2026-11-17, «Si ok.  Los que vencen hoy marcamos el paso o  tarea  en lila 🟪 color  de alerta») · Enmienda: 2026-11-17, respuestas del responsable a las preguntas del plan (REQ-147, REQ-152, REQ-157 y reglas de estado) mapa del proceso (REQ-158) y nombres de los pasos (REQ-143)
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
@@ -44,6 +44,7 @@ Sin esto, quien entra no sabe cómo está el procedimiento ni qué le toca, y el
 | 2026-11-17 | Lista larga de acciones | Ante la propuesta del Coordinador (con más de 6 líneas, mostrar las primeras 6 y un «ver las N restantes», con lo vencido y lo que vence hoy primero), respondió: «Ok al ver la N restantes». |
 | 2026-11-17 | Faltantes menores (pregunta del plan) | Ante la pregunta «los faltantes menores, ¿impiden que un paso figure "Hecho"?», con las opciones «1. No, solo se listan» y «2. Sí, lo mantienen "En curso"», respondió: «1 y podríamos también mostrar o avisar  estás advertencias menores rtencias». Lectura del Coordinador: el paso figura «Hecho» y muestra al lado un aviso «N advertencias» con el detalle de lo que falta. |
 | 2026-11-17 | Mapa del proceso | «Cómo está armado hoy creo que en la  página del detalle de cada procedimiento sería útil poder tener una visión más gráfica con un grafico tipo pert con las bolitas representando los pasos y tareas con el color de estado.» Sobre la primera maqueta: «Está bien el diseño del grafo es muy elemental , busca un diseño para profesional y más elaborado. Es muy basico». Sobre la segunda (`a-grafo.html`, «Mapa del proceso»), ante la pregunta «¿sumo este mapa a la spec y al plan como portada del procedimiento, en lugar de la barra de siete pasos?», respondió: «Sí, sumalo». Lectura del Coordinador, a confirmar al aprobar el plan: sin porcentaje de avance (el responsable descartó un porcentaje en la 017 y no respondió si lo quería acá); cada tarjeta muestra un conteo real («0 de 4 tareas») cuando lo hay. |
+| 2026-11-17 | Nombres de los pasos y aprobación del plan | Ante el pedido de aprobación del plan y de la firma de la tabla de 21 estados, respondió: «Solo cambiamos los nombres de  los pasos  nada mas . 1) Carga de Pliego  2 Matriz de requisitos de pliego. 3 Recepcion de ofertas  4) Cumplimiento de ofertas (matriz)  5 Comparacion de ofertas 6 Evaluacion Comision  7 Dicamen». Lectura del Coordinador: aprueba el plan y la tabla con ese único cambio; «Dicamen» es «Dictamen»; los nombres van con mayúscula inicial y tildes. Lo confirmó después: «Apruebo y firmo el resto». |
 
 Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el diagnóstico y la comparación; `e.html`, `a.html` con el mapa de `a-grafo.html`, y `c.html` son las elegidas; `b.html` y `d.html` quedan como alternativas no elegidas).
 
@@ -63,7 +64,7 @@ Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el 
 
 | ID | Requisito | Origen normativo |
 |---|---|---|
-| REQ-143 | El proceso de un procedimiento se muestra en siete pasos, siempre con estos nombres y en este orden de lectura: 1 Pliego publicado, 2 Matriz de requisitos, 3 Ofertas recibidas, 4 Cumplimiento de cada oferta, 5 Comparación de ofertas, 6 Evaluación de la Comisión, 7 Dictamen. El número da el orden de lectura, no un orden obligatorio de trabajo. | — |
+| REQ-143 | El proceso de un procedimiento se muestra en siete pasos, siempre con estos nombres y en este orden de lectura: 1 Carga de pliego, 2 Matriz de requisitos de pliego, 3 Recepción de ofertas, 4 Cumplimiento de ofertas (matriz), 5 Comparación de ofertas, 6 Evaluación Comisión, 7 Dictamen. El número da el orden de lectura, no un orden obligatorio de trabajo. | — |
 | REQ-144 | Cada paso tiene su propio estado, independiente del de los demás: «Hecho», «En curso», «Todavía no» o «Con error». Varios pasos pueden estar en curso a la vez. No existe un «paso actual» del procedimiento. | — |
 | REQ-145 | El estado de cada paso se calcula con los datos que el sistema ya tiene; no se guarda una fase del procedimiento ni se pide a nadie que la marque. Un paso «Hecho» vuelve a «En curso» cuando aparece algo nuevo que le corresponde (por ejemplo, una circular modificatoria o un documento agregado a una oferta). | — |
 | REQ-146 | La portada de un procedimiento muestra, en este orden: el mapa del proceso (REQ-158); la lista «Qué se puede hacer ahora»; y los siete pasos, cada uno con un resumen de una línea de lo que ya hay y, si está en curso, lo que le falta con su acción a mano. Los faltantes menores (un dato o un documento opcional que falta completar, como el número de expediente o una hoja de compliance) no cambian el estado del paso: un paso «Hecho» con faltantes muestra el aviso «N advertencias» con su detalle. | — |
@@ -84,12 +85,12 @@ Se mantienen sin cambios las funciones de las features 004, 008, 012, 014 y 016 
 
 | Paso | Qué reúne | Está «Hecho» cuando |
 |---|---|---|
-| 1 Pliego publicado | Datos del procedimiento, pliego, anexos y circulares (se muestran en este paso aunque hoy se carguen en la sección Ofertas) | El pliego está cargado y leído y no hay circulares sin revisar |
-| 2 Matriz de requisitos | Requisitos, sugerencias del sistema, versiones | La versión vigente está validada y no hay una circular modificatoria posterior a ella |
-| 3 Ofertas recibidas | Ofertas del acta, sus documentos, fichas y hojas de compliance | Todas las ofertas del acta tienen sus documentos cargados y no hay documentos nuevos sin revisar |
-| 4 Cumplimiento de cada oferta | La revisión del sistema de cada oferta contra cada requisito, y el informe técnico del área (es un insumo que destraba resultados, no una decisión de la Comisión) | Todas las ofertas están revisadas con la matriz vigente y ningún resultado espera el informe técnico |
+| 1 Carga de pliego | Datos del procedimiento, pliego, anexos y circulares (se muestran en este paso aunque hoy se carguen en la sección Ofertas) | El pliego está cargado y leído y no hay circulares sin revisar |
+| 2 Matriz de requisitos de pliego | Requisitos, sugerencias del sistema, versiones | La versión vigente está validada y no hay una circular modificatoria posterior a ella |
+| 3 Recepción de ofertas | Ofertas del acta, sus documentos, fichas y hojas de compliance | Todas las ofertas del acta tienen sus documentos cargados y no hay documentos nuevos sin revisar |
+| 4 Cumplimiento de ofertas (matriz) | La revisión del sistema de cada oferta contra cada requisito, y el informe técnico del área (es un insumo que destraba resultados, no una decisión de la Comisión) | Todas las ofertas están revisadas con la matriz vigente y ningún resultado espera el informe técnico |
 | 5 Comparación de ofertas | Orden económico, la más baja y la más alta, cumplimiento por tipo | Todas las ofertas tienen su total y el paso 4 está «Hecho» con la matriz vigente. Con los totales cargados y el paso 4 incompleto queda «En curso» y dice que el orden económico está listo y falta completar el cumplimiento |
-| 6 Evaluación de la Comisión | Puntos a decidir, «no cumple» a revisar, preguntas, subsanaciones, descartes | No quedan puntos a decidir, preguntas sin contestar ni descartes sin resolver |
+| 6 Evaluación Comisión | Puntos a decidir, «no cumple» a revisar, preguntas, subsanaciones, descartes | No quedan puntos a decidir, preguntas sin contestar ni descartes sin resolver |
 | 7 Dictamen | Dictamen tomado del Portal o subido; exportar planilla y cuadro comparativo | El dictamen está cargado |
 
 ## Criterios de aceptación
