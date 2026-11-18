@@ -342,3 +342,78 @@ def test_req158_ninguna_tarea_lleva_recorte_en_su_html(client, caso_varios_en_cu
     monkeypatch.setattr(calculo, "proceso_de", hecho)
     carta = tarjetas(html_de(client, caso_varios_en_curso))[6]
     assert f'<span class="mp-txt">{larga}</span>' in carta and "…" not in carta
+
+
+# --- T-363 (correcciones de la verificación): texto acortado, «Ver todo en la lista», accesibilidad ------
+
+def test_req158_el_numero_de_la_tarjeta_es_decorativo_y_el_nombre_lo_dice_con_su_numero(
+        client, caso_varios_en_curso):
+    """REQ-158 (H-A5): el círculo con el número lleva `aria-hidden="true"` (el nombre ya dice «Paso N: »)."""
+    cartas = tarjetas(html_de(client, caso_varios_en_curso))
+    for n, carta in cartas.items():
+        assert f'<span class="mp-n" aria-hidden="true">{n}</span>' in carta
+        assert f'<span class="sr-only">Paso {n}: </span>' in carta
+
+
+def test_req158_un_texto_larguisimo_se_corta_en_la_tarjeta_con_puntos_y_va_entero_en_el_title_y_en_la_lista(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (H-A2, T-363): una tarea de 220 caracteres (un error de etapa, por ejemplo) se muestra en la
+    tarjeta cortada en el último espacio con «…», con el texto completo en el `title` y en la lista de pasos;
+    la tarjeta, que quedó pasada del último escalón, trae «Ver todo en la lista» enlazado a `#paso-N`."""
+    largo = "Resolver el error: «" + "la oferta no trae el documento pedido por el pliego " * 4 + "»"
+    assert len(largo) > 200
+    real = calculo.proceso_de
+
+    def hecho(user, procedure, overview=None):
+        proceso = real(user, procedure, overview)
+        seis = proceso.pasos[5]
+        seis.tareas = [pasos.Accion(6, pasos.PENDIENTE, f"x{i}", largo, 1, "Ver", f"/x/{i}/") for i in range(3)]
+        proceso.acciones = [t for p in proceso.pasos for t in p.tareas]
+        return proceso
+
+    monkeypatch.setattr(calculo, "proceso_de", hecho)
+    html = html_de(client, caso_varios_en_curso)
+    carta = tarjetas(html)[6]
+    corto = mapa.acortar(largo, mapa.LIMITE_TAREA)
+    assert corto.endswith("…") and len(corto) <= mapa.LIMITE_TAREA and largo.startswith(corto[:-1])
+    assert carta.count(f'<span class="mp-txt">{corto}</span>') == 3
+    assert f'title="{largo}"' in carta  # el texto completo, en el title...
+    assert html.count(largo) >= 4  # ...y en la lista de pasos (lo que no está en el title de la tarjeta)
+    assert "Ver todo en la lista" not in carta  # con el tope de largo la tarjeta entra: no hace falta
+
+
+def test_req158_si_la_estimacion_pasa_del_ultimo_escalon_la_tarjeta_manda_a_la_lista(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (H-A2, T-363): si el alto estimado de una tarjeta pasa del último escalón (432 px; aquí, sin el tope
+    de largo) la tarjeta lleva «Ver todo en la lista» enlazado a `#paso-N` en su último renglón, y solo ella;
+    la hoja la corta entre tarea y tarea en el alto de su fila."""
+    largo = "Resolver el error: «" + "la oferta no trae el documento pedido por el pliego " * 6 + "»"
+    monkeypatch.setattr(mapa, "LIMITE_TAREA", 1000)
+    real = calculo.proceso_de
+
+    def hecho(user, procedure, overview=None):
+        proceso = real(user, procedure, overview)
+        seis = proceso.pasos[5]
+        seis.tareas = [pasos.Accion(6, pasos.PENDIENTE, f"x{i}", largo, 1, "Ver", f"/x/{i}/") for i in range(3)]
+        proceso.acciones = [t for p in proceso.pasos for t in p.tareas]
+        return proceso
+
+    monkeypatch.setattr(calculo, "proceso_de", hecho)
+    html = html_de(client, caso_varios_en_curso)
+    carta = tarjetas(html)[6]
+    assert ('<a class="mp-mas" href="#paso-6" title="Esta tarjeta no muestra todo: ver el paso 6 completo en la '
+            'lista de abajo">Ver todo en la lista</a>') in carta
+    assert "Ver todo en la lista" not in tarjetas(html)[1]
+    assert geometria_de(html).abajo == len(mapa.ESCALONES) - 1 or geometria_de(html).arriba == len(mapa.ESCALONES) - 1
+
+
+def test_req158_acortar_corta_en_un_espacio_y_no_toca_lo_que_cabe():
+    """REQ-158 (H-A2): `acortar` deja intacto lo que cabe, corta en el último espacio que deje al menos la mitad
+    y, si no hay espacio, corta duro; siempre termina en «…» y nunca pasa del límite."""
+    assert mapa.acortar("Cargar el dictamen", 110) == "Cargar el dictamen"
+    justo = "x" * 110
+    assert mapa.acortar(justo, 110) == justo
+    corto = mapa.acortar("uno dos tres " * 20, 60)
+    assert corto.endswith("…") and len(corto) <= 60 and not corto[:-1].endswith(" ")
+    assert mapa.acortar("x" * 300, 60) == "x" * 59 + "…"
+    assert mapa.acortar("palabra " * 3 + "y" * 200, 40).endswith("…")

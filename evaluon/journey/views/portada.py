@@ -251,13 +251,25 @@ class _Tarjeta:
     `mapa.CONECTORES`."""
 
     fila: object
-    tareas: list
+    tareas: list  # [_TareaMapa]
     mas: int
     depende: list
+    dato: str = ""  # el dato del paso, acortado si es larguísimo (el completo está en la lista)
+    espera: str = ""  # la fila «espera», ídem
+    excede: bool = False  # el alto estimado pasa del último escalón: la tarjeta se corta y manda a la lista
 
     @property
     def paso(self):
         return self.fila.paso
+
+
+@dataclass
+class _TareaMapa:
+    """Una tarea en la tarjeta: la misma acción que la lista y su texto, acortado con «…» solo si es larguísimo
+    (`mapa.LIMITE_TAREA`); el texto completo va en el `title` y en la lista."""
+
+    accion: object
+    corto: str
 
 
 @dataclass
@@ -281,14 +293,17 @@ class _Mapa:
 def _alto_de(tarjeta):
     """El alto estimado (siempre por encima del real) de una tarjeta: lo mismo que dibuja `_mapa.html`."""
     paso, fila = tarjeta.paso, tarjeta.fila
-    tareas = [(t.accion.texto, bool(t.accion.marca)) for t in tarjeta.tareas]
-    if not tareas and paso.espera:
-        tareas = [(paso.espera, False)]
-    return mapa.alto_estimado(paso.nombre, paso.dato, tareas, bool(tarjeta.mas or fila.advertencias))
+    tareas = [(t.corto, bool(t.accion.marca)) for t in tarjeta.tareas]
+    if not tareas and tarjeta.espera:
+        tareas = [(tarjeta.espera, False)]
+    return mapa.alto_estimado(paso.nombre, tarjeta.dato, tareas,
+                              bool(tarjeta.mas or fila.advertencias or tarjeta.excede))
 
 
 def _geometria_de(tarjetas):
     """Los escalones de la fila de arriba y de la de abajo, según el alto estimado de sus tarjetas."""
+    for t in tarjetas:  # lo que pasa del último escalón se corta: la tarjeta lleva «Ver todo en la lista»
+        t.excede = _alto_de(t) > mapa.ESCALONES[-1]
     altos = {t.paso.numero: _alto_de(t) for t in tarjetas}
     return mapa.geometria(mapa.escalon(max(altos[n] for n in mapa.FILA_ARRIBA)),
                           mapa.escalon(max(altos[n] for n in mapa.FILA_ABAJO)))
@@ -303,8 +318,11 @@ def _vista(request):
 def _mapa_de(request, proceso, filas, nombres):
     """Las tarjetas, los conectores y la línea de plazos de la portada, de ESE `Proceso` y de las
     mismas filas que dibuja la lista."""
-    tarjetas = [_Tarjeta(f, f.faltan[:TARJETA_TAREAS], max(0, len(f.faltan) - TARJETA_TAREAS),
-                         [f"{o}. {nombres[o]}" for o, d in mapa.CONECTORES if d == f.paso.numero])
+    tarjetas = [_Tarjeta(f, [_TareaMapa(l.accion, mapa.acortar(l.accion.texto, mapa.LIMITE_TAREA))
+                             for l in f.faltan[:TARJETA_TAREAS]],
+                         max(0, len(f.faltan) - TARJETA_TAREAS),
+                         [f"{o}. {nombres[o]}" for o, d in mapa.CONECTORES if d == f.paso.numero],
+                         mapa.acortar(f.paso.dato, mapa.LIMITE_DATO), mapa.acortar(f.paso.espera, mapa.LIMITE_DATO))
                 for f in filas]
     geometria = _geometria_de(tarjetas)
     conectores = [(c, proceso.pasos[c.origen - 1].estado is pasos.Estado.HECHO)

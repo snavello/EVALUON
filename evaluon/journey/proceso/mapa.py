@@ -19,12 +19,18 @@ hacia arriba al próximo de `ESCALONES` (`fila-b-N`) y la de abajo igual (`alto-
 estimado es siempre mayor o igual que el real, ni dos tarjetas ni un conector y una tarjeta se pisan.
 `geometria(k, m)` devuelve posiciones, lienzo y conectores para un par de escalones; es determinista.
 
+Falla seguro: la estimación puede equivocarse (otra tipografía, letra agrandada, un texto raro), así que no es
+ella la que impide que dos tarjetas se pisen. `mapa.css` fija como alto máximo de cada tarjeta el escalón de su
+fila (`--alto-a`, `--alto-b`) y corta lo que sobra entre tarea y tarea: lo peor que pasa es que una tarjeta muestre
+menos y mande a la lista. Los textos muy largos se acortan con «…» en la tarjeta (`acortar`; completos en el
+`title` y en la lista).
+
 Formas de conector, todas con codos redondeados:
 - recto (mismo `y`): 1→2, 2→4, 4→6 y 3→5;
 - codo por el hueco que precede a la columna de destino: 3→4 (sube) y 4→7 (baja);
 - lazo en la misma columna (4→5, 6→7): sale por el borde derecho, baja por el hueco de la derecha y
-  entra por el borde derecho de la tarjeta de abajo, con la punta hacia la izquierda; 4→5 y 4→7 comparten
-  el tronco y se bifurcan abajo (una flecha hacia 5 y otra hacia 7).
+  entra por el borde derecho de la tarjeta de abajo, con la punta hacia la izquierda; 4→5 y 4→7 bajan por
+  troncos separados 8 px (`TRONCOS_SEPARADOS`) para que cada flecha se siga de punta a punta.
 """
 
 import unicodedata
@@ -36,7 +42,7 @@ ANCHO = 252
 HUECO = 32  # entre dos columnas; también el aire a la derecha del lienzo, donde pasa el lazo 6→7
 MARGEN = 8
 X_COLUMNA = tuple(MARGEN + i * (ANCHO + HUECO) for i in range(4))  # 8, 292, 576, 860
-ANCHO_LIENZO = X_COLUMNA[3] + ANCHO + HUECO  # 1144
+ANCHO_LIENZO = X_COLUMNA[3] + ANCHO + HUECO - 1  # 1143: así a 1262 px de ventana el lienzo entra justo en su caja de 1143
 Y_ARRIBA = MARGEN
 SEPARACION_FILAS = 16  # entre el alto estimado de la fila de arriba y el comienzo de la de abajo
 # (columna, fila) de cada tarjeta: fila 0 arriba, fila 1 abajo
@@ -68,37 +74,63 @@ PRESUPUESTO_ALTO = ALTO_MAXIMO
 # Ancho mínimo de la ventana para ver el lienzo entero: el lienzo, el relleno de la caja del mapa
 # (2 × 16), los márgenes de la página (2 × 36: el contenido llega a 1176 px y no crece más) y una barra
 # de desplazamiento clásica (15). Con ventanas más anchas el lienzo ocupa justo el ancho de la caja.
-VENTANA_MINIMA = ANCHO_LIENZO + 2 * 16 + 2 * 36 + 15
+VENTANA_MINIMA = ANCHO_LIENZO + 2 * 16 + 2 * 36 + 15  # 1262
 
 # --- Estimación del alto de una tarjeta ------------------------------------------------------------------
-# Ancho de cada carácter en décimas de px, medido en Chrome con la fuente de la aplicación (Hanken
-# Grotesk, con la de respaldo del sistema si no carga) a 12 px en peso 400 y a 13 px en peso 600, y
-# aumentado 3 %. Solo se suman anchos: el ajuste de pares (kerning) solo los reduce. Una letra con tilde
-# usa la de su letra base; un carácter desconocido usa `ANCHO_DESCONOCIDO` (más ancho que cualquiera).
-_CODIGOS = (32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 161, 170, 171, 176, 183, 186, 187, 191, 193, 201, 205, 209, 211, 218, 220, 225, 233, 237, 241, 243, 250, 252, 8211, 8212, 8230, 8364)
+# Ancho de cada carácter en décimas de px, medido en Chrome CON la fuente de la aplicación ya cargada
+# (Hanken Grotesk, `document.fonts.load`; sin esperarla se mide la de respaldo y salen anchos más chicos) a
+# 12 px en peso 400 y a 13 px en peso 600, y aumentado 8 % por carácter. Solo se suman anchos: el ajuste de
+# pares (kerning) solo los reduce. Una letra con tilde no listada usa la de su letra base; un carácter
+# desconocido (emojis, escrituras no latinas) usa `ANCHO_DESCONOCIDO`, más ancho que cualquiera medido.
+# Si cambia la tipografía o el tamaño de letra de la tarjeta hay que volver a medir (un test compara el
+# estimado con alturas medidas una vez en Chrome).
+_CODIGOS = (*range(32, 127), *range(160, 384), 8208, 8209, 8210, 8211, 8212, 8213, 8216, 8217, 8218, 8220, 8221, 8222, 8224, 8225, 8226, 8230, 8240, 8249, 8250, 8364, 8482, 8592, 8594, 8722, 10003, 10005)
 _REGULAR = (
-    34, 36, 49, 74, 67, 102, 99, 29, 38, 38, 52, 85, 27, 50, 27, 49, 67, 67, 67, 67, 67, 67, 67,
-    67, 67, 67, 27, 27, 85, 85, 85, 56, 119, 80, 71, 77, 87, 63, 61, 85, 88, 33, 45, 72, 59,
-    111, 93, 94, 70, 94, 74, 66, 65, 85, 77, 116, 73, 69, 71, 38, 47, 38, 85, 52, 34, 63, 73,
-    58, 73, 65, 39, 73, 70, 30, 30, 62, 30, 107, 70, 73, 73, 73, 43, 53, 42, 70, 60, 90, 57, 60,
-    56, 38, 30, 38, 85, 36, 49, 63, 47, 27, 54, 63, 56, 80, 63, 33, 93, 94, 85, 85, 63, 65, 30,
-    70, 73, 70, 70, 62, 124, 91, 67,
+    34, 32, 44, 91, 73, 97, 89, 23, 29, 29, 52, 73, 32, 43, 32, 55, 73, 73, 73, 73, 73, 73, 73,
+    73, 73, 73, 32, 32, 73, 73, 73, 67, 114, 83, 78, 92, 89, 76, 74, 95, 88, 32, 72, 83, 65,
+    109, 88, 97, 72, 101, 78, 74, 77, 86, 86, 125, 84, 79, 76, 34, 59, 34, 72, 53, 38, 70, 77,
+    68, 77, 70, 44, 67, 71, 30, 30, 69, 35, 108, 71, 75, 77, 77, 53, 61, 45, 71, 68, 97, 68, 68,
+    62, 31, 34, 31, 73, 34, 32, 73, 73, 80, 73, 34, 75, 50, 108, 65, 61, 73, 0, 82, 48, 55, 73,
+    55, 54, 39, 71, 75, 44, 39, 36, 69, 61, 93, 98, 104, 45, 83, 83, 83, 83, 83, 83, 117, 92,
+    76, 76, 76, 76, 32, 32, 32, 32, 89, 88, 97, 97, 97, 97, 97, 73, 97, 86, 86, 86, 86, 79, 82,
+    83, 70, 70, 70, 70, 70, 70, 113, 68, 70, 70, 70, 70, 30, 30, 30, 30, 81, 71, 75, 75, 75, 75,
+    75, 73, 75, 71, 71, 71, 71, 68, 82, 68, 84, 66, 84, 66, 84, 66, 81, 60, 81, 60, 81, 60, 81,
+    60, 91, 88, 91, 77, 66, 68, 66, 68, 66, 68, 66, 68, 66, 68, 89, 77, 89, 77, 89, 77, 89, 77,
+    93, 74, 93, 74, 35, 32, 35, 32, 35, 32, 35, 32, 35, 30, 81, 65, 47, 32, 76, 65, 65, 62, 32,
+    62, 32, 62, 40, 62, 41, 62, 36, 97, 74, 97, 74, 97, 74, 79, 97, 74, 98, 76, 98, 76, 98, 76,
+    133, 121, 78, 46, 78, 46, 78, 46, 69, 55, 69, 55, 69, 55, 69, 55, 68, 44, 68, 58, 68, 44,
+    90, 74, 90, 74, 90, 74, 90, 74, 90, 74, 90, 74, 122, 94, 72, 63, 72, 74, 59, 74, 59, 74, 59,
+    32, 52, 52, 70, 54, 138, 130, 35, 35, 38, 57, 57, 51, 49, 49, 46, 87, 157, 32, 32, 73, 91,
+    112, 112, 73, 98, 106,
 )
 _NEGRITA = (
-    37, 41, 59, 80, 75, 113, 96, 35, 45, 45, 59, 93, 33, 54, 33, 56, 75, 54, 75, 75, 78, 75, 75,
-    72, 75, 75, 33, 33, 93, 93, 93, 60, 128, 90, 81, 84, 97, 70, 68, 94, 99, 40, 54, 82, 66,
-    124, 103, 102, 79, 102, 84, 73, 74, 95, 86, 130, 83, 78, 79, 45, 55, 45, 93, 56, 39, 70, 81,
-    63, 81, 72, 47, 81, 78, 35, 35, 71, 35, 119, 79, 80, 81, 81, 50, 58, 49, 79, 68, 102, 68,
-    69, 63, 45, 38, 45, 93, 41, 54, 73, 51, 33, 60, 73, 60, 90, 70, 40, 103, 102, 95, 95, 70,
-    72, 35, 79, 80, 79, 79, 67, 134, 109, 75,
+    37, 35, 51, 98, 79, 104, 98, 27, 37, 37, 57, 79, 34, 46, 34, 59, 79, 79, 79, 79, 79, 79, 79,
+    79, 79, 79, 34, 34, 79, 79, 79, 73, 123, 93, 86, 100, 95, 82, 79, 104, 97, 37, 78, 92, 71,
+    120, 97, 106, 79, 110, 86, 81, 83, 93, 94, 137, 93, 87, 84, 41, 65, 41, 85, 66, 43, 77, 82,
+    74, 82, 76, 49, 74, 79, 34, 34, 78, 39, 118, 79, 81, 82, 82, 59, 67, 51, 79, 75, 106, 75,
+    75, 67, 38, 38, 38, 79, 37, 35, 79, 79, 86, 79, 38, 84, 56, 115, 68, 73, 79, 0, 87, 51, 59,
+    79, 58, 57, 45, 79, 85, 45, 41, 37, 72, 65, 106, 111, 117, 55, 93, 93, 93, 93, 93, 93, 129,
+    100, 82, 82, 82, 82, 37, 37, 37, 37, 95, 97, 106, 106, 106, 106, 106, 79, 106, 93, 93, 93,
+    93, 87, 88, 91, 77, 77, 77, 77, 77, 77, 121, 74, 76, 76, 76, 76, 34, 34, 34, 34, 86, 79, 81,
+    81, 81, 81, 81, 79, 81, 79, 79, 79, 79, 75, 87, 75, 95, 74, 95, 74, 95, 74, 88, 67, 88, 67,
+    88, 67, 88, 67, 101, 99, 101, 86, 73, 75, 73, 75, 73, 75, 73, 75, 73, 75, 98, 85, 98, 85,
+    98, 85, 98, 85, 104, 82, 104, 83, 41, 37, 41, 37, 41, 37, 41, 37, 41, 34, 97, 77, 56, 37,
+    86, 74, 74, 69, 37, 69, 37, 69, 47, 69, 52, 69, 41, 108, 82, 108, 82, 108, 82, 86, 108, 82,
+    107, 84, 107, 84, 107, 84, 141, 130, 88, 52, 88, 52, 88, 52, 77, 61, 77, 61, 77, 61, 77, 61,
+    78, 51, 78, 58, 78, 51, 99, 82, 99, 82, 99, 82, 99, 82, 99, 82, 99, 82, 136, 107, 82, 72,
+    82, 83, 66, 83, 66, 83, 66, 38, 57, 57, 78, 60, 149, 141, 38, 38, 41, 64, 64, 60, 55, 55,
+    53, 97, 173, 38, 38, 79, 101, 122, 122, 79, 106, 115,
 )
-ANCHO_DESCONOCIDO = (140, 150)  # (regular, negrita) en décimas de px
+ANCHO_DESCONOCIDO = (200, 220)  # (regular, negrita) en décimas de px: más que un emoji (16,5 px)
 _TABLAS = (dict(zip(_CODIGOS, _REGULAR)), dict(zip(_CODIGOS, _NEGRITA)))
 
 COLUMNA_NOMBRE = 202  # px de texto del nombre: 252 − 2 de borde − 16 de relleno − 24 del número − 8 de separación
 COLUMNA_TEXTO = 234  # px de texto del dato
 COLUMNA_TAREA = 218  # px de texto de una tarea: 234 − 12 del marcador − 4 de separación
 HOLGURA_LINEA = 2  # px que se le quitan a cada ancho útil
+HOLGURA_ALTO = 14  # una línea de tarea de holgura por tarjeta, por lo que ninguna tabla de anchos prevé
+LIMITE_TAREA = 110  # caracteres de una tarea en la tarjeta; lo que pasa se corta con «…» (completo en la lista)
+LIMITE_DATO = 90  # ídem para el dato del paso y para la fila «espera»
 
 
 def _ancho(palabra, tabla):
@@ -149,8 +181,19 @@ def alto_estimado(nombre, dato, tareas, resto):
     arriba = 22 + encabezado + 6 + 15 * lineas(dato, COLUMNA_TEXTO) + 8 + 22
     tareas_px = 8 + sum(13 + 14 * lineas(texto, COLUMNA_TAREA) + (19 if etiqueta else 0)
                         for texto, etiqueta in tareas)
-    return arriba + tareas_px + (27 if resto else 0)
+    return arriba + tareas_px + (27 if resto else 0) + HOLGURA_ALTO
 
+
+def acortar(texto, limite):
+    """`texto` tal cual si cabe en `limite` caracteres; si no, cortado en el último espacio que deje al menos
+    la mitad y con «…» (el texto completo queda en el `title` y en la lista de pasos)."""
+    if len(texto) <= limite:
+        return texto
+    corte = texto[:limite - 1]
+    espacio = corte.rfind(" ")
+    if espacio >= limite // 2:
+        corte = corte[:espacio]
+    return corte.rstrip(" ,;:.·-—") + "…"
 
 def escalon(alto):
     """El índice del menor escalón que alcanza para `alto` (el último si no hay uno)."""
@@ -167,10 +210,18 @@ class Conector:
     d: str  # trazo del <path> (con codo redondeado)
     punta: tuple  # tres puntos (x, y) del triángulo; el primero es la punta
     tramos: tuple  # segmentos rectos ((x1, y1), (x2, y2)) del recorrido, sin redondear
+    radio: int = RADIO  # el de sus codos
 
 
 def _n(valor):
     return f"{valor:g}"
+
+
+# Los dos conectores que salen de la tarjeta 4 hacia abajo (4→5 y 4→7) bajan por troncos separados 8 px,
+# para que cada flecha se siga de punta a punta: 4→5 baja a 12 px del borde derecho de la 4 y vuelve a
+# entrar por el de la 5; 4→7 baja a 12 px del borde izquierdo de la 7. Con ese poco hueco los codos son de
+# radio 4 (el tramo final mide 12 = radio + punta). `(distancia del tronco al borde, radio)`.
+TRONCOS_SEPARADOS = {(4, 5): (12, 4), (4, 7): (12, 4)}
 
 
 def trazo(origen, destino, posiciones):
@@ -178,30 +229,31 @@ def trazo(origen, destino, posiciones):
     Si el destino está en otra columna, entra por su borde izquierdo a `y + SALIDA_Y`: recto si es el
     mismo `y`; si no, con un codo de radio `RADIO` por el medio del hueco que precede a la columna del
     destino. Si está en la misma columna, hace un lazo por el hueco de la derecha y entra por el borde
-    derecho, con la punta hacia la izquierda."""
+    derecho, con la punta hacia la izquierda. 4→5 y 4→7 usan troncos separados (`TRONCOS_SEPARADOS`)."""
     ox, oy = posiciones[origen]
     dx, dy = posiciones[destino]
     x0, y0 = ox + ANCHO, oy + SALIDA_Y
     y1 = dy + SALIDA_Y
     sentido = 1 if y1 > y0 else -1
+    tronco, radio = TRONCOS_SEPARADOS.get((origen, destino), (HUECO // 2, RADIO))
     if dx == ox:  # lazo: vuelve a entrar por el borde derecho
         x1 = dx + ANCHO
-        xm = x0 + HUECO // 2
+        xm = x0 + tronco
         punta = ((x1, y1), (x1 + PUNTA, y1 - PUNTA_MEDIO_ANCHO), (x1 + PUNTA, y1 + PUNTA_MEDIO_ANCHO))
-        d = (f"M {_n(x0)} {_n(y0)} H {_n(xm - RADIO)} Q {_n(xm)} {_n(y0)} {_n(xm)} {_n(y0 + sentido * RADIO)} "
-             f"V {_n(y1 - sentido * RADIO)} Q {_n(xm)} {_n(y1)} {_n(xm - RADIO)} {_n(y1)} H {_n(x1)}")
+        d = (f"M {_n(x0)} {_n(y0)} H {_n(xm - radio)} Q {_n(xm)} {_n(y0)} {_n(xm)} {_n(y0 + sentido * radio)} "
+             f"V {_n(y1 - sentido * radio)} Q {_n(xm)} {_n(y1)} {_n(xm - radio)} {_n(y1)} H {_n(x1)}")
         tramos = (((x0, y0), (xm, y0)), ((xm, y0), (xm, y1)), ((xm, y1), (x1, y1)))
-        return Conector(origen, destino, d, punta, tramos)
+        return Conector(origen, destino, d, punta, tramos, radio)
     x1 = dx
     punta = ((x1, y1), (x1 - PUNTA, y1 - PUNTA_MEDIO_ANCHO), (x1 - PUNTA, y1 + PUNTA_MEDIO_ANCHO))
     if y0 == y1:
         return Conector(origen, destino, f"M {_n(x0)} {_n(y0)} H {_n(x1)}", punta,
                         (((x0, y0), (x1, y1)),))
-    xm = x1 - HUECO // 2
-    d = (f"M {_n(x0)} {_n(y0)} H {_n(xm - RADIO)} Q {_n(xm)} {_n(y0)} {_n(xm)} {_n(y0 + sentido * RADIO)} "
-         f"V {_n(y1 - sentido * RADIO)} Q {_n(xm)} {_n(y1)} {_n(xm + RADIO)} {_n(y1)} H {_n(x1)}")
+    xm = x1 - tronco
+    d = (f"M {_n(x0)} {_n(y0)} H {_n(xm - radio)} Q {_n(xm)} {_n(y0)} {_n(xm)} {_n(y0 + sentido * radio)} "
+         f"V {_n(y1 - sentido * radio)} Q {_n(xm)} {_n(y1)} {_n(xm + radio)} {_n(y1)} H {_n(x1)}")
     tramos = (((x0, y0), (xm, y0)), ((xm, y0), (xm, y1)), ((xm, y1), (x1, y1)))
-    return Conector(origen, destino, d, punta, tramos)
+    return Conector(origen, destino, d, punta, tramos, radio)
 
 
 @dataclass(frozen=True)

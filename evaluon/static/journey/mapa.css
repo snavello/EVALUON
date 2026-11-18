@@ -23,7 +23,8 @@
 .mp-k.en-curso { background: var(--lime); }
 .mp-k.todavia-no { background: var(--mapa-nodo-n); border: 1.5px dashed var(--ink-3); }
 .mp-k.con-error { background: var(--no); border-color: var(--no); }
-.mp-k.adv { background: var(--mapa-nodo); border: 3px solid var(--nd); }
+.mp-k.adv { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 14px; height: 14px; background: var(--nd-bg); border: 1px solid var(--nd-ink); color: var(--nd-ink); font-size: 12px; font-style: normal; line-height: 12px; }
+.mp-k.adv::before { content: "!"; }
 .mp-k.espera { background: var(--mapa-nodo); border-color: var(--ink-3); }
 .mp-k.hoy { background: var(--hoy); border-color: var(--hoy); }
 .mp-k.vencido { background: var(--vencido); border-color: var(--vencido); }
@@ -34,15 +35,15 @@
 .mp-lienzo-w { overflow-x: auto; padding-bottom: .5rem; max-width: 100%; }
 .mp-lienzo-w:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .mp-pista { display: none; margin: 0 0 .5rem; font-size: .8125rem; color: var(--ink-2); }
-/* Entre 900 px y el ancho en que el mapa entra entero (mapa.VENTANA_MINIMA = 1263 px: 1144 de lienzo, 32 de relleno de la caja,
+/* Entre 900 px y el ancho en que el mapa entra entero (mapa.VENTANA_MINIMA = 1262 px: 1143 de lienzo, 32 de relleno de la caja,
    72 de márgenes de la página y 15 de barra de desplazamiento), el mapa se desplaza de costado dentro de su caja y la página no
    tiene desplazamiento propio. */
-@media (min-width: 900px) and (max-width: 1262px) { .mp-pista { display: block; } }
+@media (min-width: 900px) and (max-width: 1261px) { .mp-pista { display: block; } }
 .mp-lienzo {
-  position: relative; width: 1144px; height: calc(var(--fila-b) + var(--alto-b) + 8px); margin: 0 auto; border-radius: 12px;
+  position: relative; width: 1143px; height: calc(var(--fila-b) + var(--alto-b) + 8px); margin: 0 auto; border-radius: 12px;
   background-image: radial-gradient(var(--mapa-punto) 1px, transparent 1px); background-size: 22px 22px;
 }
-.mp-hilos { position: absolute; left: 0; top: 0; width: 1144px; height: calc(var(--fila-b) + var(--alto-b) + 8px); pointer-events: none; }
+.mp-hilos { position: absolute; left: 0; top: 0; width: 1143px; height: calc(var(--fila-b) + var(--alto-b) + 8px); pointer-events: none; }
 .mp-hilos path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .mp-hilos path.lleno { stroke: var(--ink); stroke-width: 2; }
 .mp-hilos path.punt { stroke: var(--ink-3); stroke-width: 2.5; stroke-dasharray: 7 5; stroke-linecap: butt; }
@@ -53,7 +54,9 @@
 
 /* Posiciones de las siete tarjetas (mapa.CASILLAS y mapa.X_COLUMNA): fila de arriba 1, 2, 4 y 6; fila de abajo 3, 5 y 7. La fila de
    abajo empieza donde dice `--fila-b`, que fija el escalón `fila-b-N` del lienzo (mapa.y_fila_b: 8 + alto de fila + 16); el alto
-   del lienzo es `--fila-b` + `--alto-b` (escalón `alto-b-N`, el alto de la fila de abajo) + 8. Los escalones son mapa.ESCALONES. */
+   del lienzo es `--fila-b` + `--alto-b` (escalón `alto-b-N`, el alto de la fila de abajo) + 8. Los escalones son mapa.ESCALONES.
+   Red de seguridad: ninguna tarjeta puede pasar del alto de su fila (`--alto-a` arriba, `--alto-b` abajo): si el texto resulta más
+   alto que lo estimado (otra tipografía, letra agrandada, texto raro) la tarjeta muestra menos y manda a la lista; nunca pisa. */
 .pos-1 { left: 8px; top: 8px; }
 .pos-2 { left: 292px; top: 8px; }
 .pos-3 { left: 8px; top: var(--fila-b); }
@@ -61,20 +64,20 @@
 .pos-5 { left: 576px; top: var(--fila-b); }
 .pos-6 { left: 860px; top: 8px; }
 .pos-7 { left: 860px; top: var(--fila-b); }
-.fila-b-0 { --fila-b: 144px; }
-.fila-b-1 { --fila-b: 168px; }
-.fila-b-2 { --fila-b: 192px; }
-.fila-b-3 { --fila-b: 216px; }
-.fila-b-4 { --fila-b: 240px; }
-.fila-b-5 { --fila-b: 264px; }
-.fila-b-6 { --fila-b: 288px; }
-.fila-b-7 { --fila-b: 312px; }
-.fila-b-8 { --fila-b: 336px; }
-.fila-b-9 { --fila-b: 360px; }
-.fila-b-10 { --fila-b: 384px; }
-.fila-b-11 { --fila-b: 408px; }
-.fila-b-12 { --fila-b: 432px; }
-.fila-b-13 { --fila-b: 456px; }
+.fila-b-0 { --fila-b: 144px; --alto-a: 120px; }
+.fila-b-1 { --fila-b: 168px; --alto-a: 144px; }
+.fila-b-2 { --fila-b: 192px; --alto-a: 168px; }
+.fila-b-3 { --fila-b: 216px; --alto-a: 192px; }
+.fila-b-4 { --fila-b: 240px; --alto-a: 216px; }
+.fila-b-5 { --fila-b: 264px; --alto-a: 240px; }
+.fila-b-6 { --fila-b: 288px; --alto-a: 264px; }
+.fila-b-7 { --fila-b: 312px; --alto-a: 288px; }
+.fila-b-8 { --fila-b: 336px; --alto-a: 312px; }
+.fila-b-9 { --fila-b: 360px; --alto-a: 336px; }
+.fila-b-10 { --fila-b: 384px; --alto-a: 360px; }
+.fila-b-11 { --fila-b: 408px; --alto-a: 384px; }
+.fila-b-12 { --fila-b: 432px; --alto-a: 408px; }
+.fila-b-13 { --fila-b: 456px; --alto-a: 432px; }
 .alto-b-0 { --alto-b: 120px; }
 .alto-b-1 { --alto-b: 144px; }
 .alto-b-2 { --alto-b: 168px; }
@@ -94,7 +97,7 @@
    la suma de las medidas de abajo con el nombre y el dato en dos líneas, tres tareas de dos líneas, la etiqueta de una tarea y
    el último renglón; un test recalcula esa suma desde esta hoja. Las líneas de texto son de px fijos para que la cuenta sea exacta. */
 .mp-nodo {
-  position: absolute; width: 252px; box-sizing: border-box; padding: 12px 8px 8px;
+  position: absolute; width: 252px; box-sizing: border-box; padding: 12px 8px 8px; display: flex; flex-direction: column; overflow: hidden;
   background: var(--mapa-nodo); border: 1px solid var(--line); border-radius: 14px;
   box-shadow: 0 6px 14px -10px color-mix(in srgb, var(--ink) 40%, transparent);
   font-size: 12px; line-height: 14px; color: var(--ink); overflow-wrap: anywhere;
@@ -105,6 +108,9 @@
 .mp-nodo.marca-hoy { box-shadow: inset 0 3px 0 0 var(--hoy); }
 .mp-nodo.marca-vencido { box-shadow: inset 0 3px 0 0 var(--vencido); }
 .mp-nodo:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.pos-1, .pos-2, .pos-4, .pos-6 { max-height: var(--alto-a); }
+.pos-3, .pos-5, .pos-7 { max-height: var(--alto-b); }
+.mp-nodo > * { flex: none; }
 
 /* Encabezado: el número (su centro está a 24 px del borde, donde entran y salen los conectores) y el nombre, hasta en dos líneas */
 .mp-enc { display: flex; align-items: flex-start; gap: 8px; min-height: 24px; margin: 0; }
@@ -150,7 +156,10 @@
 
 /* Tareas: enteras, hasta en dos líneas (sin puntos suspensivos; también están en «Qué se puede hacer ahora» y en la lista) */
 .mp-tareas { list-style: none; margin: 8px 0 0; padding: 0; }
-.mp-tarea { border-top: 1px solid var(--line); }
+/* Si no entran todas (la tarjeta llegó a su alto máximo), las que sobran pasan a una segunda columna que queda fuera de la caja: se corta
+   entre tarea y tarea, nunca a media línea. «+ N más» y las advertencias (`.mp-resto`) quedan siempre a la vista. */
+.mp-nodo > .mp-tareas { flex: 0 1 auto; min-height: 0; display: flex; flex-flow: column wrap; align-content: flex-start; overflow: hidden; }
+.mp-tarea { border-top: 1px solid var(--line); width: 100%; flex: none; box-sizing: border-box; }
 .mp-tarea a { display: flex; align-items: flex-start; gap: 4px; padding: 6px 0; color: var(--ink); text-decoration: none; }
 .mp-tarea a:hover .mp-txt { text-decoration: underline; }
 .mp-cuerpo { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
