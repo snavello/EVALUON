@@ -30,6 +30,7 @@ Sin esto, quien entra no sabe cómo está el procedimiento ni qué le toca, y el
 | 2026-11-17 | El estado no es un solo paso | «me parece bien tu propuesta, pero una aclaracion un procedimeiento , si bien hay precedencias, puede que haya operaciones que se realicen en simultaneo por lo que el estado no es en un solo paso sino una foto de como esta cada paso.» |
 | 2026-11-17 | Elección | «Si, seguí con esa propuesta e a cuadro de c». Lectura del Coordinador: la opción E como inicio de la aplicación, la opción A como portada de cada procedimiento y el cuadro de la opción C dentro de los pasos de cumplimiento y evaluación. |
 | 2026-11-17 | Circulares | Ante la pregunta «¿las circulares se muestran en el paso 1, "Pliego publicado"?», respondió: «Si 1». |
+| 2026-11-17 | Informe técnico del área | Ante la pregunta «¿va en el paso 4, "Cumplimiento de cada oferta", o en el paso 6, "Evaluación de la Comisión"?», respondió: «Paso 4». |
 
 Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el diagnóstico y la comparación; `e.html`, `a.html` y `c.html` son las elegidas; `b.html` y `d.html` quedan como alternativas no elegidas).
 
@@ -71,7 +72,7 @@ Se mantienen sin cambios las funciones de las features 004, 008, 012, 014 y 016 
 | 1 Pliego publicado | Datos del procedimiento, pliego, anexos y circulares (se muestran en este paso aunque hoy se carguen en la sección Ofertas) | El pliego está cargado y leído y no hay circulares sin revisar |
 | 2 Matriz de requisitos | Requisitos, sugerencias del sistema, versiones | La versión vigente está validada y no hay una circular modificatoria posterior a ella |
 | 3 Ofertas recibidas | Ofertas del acta, sus documentos, fichas y hojas de compliance | Todas las ofertas del acta tienen sus documentos cargados y no hay documentos nuevos sin revisar |
-| 4 Cumplimiento de cada oferta | La revisión del sistema de cada oferta contra cada requisito, y el informe técnico del área [A ACLARAR: el informe técnico, ¿va en este paso o en el 6?; propuesta: en este, porque destraba resultados] | Todas las ofertas están revisadas con la matriz vigente y ningún resultado espera el informe técnico |
+| 4 Cumplimiento de cada oferta | La revisión del sistema de cada oferta contra cada requisito, y el informe técnico del área (es un insumo que destraba resultados, no una decisión de la Comisión) | Todas las ofertas están revisadas con la matriz vigente y ningún resultado espera el informe técnico |
 | 5 Comparación de ofertas | Orden económico, la más baja y la más alta, cumplimiento por tipo | [A ACLARAR: propuesta: cuando todas las ofertas tienen su total y el paso 4 corrió con la matriz vigente] |
 | 6 Evaluación de la Comisión | Puntos a decidir, «no cumple» a revisar, preguntas, subsanaciones, descartes | No quedan puntos a decidir, preguntas sin contestar ni descartes sin resolver |
 | 7 Dictamen | Dictamen tomado del Portal o subido; exportar planilla y cuadro comparativo | El dictamen está cargado |
@@ -130,6 +131,6 @@ Para el responsable, de a una:
 
 1. REQ-151 · «Para hoy»: cuántas acciones y con qué orden.
 2. Paso 1 · Circulares: resuelta el 2026-11-17 (van en el paso 1).
-3. Paso 4 · Si el informe técnico del área va en «Cumplimiento de cada oferta» o en «Evaluación de la Comisión».
+3. Paso 4 · Informe técnico del área: resuelta el 2026-11-17 (va en el paso 4).
 4. Paso 5 · Cuándo se considera hecha la «Comparación de ofertas».
 5. [A ACLARAR: cuándo un procedimiento deja la lista de abiertos y pasa a «Terminados», ya que no hay estado final guardado; propuesta: cuando el dictamen está cargado]
