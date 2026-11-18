@@ -54,7 +54,7 @@ def test_req144_el_paso_4_dice_que_falta_el_informe_tecnico(proceso):
     las dos con la matriz vigente (hay cifras)."""
     cuatro = proceso.pasos[3]
     assert "Falta el informe técnico del área en 2 ofertas." in cuatro.resumen
-    assert cuatro.dato == "5 cumplen · 1 no · 6 a decidir"
+    assert cuatro.dato == "5 cumplen · 1 no · 6 a decidir · 6 esperan informe"
     assert "4-pendiente-informe_falta" in [t.id for t in cuatro.tareas]
 
 

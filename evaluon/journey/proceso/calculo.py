@@ -40,6 +40,8 @@ falta y la acción todavía no estaba, se vuelve a llamar con `pasos_4_y_6_hecho
 sus advertencias y su marca de vencimiento.
 """
 
+from collections import Counter
+
 from evaluon.accounts import permissions
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
@@ -235,9 +237,14 @@ def _paso4(c):
     paso = pasos.Paso.vacio(pasos.POR_NUMERO[4], c.procedure)
     etapa = c.etapas["evaluacion"]
     cifras = s4_propuesta.figures_of(c.pagina)
-    paso.dato = ("Todavía sin evaluar" if cifras is None else
-                 f"{sum(o.ok for o in cifras.offers)} cumplen · {sum(o.no for o in cifras.offers)}"
-                 f" no · {sum(o.nd for o in cifras.offers)} a decidir")
+    if cifras is None:
+        paso.dato = "Todavía sin evaluar"
+    else:
+        # Las filas técnicas sin el ok del informe esperan el informe: no son «a decidir» ni
+        # «cumplen» (la decisión de esas filas es el ok), igual que en el cuadro y el paso 6.
+        vistos = sum(s4_propuesta.visible_counts(c.pagina).values(), Counter())
+        paso.dato = (f"{vistos['ok']} cumplen · {vistos['no']} no · {vistos['nd']} a decidir"
+                     + (f" · {vistos['esp']} esperan informe" if vistos["esp"] else ""))
     if _con_error(paso, etapa):
         return paso
     abiertas = c.abiertas(4)

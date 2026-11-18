@@ -120,8 +120,10 @@ def test_el_cuadro_del_caso_en_curso(client, caso_varios_en_curso):
 
 
 def test_los_totales_del_pie_son_los_del_mosaico(client, caso_varios_en_curso):
-    """REQ-152: «N de M» de cada oferta es lo que cuenta `figures_of`, el mosaico «Resultado por
-    oferta»; el «No cumple» y el «A decidir» también; «Espera informe» + «Sin resultado» es su `pe`."""
+    """REQ-152: el total de cada oferta es el del mosaico «Resultado por oferta» (`figures_of`);
+    el pie cuenta las mismas celdas que se dibujan, así que difiere del mosaico solo en las filas
+    técnicas sin el ok del informe (T-361): ahí el mosaico cuenta la propuesta y el pie «Espera
+    informe». Lo que sale del pie de más es exactamente lo que entra en «Espera informe»."""
     caso = caso_varios_en_curso
     entrar(client, caso.user)
     response = client.get(url_de(caso.procedure))
@@ -133,14 +135,14 @@ def test_los_totales_del_pie_son_los_del_mosaico(client, caso_varios_en_curso):
     assert len(response.context["columns"]) == len(donas) == 2
     for columna in response.context["columns"]:
         dona = donas[f"Of. {columna['number']}"]
-        assert columna["figures"].ok == dona.ok
-        assert (columna["figures"].no, columna["figures"].nd) == (dona.no, dona.nd)
         assert columna["count"] == dona.ok + dona.no + dona.nd + dona.pe
-        assert columna["waiting"] + columna["without"] == dona.pe
-    assert [c["figures"].ok for c in response.context["columns"]] == [3, 2]
+        assert columna["ok"] <= dona.ok and columna["no"] <= dona.no and columna["nd"] <= dona.nd
+        assert columna["waiting"] + columna["without"] >= dona.pe
+        assert (dona.ok - columna["ok"]) + (dona.no - columna["no"]) + (dona.nd - columna["nd"])             == columna["waiting"] + columna["without"] - dona.pe
     assert [o.ok for o in figuras.offers] == [3, 2]
     html = response.content.decode()
-    assert "<b>3 de 9</b>" in html and "<b>2 de 9</b>" in html
+    for columna in response.context["columns"]:
+        assert f"<b>{columna['ok']} de 9</b>" in html
 
 
 def test_los_seis_textos_y_su_clave():
@@ -179,11 +181,54 @@ def test_27_requisitos_y_3_ofertas(client, procedure, evaluator_user, fake_ai):
         figuras = s4_propuesta.figures_of(memo.matrix_page(evaluator_user, procedure.pk))
     for columna, ofertas in zip(response.context["columns"], figuras.offers):
         assert columna["figures"] == ofertas
-        assert f"<b>{ofertas.ok} de {ofertas.ok + ofertas.no + ofertas.nd + ofertas.pe}</b>" in html
+        assert columna["count"] == ofertas.ok + ofertas.no + ofertas.nd + ofertas.pe
+        assert f"<b>{columna['ok']} de {columna['count']}</b>" in html
+    # Las filas técnicas sin el ok del informe esperan el informe (T-361); las demás son las del mosaico.
+    tecnicas = [r for g in grupos if g["kind"] == "tecnico" for r in g["rows"]]
+    assert all(c["key"] in ("esp", "pe", "na") for r in tecnicas for c in r["cells"])
     for estado, clave in (("Cumple", "ok"), ("No cumple", "no"), ("A decidir", "nd")):
-        por_oferta = [sum(1 for g in grupos for r in g["rows"] if r["cells"][i]["key"] == clave)
-                      for i in range(3)]
-        assert por_oferta == [getattr(o, clave) for o in figuras.offers], estado
+        por_oferta = [sum(1 for g in grupos if g["kind"] != "tecnico" for r in g["rows"]
+                          if r["cells"][i]["key"] == clave) for i in range(3)]
+        assert por_oferta == [c[clave] for c in response.context["columns"]], estado
+
+
+def test_filas_tecnicas_sin_ok_esperan_informe_en_todas_las_cuentas(
+        client, procedure, evaluator_user, fake_ai):
+    """REQ-152, REQ-156 (T-361, H-6): 6 filas técnicas × 3 ofertas ya evaluadas por el sistema y sin
+    ok del informe técnico se ven «Espera informe» (aunque tengan propuesta), entran en el filtro
+    «Esperan informe técnico» y en el pie, y no en «A decidir» ni en «sin confirmar»; el paso 4 y el
+    paso 6 cuentan lo mismo que el pie."""
+    from collections import Counter
+
+    from evaluon.journey.proceso import calculo
+    from evaluon.journey.proceso import pasos as pasos_mod
+    sintetico(procedure, evaluator_user, 30, 3)
+    entrar(client, evaluator_user)
+    response = client.get(url_de(procedure))
+    grupos = response.context["groups"]
+    tecnicas = [r for g in grupos if g["kind"] == "tecnico" for r in g["rows"]]
+    assert len(tecnicas) == 6
+    hay_resultado = [c for r in tecnicas for c in r["cells"] if c["text"] != "Sin resultado"]
+    assert hay_resultado and all(c["key"] == "esp" and not c["unconfirmed"] for c in hay_resultado)
+    filtros = {f["clave"]: f["n"] for f in response.context["filtros"]}
+    # Las filas que dejan los filtros salen de las mismas celdas: ninguna fila técnica en «A decidir».
+    a_decidir = client.get(url_de(procedure, "?filtro=a-decidir")).context["groups"]
+    assert not [g for g in a_decidir if g["kind"] == "tecnico"]
+    espera = client.get(url_de(procedure, "?filtro=espera-informe")).context["groups"]
+    assert filtros["espera-informe"] == sum(len(g["rows"]) for g in espera)
+    assert {r["number"] for r in tecnicas} <= {r["number"] for g in espera for r in g["rows"]}
+    # El pie y el paso 4 cuentan igual (ok/no/nd sin las técnicas, `esp` aparte).
+    columnas = response.context["columns"]
+    with memo.scope():
+        vistos = s4_propuesta.visible_counts(memo.matrix_page(evaluator_user, procedure.pk))
+        proceso = calculo.proceso_de(evaluator_user, procedure)
+    for c in columnas:
+        assert (c["ok"], c["no"], c["nd"], c["waiting"], c["without"]) == tuple(
+            vistos[c["number"]][k] for k in ("ok", "no", "nd", "esp", "pe"))
+    total = sum(vistos.values(), Counter())
+    paso4 = next(p for p in proceso.pasos if p.numero == 4)
+    assert paso4.dato.startswith(f"{total['ok']} cumplen · {total['no']} no · {total['nd']} a decidir")
+    assert f"{total['esp']} esperan informe" in paso4.dato and pasos_mod.POR_NUMERO[4]
 
 
 def test_cada_estado_lleva_el_texto_y_el_nombre_de_los_siete_pasos(client, caso_varios_en_curso):
