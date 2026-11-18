@@ -1,14 +1,14 @@
 /* El mapa del proceso y la línea de plazos (feature 018: REQ-146, REQ-148, REQ-156, REQ-157, REQ-158;
    ADR-0080; T-350). Tarjetas de HTML sobre un lienzo de medidas fijas, con un SVG decorativo de
-   conectores debajo. Las posiciones (`pos-1` … `pos-7`, `col-1` … `col-5`) repiten los números de
-   `evaluon/journey/proceso/mapa.py` (`POSICIONES`, `COLUMNAS`, `LIENZO`, `ANCHO`, `ALTO`): un test las
+   conectores debajo. Las posiciones (`pos-1` … `pos-7`, `fila-b-N`, `alto-b-N`) repiten los números de
+   `evaluon/journey/proceso/mapa.py` (`CASILLAS`, `X_COLUMNA`, `ESCALONES`, `ANCHO`): un test las
    compara. Todo color sale de `var(--…)` de tokens.css (nada en hexadecimal ni `style=`); `--hoy*` y
    `--vencido*` se nombran solo acá y en proceso.css (lo vigila test_lila_exclusivo.py). Cada estado lleva
    su texto escrito, además del color o el símbolo. Bajo 900 px el mapa y el selector se ocultan y queda
    la lista de pasos (que siempre está) y los plazos. */
 
-.mp { min-width: 0; background: var(--tile); border-radius: var(--r); padding: 1.1rem 1.25rem 1.25rem; }
-.mp-cab { display: flex; align-items: center; gap: .5rem 1.25rem; flex-wrap: wrap; margin-bottom: .75rem; }
+.mp { min-width: 0; background: var(--tile); border-radius: var(--r); padding: .9rem 1rem 1.1rem; }
+.mp-cab { display: flex; align-items: center; gap: .5rem 1.25rem; flex-wrap: wrap; margin-bottom: .5rem; }
 .mp .mp-titulo { margin: 0; font-size: 1.25rem; font-weight: 600; }
 .mp-leyenda { display: flex; flex-wrap: wrap; gap: .25rem 1rem; list-style: none; margin: 0; padding: 0; font-size: .8125rem; color: var(--ink-2); flex: 1 1 24rem; }
 .mp-leyenda li { display: inline-flex; align-items: center; gap: .375rem; }
@@ -23,7 +23,8 @@
 .mp-k.en-curso { background: var(--lime); }
 .mp-k.todavia-no { background: var(--mapa-nodo-n); border: 1.5px dashed var(--ink-3); }
 .mp-k.con-error { background: var(--no); border-color: var(--no); }
-.mp-k.adv { background: var(--mapa-nodo); border: 3px solid var(--nd); }
+.mp-k.adv { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 14px; height: 14px; background: var(--nd-bg); border: 1px solid var(--nd-ink); color: var(--nd-ink); font-size: 12px; font-style: normal; line-height: 12px; }
+.mp-k.adv::before { content: "!"; }
 .mp-k.espera { background: var(--mapa-nodo); border-color: var(--ink-3); }
 .mp-k.hoy { background: var(--hoy); border-color: var(--hoy); }
 .mp-k.vencido { background: var(--vencido); border-color: var(--vencido); }
@@ -34,21 +35,15 @@
 .mp-lienzo-w { overflow-x: auto; padding-bottom: .5rem; max-width: 100%; }
 .mp-lienzo-w:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .mp-pista { display: none; margin: 0 0 .5rem; font-size: .8125rem; color: var(--ink-2); }
-/* Entre 900 px y el ancho en que el mapa entra entero (1130 px de lienzo + márgenes de la caja y de la página: 1242 px), el mapa se
-   desplaza de costado dentro de su caja y la página no tiene desplazamiento propio. */
-@media (min-width: 900px) and (max-width: 1241px) { .mp-pista { display: block; } }
-.mp-columnas { position: relative; width: 1130px; height: 22px; margin: 0 auto; }
-.mp-columnas span { position: absolute; top: 0; width: 172px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--ink-2); }
-.col-1 { left: 10px; }
-.col-2 { left: 245px; }
-.col-3 { left: 480px; }
-.col-4 { left: 715px; }
-.col-5 { left: 950px; }
+/* Entre 900 px y el ancho en que el mapa entra entero (mapa.VENTANA_MINIMA = 1262 px: 1143 de lienzo, 32 de relleno de la caja,
+   72 de márgenes de la página y 15 de barra de desplazamiento), el mapa se desplaza de costado dentro de su caja y la página no
+   tiene desplazamiento propio. */
+@media (min-width: 900px) and (max-width: 1261px) { .mp-pista { display: block; } }
 .mp-lienzo {
-  position: relative; width: 1130px; height: 740px; margin: 0 auto; border-radius: 12px;
+  position: relative; width: 1143px; height: calc(var(--fila-b) + var(--alto-b) + 8px); margin: 0 auto; border-radius: 12px;
   background-image: radial-gradient(var(--mapa-punto) 1px, transparent 1px); background-size: 22px 22px;
 }
-.mp-hilos { position: absolute; left: 0; top: 0; width: 1130px; height: 740px; pointer-events: none; }
+.mp-hilos { position: absolute; left: 0; top: 0; width: 1143px; height: calc(var(--fila-b) + var(--alto-b) + 8px); pointer-events: none; }
 .mp-hilos path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .mp-hilos path.lleno { stroke: var(--ink); stroke-width: 2; }
 .mp-hilos path.punt { stroke: var(--ink-3); stroke-width: 2.5; stroke-dasharray: 7 5; stroke-linecap: butt; }
@@ -57,53 +52,114 @@
 .mp-hilos path.punta.punt { fill: var(--ink-3); }
 .mp-nodos { list-style: none; margin: 0; padding: 0; }
 
-/* Posiciones de las siete tarjetas (mapa.POSICIONES) */
-.pos-1 { left: 10px; top: 140px; }
-.pos-2 { left: 245px; top: 140px; }
-.pos-3 { left: 245px; top: 490px; }
-.pos-4 { left: 480px; top: 250px; }
-.pos-5 { left: 715px; top: 490px; }
-.pos-6 { left: 715px; top: 10px; }
-.pos-7 { left: 950px; top: 250px; }
+/* Posiciones de las siete tarjetas (mapa.CASILLAS y mapa.X_COLUMNA): fila de arriba 1, 2, 4 y 6; fila de abajo 3, 5 y 7. La fila de
+   abajo empieza donde dice `--fila-b`, que fija el escalón `fila-b-N` del lienzo (mapa.y_fila_b: 8 + alto de fila + 12); el alto
+   del lienzo es `--fila-b` + `--alto-b` (escalón `alto-b-N`, el alto de la fila de abajo) + 8. Los escalones son mapa.ESCALONES.
+   Red de seguridad: ninguna tarjeta puede pasar del alto de su fila (`--alto-a` arriba, `--alto-b` abajo): si el texto resulta más
+   alto que lo estimado (otra tipografía, letra agrandada, texto raro) la tarjeta muestra menos y manda a la lista; nunca pisa. */
+.pos-1 { left: 8px; top: 8px; }
+.pos-2 { left: 292px; top: 8px; }
+.pos-3 { left: 8px; top: var(--fila-b); }
+.pos-4 { left: 576px; top: 8px; }
+.pos-5 { left: 576px; top: var(--fila-b); }
+.pos-6 { left: 860px; top: 8px; }
+.pos-7 { left: 860px; top: var(--fila-b); }
+.fila-b-0 { --fila-b: 140px; --alto-a: 120px; }
+.fila-b-1 { --fila-b: 152px; --alto-a: 132px; }
+.fila-b-2 { --fila-b: 164px; --alto-a: 144px; }
+.fila-b-3 { --fila-b: 176px; --alto-a: 156px; }
+.fila-b-4 { --fila-b: 188px; --alto-a: 168px; }
+.fila-b-5 { --fila-b: 200px; --alto-a: 180px; }
+.fila-b-6 { --fila-b: 212px; --alto-a: 192px; }
+.fila-b-7 { --fila-b: 224px; --alto-a: 204px; }
+.fila-b-8 { --fila-b: 236px; --alto-a: 216px; }
+.fila-b-9 { --fila-b: 248px; --alto-a: 228px; }
+.fila-b-10 { --fila-b: 260px; --alto-a: 240px; }
+.fila-b-11 { --fila-b: 272px; --alto-a: 252px; }
+.fila-b-12 { --fila-b: 284px; --alto-a: 264px; }
+.fila-b-13 { --fila-b: 296px; --alto-a: 276px; }
+.fila-b-14 { --fila-b: 308px; --alto-a: 288px; }
+.fila-b-15 { --fila-b: 320px; --alto-a: 300px; }
+.fila-b-16 { --fila-b: 332px; --alto-a: 312px; }
+.fila-b-17 { --fila-b: 344px; --alto-a: 324px; }
+.fila-b-18 { --fila-b: 356px; --alto-a: 336px; }
+.fila-b-19 { --fila-b: 368px; --alto-a: 348px; }
+.fila-b-20 { --fila-b: 380px; --alto-a: 360px; }
+.fila-b-21 { --fila-b: 392px; --alto-a: 372px; }
+.fila-b-22 { --fila-b: 404px; --alto-a: 384px; }
+.fila-b-23 { --fila-b: 416px; --alto-a: 396px; }
+.fila-b-24 { --fila-b: 428px; --alto-a: 408px; }
+.fila-b-25 { --fila-b: 440px; --alto-a: 420px; }
+.fila-b-26 { --fila-b: 452px; --alto-a: 432px; }
+.alto-b-0 { --alto-b: 120px; }
+.alto-b-1 { --alto-b: 132px; }
+.alto-b-2 { --alto-b: 144px; }
+.alto-b-3 { --alto-b: 156px; }
+.alto-b-4 { --alto-b: 168px; }
+.alto-b-5 { --alto-b: 180px; }
+.alto-b-6 { --alto-b: 192px; }
+.alto-b-7 { --alto-b: 204px; }
+.alto-b-8 { --alto-b: 216px; }
+.alto-b-9 { --alto-b: 228px; }
+.alto-b-10 { --alto-b: 240px; }
+.alto-b-11 { --alto-b: 252px; }
+.alto-b-12 { --alto-b: 264px; }
+.alto-b-13 { --alto-b: 276px; }
+.alto-b-14 { --alto-b: 288px; }
+.alto-b-15 { --alto-b: 300px; }
+.alto-b-16 { --alto-b: 312px; }
+.alto-b-17 { --alto-b: 324px; }
+.alto-b-18 { --alto-b: 336px; }
+.alto-b-19 { --alto-b: 348px; }
+.alto-b-20 { --alto-b: 360px; }
+.alto-b-21 { --alto-b: 372px; }
+.alto-b-22 { --alto-b: 384px; }
+.alto-b-23 { --alto-b: 396px; }
+.alto-b-24 { --alto-b: 408px; }
+.alto-b-25 { --alto-b: 420px; }
+.alto-b-26 { --alto-b: 432px; }
 
-/* La tarjeta: 172 × 240 fijos. Alto: borde 2 + relleno 22 + encabezado 36 + dato 34 + pie 30 +
-   3 tareas × 30 + «+ N más» 26 = 240 (mapa.PRESUPUESTO). Lo que crece se recorta y está completo en la lista. */
+/* La tarjeta: 252 px de ancho y tanto alto como su contenido, nada recortado. Su alto máximo (mapa.PRESUPUESTO: 297 px) es
+   la suma de las medidas de abajo con el nombre y el dato en dos líneas, tres tareas de dos líneas, la etiqueta de una tarea y
+   el último renglón; un test recalcula esa suma desde esta hoja. Las líneas de texto son de px fijos para que la cuenta sea exacta. */
 .mp-nodo {
-  position: absolute; width: 172px; height: 240px; box-sizing: border-box; padding: 11px;
-  background: var(--mapa-nodo); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
-  font-size: 12px; line-height: 1.35; color: var(--ink);
+  position: absolute; width: 252px; box-sizing: border-box; padding: 12px 8px 8px; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--mapa-nodo); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 6px 14px -10px color-mix(in srgb, var(--ink) 40%, transparent);
+  font-size: 12px; line-height: 14px; color: var(--ink); overflow-wrap: anywhere;
 }
 .mp-nodo.en-curso { border-color: var(--ink); }
-.mp-nodo.todavia-no { background: var(--mapa-nodo-n); border: 1px dashed var(--ink-3); }
+.mp-nodo.todavia-no { background: var(--mapa-nodo-n); border: 1px dashed var(--ink-3); box-shadow: none; }
 .mp-nodo.con-error { border-color: var(--no); }
 .mp-nodo.marca-hoy { box-shadow: inset 0 3px 0 0 var(--hoy); }
 .mp-nodo.marca-vencido { box-shadow: inset 0 3px 0 0 var(--vencido); }
 .mp-nodo:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.pos-1, .pos-2, .pos-4, .pos-6 { max-height: var(--alto-a); }
+.pos-3, .pos-5, .pos-7 { max-height: var(--alto-b); }
+.mp-nodo > * { flex: none; }
 
-.mp-enc { display: flex; align-items: flex-start; gap: 6px; height: 36px; margin: 0; }
+/* Encabezado: el número (su centro está a 24 px del borde, donde entran y salen los conectores) y el nombre, hasta en dos líneas */
+.mp-enc { display: flex; align-items: flex-start; gap: 8px; min-height: 24px; margin: 0; }
 .mp-n {
-  flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
-  font-size: 12px; font-weight: 600; background: var(--tile); color: var(--ink-2);
+  flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; line-height: 1; background: var(--tile); color: var(--ink-2);
 }
 .mp-nodo.hecho .mp-n { background: var(--ink); color: var(--bg); }
 .mp-nodo.en-curso .mp-n { background: var(--lime); color: var(--on-lime); box-shadow: 0 0 0 1.5px var(--ink); }
 .mp .mp-nom {
-  margin: 0; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.15; letter-spacing: 0;
-  text-wrap: pretty; max-height: 30px; overflow: hidden;
+  margin: 0; min-width: 0; min-height: 24px; display: flex; align-items: center;
+  font-size: 13px; font-weight: 600; line-height: 16px; letter-spacing: 0; text-wrap: balance;
 }
 .mp .mp-nom a { color: var(--ink); text-decoration: none; }
 .mp .mp-nom a:hover { text-decoration: underline; }
 .mp-nodo.todavia-no .mp-nom a { color: var(--ink-2); }
 
-.mp-dato {
-  height: 34px; margin: 0; color: var(--ink-2); overflow: hidden;
-  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
-}
+.mp-dato { margin: 6px 0 0; line-height: 15px; color: var(--ink-2); }
 
 /* El estado, escrito: símbolo + texto (nunca solo el color) */
-.mp-pie { display: flex; align-items: center; gap: 5px; height: 30px; margin: 0; }
+.mp-pie { display: flex; align-items: center; gap: 6px; min-height: 22px; margin: 8px 0 0; }
 .mp-estado {
-  display: inline-flex; align-items: center; gap: 4px; padding: 0 7px; border: 1px solid currentColor;
+  display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid currentColor;
   border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 18px; white-space: nowrap;
 }
 .mp-estado::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
@@ -118,39 +174,43 @@
 
 /* «Vence hoy» (lila) y «Vencido» (rojo brillante, relleno): siempre con su texto */
 .mp-hoy, .mp-vencido {
-  flex: none; display: inline-block; padding: 0 5px; border-radius: 6px; border: 1.5px solid;
-  font-size: 12px; font-weight: 700; line-height: 17px; white-space: nowrap;
+  flex: none; display: inline-block; padding: 0 6px; border-radius: 6px; border: 1.5px solid;
+  font-size: 12px; font-weight: 700; line-height: 15px; white-space: nowrap;
 }
 .mp-hoy { border-color: var(--hoy); background: var(--hoy-bg); color: var(--hoy-ink); }
 .mp-vencido { border-color: var(--vencido); background: var(--vencido-bg); color: var(--vencido-ink); }
 
-/* Tareas: una línea cada una, con puntos suspensivos (el texto completo está en `title` y en la lista) */
-.mp-tareas { list-style: none; margin: 0; padding: 0; }
-.mp-tarea { height: 30px; border-top: 1px solid var(--line); }
-.mp-tarea a { display: flex; align-items: center; gap: 6px; height: 100%; color: var(--ink); text-decoration: none; }
+/* Tareas: enteras, hasta en dos líneas (sin puntos suspensivos; también están en «Qué se puede hacer ahora» y en la lista) */
+.mp-tareas { list-style: none; margin: 8px 0 0; padding: 0; }
+/* Si no entran todas (la tarjeta llegó a su alto máximo), las que sobran pasan a una segunda columna que queda fuera de la caja: se corta
+   entre tarea y tarea, nunca a media línea. «+ N más» y las advertencias (`.mp-resto`) quedan siempre a la vista. */
+.mp-nodo > .mp-tareas { flex: 0 1 auto; min-height: 0; display: flex; flex-flow: column wrap; align-content: flex-start; overflow: hidden; }
+.mp-tarea { border-top: 1px solid var(--line); width: 100%; flex: none; box-sizing: border-box; }
+.mp-tarea a { display: flex; align-items: flex-start; gap: 4px; padding: 6px 0; color: var(--ink); text-decoration: none; }
 .mp-tarea a:hover .mp-txt { text-decoration: underline; }
-.mp-cuerpo { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
-.mp-txt { max-width: 100%; line-height: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mp-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 1.5px var(--ink); margin: 0 1.5px; }
-.mp-tarea.hoy .mp-punto { background: var(--hoy); box-shadow: 0 0 0 2px var(--mapa-nodo), 0 0 0 4px var(--hoy); margin: 0 3px; }
-.mp-tarea.vencido .mp-punto { background: var(--vencido); box-shadow: 0 0 0 2px var(--mapa-nodo), 0 0 0 4px var(--vencido); margin: 0 3px; }
-.mp-tarea.espera a { color: var(--ink-2); }
-.mp-tarea.espera .mp-punto { background: var(--mapa-nodo-n); box-shadow: 0 0 0 1.5px var(--ink-3); }
-.mp-tarea .mp-hoy, .mp-tarea .mp-vencido { padding: 0 4px; border-width: 1px; line-height: 13px; margin-top: 1px; }
-
-/* Último renglón: «+ N más» y las advertencias */
-.mp-resto { display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 26px; margin: 0; border-top: 1px solid var(--line); }
-.mp-mas { font-weight: 600; color: var(--ink-2); text-decoration: none; white-space: nowrap; }
-.mp-mas:hover { text-decoration: underline; }
-.mp-adv { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--nd-ink); white-space: nowrap; min-width: 0; }
-.mp-adv i {
-  flex: none; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%;
-  background: var(--nd-bg); border: 1px solid currentColor; font-size: 12px; font-style: normal; line-height: 1;
+.mp-cuerpo { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.mp-txt { max-width: 100%; line-height: 14px; }
+.mp-tarea .mp-hoy, .mp-tarea .mp-vencido { margin-top: 2px; padding: 0 5px; border-width: 1px; line-height: 15px; }
+/* El marcador de la tarea: una caja de 12 px para que el texto arranque siempre en el mismo lugar */
+.mp-punto { position: relative; flex: none; width: 12px; height: 12px; margin-top: 1px; }
+.mp-punto::before {
+  content: ""; position: absolute; left: 2px; top: 2px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--lime); box-shadow: 0 0 0 1.5px var(--ink);
 }
-.mp-adv-corto { display: none; }
-.mp-resto.con-mas .mp-adv-largo { display: none; }
-.mp-resto.con-mas .mp-adv-corto { display: inline; }
-.mp-adv-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.mp-tarea.hoy .mp-punto::before { background: var(--hoy); box-shadow: 0 0 0 1.5px var(--mapa-nodo), 0 0 0 3px var(--hoy); }
+.mp-tarea.vencido .mp-punto::before { background: var(--vencido); box-shadow: 0 0 0 1.5px var(--mapa-nodo), 0 0 0 3px var(--vencido); }
+.mp-tarea.espera a { color: var(--ink-2); }
+.mp-tarea.espera .mp-punto::before { background: var(--mapa-nodo-n); box-shadow: 0 0 0 1.5px var(--ink-3); }
+
+/* Último renglón: «+ N más» y las advertencias (las dos llevan a la lista del paso) */
+.mp-resto { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; padding: 5px 0; border-top: 1px solid var(--line); line-height: 16px; }
+.mp-mas { font-weight: 600; color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.mp-mas:hover, .mp-adv:hover { text-decoration: underline; }
+.mp-adv { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; font-weight: 600; color: var(--nd-ink); text-decoration: none; white-space: nowrap; }
+.mp-adv i {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--nd-bg); border: 1px solid currentColor; font-size: 12px; font-style: normal; line-height: 12px;
+}
 
 /* Línea de plazos */
 .mp-plazos { margin-top: 1rem; }
@@ -184,7 +244,21 @@
 .mp-regla.niveles-1 .mp-hito.n-1, .mp-regla.niveles-2 .mp-hito.n-1 { top: auto; bottom: calc(100% - 92px); padding-top: 0; padding-bottom: 24px; }
 .mp-regla.niveles-2 .mp-hito.n-2 { top: auto; bottom: calc(100% - 22px); padding-top: 0; padding-bottom: 24px; }
 .mp-hito.n-1::before, .mp-hito.n-2::before { top: auto; bottom: 0; }
+/* Con menos de dos fechas no hay eje: «Hoy» y el motivo en un par de renglones, no en 104 px de regla casi vacía (T-363) */
+.mp-regla.corta { height: auto; margin: 0; }
+.mp-regla.corta::before { display: none; }
+.mp-regla.corta .mp-hito { position: static; transform: none; width: auto; max-width: none; padding: 0; text-align: left; }
+.mp-regla.corta .mp-hito::before { display: none; }
+.mp-regla.corta .mp-hito .mp-fecha { display: inline-block; padding: 0 .625rem; border-radius: 999px; background: var(--ink); color: var(--bg); }
 .mp-sin-fecha { margin: .25rem 0 0; padding: 0; list-style: none; font-size: .875rem; color: var(--ink-2); }
+.mp-regla.corta + .mp-sin-fecha { display: flex; flex-wrap: wrap; gap: .125rem 1.25rem; }
+/* y todo en un renglón (se parte solo si la ventana es angosta): título, «Hoy» y los motivos */
+.mp-plazos:has(.mp-regla.corta) { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1rem; margin-top: .75rem; }
+.mp-plazos:has(.mp-regla.corta) > * { margin: 0; }
+.mp-plazos:has(.mp-regla.corta) .mp-sin-fecha { font-size: .8125rem; }
+/* «Sin fechas del Portal.» repite lo que dicen los motivos de al lado: queda para el lector de pantalla y no ocupa un renglón */
+.mp-plazos:has(.mp-regla.corta) .mp-sin-portal { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.mp-plazos:has(.mp-regla.corta) .mp-plazos-t { font-size: 1rem; }
 .mp-sin-portal { margin: .25rem 0 0; font-size: .875rem; color: var(--ink-2); }
 
 /* Posición de cada hito sobre el eje, en % de la fecha (0 a 100) */

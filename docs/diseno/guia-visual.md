@@ -76,7 +76,7 @@ Forma (no solo color): «Vence hoy» es una etiqueta de texto con borde sólido 
 
 ### 3.2 El mapa del proceso (feature 018, T-350)
 
-Tarjetas de HTML de 172 × 240 px sobre un lienzo de 1130 × 740 px, con un SVG decorativo de conectores (`mapa.css`, `_mapa.html`; geometría en `proceso/mapa.py`). Tokens propios, definidos en los dos temas:
+Tarjetas de HTML de 252 px de ancho y de alto según su contenido (hasta 297 px con tres tareas de dos líneas; `mapa.ALTO_MAXIMO`) sobre un lienzo de 1144 px de ancho y alto variable (de unos 320 a unos 700 px: `mapa.geometria`, función del alto estimado de las tarjetas; ADR-0080, enmienda de T-363). Cuatro columnas y dos filas: arriba 1, 2, 4 y 6; abajo 3, 5 y 7 (Dictamen termina abajo a la derecha). 4→5 y 6→7 son lazos que vuelven a entrar por el borde derecho (4→5 y 4→7 bajan por troncos separados 8 px). Ninguna tarjeta pasa del alto de su fila: lo que sobra se corta entre tarea y tarea y la tarjeta manda a la lista. con un SVG decorativo de conectores (`mapa.css`, `_mapa.html`; geometría en `proceso/mapa.py`). Tokens propios, definidos en los dos temas:
 
 | Token | Claro | Negro | Uso |
 |---|---|---|---|
@@ -84,7 +84,7 @@ Tarjetas de HTML de 172 × 240 px sobre un lienzo de 1130 × 740 px, con un SVG 
 | `--mapa-nodo-n` | `#FAFAFA` | `#121316` | Tarjeta «Todavía no» (borde punteado `--ink-3`) |
 | `--mapa-punto` | `#DADADA` | `#2A2C31` | Puntos de la grilla del lienzo (decorativos; exento de par de contraste) |
 
-Reglas: texto de la tarjeta de 12 px como mínimo (nombre 13 px en peso 600), nunca más abajo; cada estado lleva símbolo y texto («Hecho», «En curso», «Todavía no», «Con error»); línea llena (`--ink`) si el paso de origen está «Hecho» y punteada (`--ink-3`) si no; «Vence hoy» (lila) y «Vencido» (rojo) con borde superior de 3 px en la tarjeta y etiqueta con texto en el pie y en la tarea; la advertencia lleva «!» y el texto «N advertencias» (abreviado «N adv.» con el texto completo en `title` cuando comparte el renglón con «+ N más»); el foco es un anillo de 3 px `--focus` en cada enlace y en la tarjeta que lo contiene. La leyenda lista «Vence hoy» y «Vencido» solo si aparecen. Bajo 900 px el mapa y el selector se ocultan y queda la lista.
+Reglas: texto de la tarjeta de 12 px como mínimo (nombre 13 px en peso 600), nunca más abajo; cada estado lleva símbolo y texto («Hecho», «En curso», «Todavía no», «Con error»); línea llena (`--ink`) si el paso de origen está «Hecho» y punteada (`--ink-3`) si no; «Vence hoy» (lila) y «Vencido» (rojo) con borde superior de 3 px en la tarjeta y etiqueta con texto en el pie y en la tarea; las tareas, el dato y el nombre se leen enteros (hasta dos líneas, sin puntos suspensivos ni recorte); la advertencia lleva «!» y el texto «N advertencias» y es un enlace a `#paso-N`; la línea «punteada» de la leyenda se llama «de rayas»; el foco es un anillo de 3 px `--focus` en cada enlace y en la tarjeta que lo contiene. La leyenda lista «Vence hoy» y «Vencido» solo si aparecen. Bajo 900 px el mapa y el selector se ocultan y queda la lista.
 
 ## 4. Regla del verde lima
 

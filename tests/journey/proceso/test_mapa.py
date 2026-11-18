@@ -69,14 +69,21 @@ def test_req158_sin_porcentaje_ni_barra_de_avance_ni_style(client, caso_varios_e
     assert "style=" not in mp
 
 
+def geometria_de(html):
+    """La `mapa.Geometria` que la portada eligió: sus escalones salen de las clases del lienzo."""
+    k, m = re.search(r'<div class="mp-lienzo fila-b-(\d+) alto-b-(\d+)">', html).groups()
+    return mapa.geometria(int(k), int(m))
+
+
 def test_req158_las_lineas_llenas_salen_de_un_paso_hecho(client, caso_varios_en_curso):
-    """REQ-158: el conector es lleno si el paso de origen está «Hecho» y punteado si no; el `d` es
-    exactamente el de `mapa.TRAZOS`."""
+    """REQ-158: el conector es lleno si el paso de origen está «Hecho» y de rayas si no; el `d` es
+    exactamente el de la geometría que eligió la portada (`mapa.geometria`)."""
     caso = caso_varios_en_curso
     html = html_de(client, caso)
     proceso = calculo.proceso_de(caso.user, caso.procedure)
     assert [p.estado for p in proceso.pasos[:2]] == [pasos.Estado.HECHO] * 2
-    for c in mapa.TRAZOS:
+    g = geometria_de(html)
+    for c in g.trazos:
         hallado = re.search(
             rf'<path d="([^"]+)" class="(lleno|punt)" data-conector="{c.origen}-{c.destino}"/>', html)
         assert hallado, (c.origen, c.destino)
@@ -84,6 +91,29 @@ def test_req158_las_lineas_llenas_salen_de_un_paso_hecho(client, caso_varios_en_
         esperado = "lleno" if proceso.pasos[c.origen - 1].estado is pasos.Estado.HECHO else "punt"
         assert hallado.group(2) == esperado
     assert len(re.findall(r'data-conector="', html)) == 8
+    assert f'viewBox="0 0 {g.lienzo[0]} {g.lienzo[1]}"' in html
+
+
+def test_req158_la_geometria_sale_del_contenido_y_no_es_la_maxima(client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (T-363): la fila de abajo empieza donde lo pide el alto estimado de la de arriba; con tarjetas
+    llenas de tareas largas el escalón sube, y el estimado nunca es menor que el del contenido."""
+    corta = geometria_de(html_de(client, caso_varios_en_curso))
+    assert corta.arriba < len(mapa.ESCALONES) - 1 and corta.fila_b < mapa.Y_ARRIBA + mapa.ALTO_MAXIMO
+    larga = "Resolver el punto número 1 que quedó pendiente de revisión por la Comisión"
+    real = calculo.proceso_de
+
+    def lleno(user, procedure, overview=None):
+        proceso = real(user, procedure, overview)
+        for p in proceso.pasos:
+            p.tareas = [pasos.Accion(p.numero, pasos.PENDIENTE, f"x{i}", larga, 1, "Ver", "/x/") for i in range(5)]
+            p.advertencias = ["Una", "Otra"]
+        proceso.acciones = [t for p in proceso.pasos for t in p.tareas]
+        return proceso
+
+    monkeypatch.setattr(calculo, "proceso_de", lleno)
+    llena = geometria_de(html_de(client, caso_varios_en_curso))
+    assert llena.arriba > corta.arriba and llena.lienzo[1] > corta.lienzo[1]
+    assert mapa.ESCALONES[llena.arriba] >= 240  # 3 tareas de dos líneas, el dato y el renglón de «+ N más»
 
 
 def test_req158_las_dependencias_se_dicen_en_texto(client, caso_varios_en_curso):
@@ -246,3 +276,144 @@ def test_req158_mas_n_mas_dice_y_hace_lo_mismo(client, caso_varios_en_curso, mon
     assert ('<a class="mp-mas" href="#paso-6" title="Ver todas las tareas del paso 6 en la lista de '
             'abajo">+ 2 más</a>') in carta
     assert 'id="paso-6"' in html[html.index('id="pasos"'):]
+
+
+# --- T-363: tarjetas anchas y sin recorte, advertencia enlazada, texto que dice lo que se ve -----------
+
+def test_req158_la_advertencia_es_un_enlace_a_la_lista_del_paso_y_sigue_el_orden_de_tabulacion(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (T-363): «N advertencias» es un `<a>` enfocable a `#paso-N` (con el paso dicho para el lector
+    de pantalla); en la tarjeta el orden de tabulación es nombre, tareas, «+ N más» y advertencias."""
+    _con_tareas(monkeypatch, 5, adv=("Una", "Otra"))
+    html = html_de(client, caso_varios_en_curso)
+    carta = tarjetas(html)[6]
+    assert re.search(r'<a class="mp-adv" href="#paso-6" title="Una · Otra"><i aria-hidden="true">!</i>'
+                     r'2 advertencias<span class="sr-only"> del paso 6: ver en la lista</span></a>', carta)
+    enlaces = [m.start() for m in re.finditer(r"<a ", carta)]
+    nombre, tarea, mas, adv = (carta.index('<h3 class="mp-nom">'), carta.index('<li class="mp-tarea'),
+                               carta.index('class="mp-mas"'), carta.index('class="mp-adv"'))
+    assert nombre < tarea < mas < adv and len(enlaces) == 1 + 3 + 1 + 1
+    assert 'id="paso-6"' in html[html.index('id="pasos"'):]  # el destino existe
+
+
+def test_req158_el_resumen_del_titulo_dice_1_hecho_en_singular(client, caso_recien_cargado):
+    """REQ-158 (H-A4, T-363): con un solo paso hecho dice «1 hecho», nunca «1 hechos»."""
+    uno = html_de(client, caso_recien_cargado)
+    assert "1 hecho, 1 en curso" in uno and "1 hechos" not in uno
+
+
+def test_req158_el_resumen_del_titulo_dice_hechos_en_plural(client, caso_varios_en_curso):
+    """REQ-158 (H-A4, T-363): con dos pasos hechos dice «2 hechos»."""
+    assert "2 hechos, 4 en curso" in html_de(client, caso_varios_en_curso)
+
+
+def test_req158_la_leyenda_dice_rayas_y_no_punteada(client, caso_varios_en_curso):
+    """REQ-158 (T-363): el conector que todavía puede cambiar se dibuja de rayas; la leyenda lo dice así."""
+    html = html_de(client, caso_varios_en_curso)
+    mp = html[html.index('class="mp mp-mapa"'):html.index('id="ahora-titulo"')]
+    assert "Línea de rayas: todavía puede cambiar" in mp and "unteada" not in mp
+
+
+def test_req148_sin_fechas_la_linea_de_plazos_es_corta_y_con_fechas_dibuja_el_eje(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-148 (H-B6, T-363): con menos de dos fechas la regla no ocupa su alto de eje (clase `corta`); con
+    apertura y vencimiento sí se dibuja el eje completo."""
+    sin = html_de(client, caso_varios_en_curso)
+    assert 'class="mp-regla niveles-0 corta"' in sin
+    _fechas(monkeypatch, HOY + timedelta(days=23))
+    con = html_de(client, caso_varios_en_curso)
+    assert 'class="mp-regla niveles-0"' in con and "corta" not in con[con.index('class="mp-plazos"'):con.index('id="ahora-titulo"')]
+    css = (Path(__file__).resolve().parents[3] / "evaluon/static/journey/mapa.css").read_text(encoding="utf-8")
+    assert re.search(r"\.mp-regla\.corta\s*\{\s*height:\s*auto", css)
+
+
+def test_req158_ninguna_tarea_lleva_recorte_en_su_html(client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (T-363): el texto de cada tarea y del dato va entero en el HTML (el recorte, si lo hubiera, sería
+    de la hoja, que un test aparte vigila); una frase de 74 caracteres no se corta."""
+    larga = "Resolver el punto número 1 que quedó pendiente de revisión por la Comisión"
+    real = calculo.proceso_de
+
+    def hecho(user, procedure, overview=None):
+        proceso = real(user, procedure, overview)
+        proceso.pasos[5].tareas = [pasos.Accion(6, pasos.PENDIENTE, "x0", larga, 1, "Ver", "/x/")]
+        proceso.acciones = [t for p in proceso.pasos for t in p.tareas]
+        return proceso
+
+    monkeypatch.setattr(calculo, "proceso_de", hecho)
+    carta = tarjetas(html_de(client, caso_varios_en_curso))[6]
+    assert f'<span class="mp-txt">{larga}</span>' in carta and "…" not in carta
+
+
+# --- T-363 (correcciones de la verificación): texto acortado, «Ver todo en la lista», accesibilidad ------
+
+def test_req158_el_numero_de_la_tarjeta_es_decorativo_y_el_nombre_lo_dice_con_su_numero(
+        client, caso_varios_en_curso):
+    """REQ-158 (H-A5): el círculo con el número lleva `aria-hidden="true"` (el nombre ya dice «Paso N: »)."""
+    cartas = tarjetas(html_de(client, caso_varios_en_curso))
+    for n, carta in cartas.items():
+        assert f'<span class="mp-n" aria-hidden="true">{n}</span>' in carta
+        assert f'<span class="sr-only">Paso {n}: </span>' in carta
+
+
+def test_req158_un_texto_larguisimo_se_corta_en_la_tarjeta_con_puntos_y_va_entero_en_el_title_y_en_la_lista(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (H-A2, T-363): una tarea de 220 caracteres (un error de etapa, por ejemplo) se muestra en la
+    tarjeta cortada en el último espacio con «…», con el texto completo en el `title` y en la lista de pasos;
+    la tarjeta, que quedó pasada del último escalón, trae «Ver todo en la lista» enlazado a `#paso-N`."""
+    largo = "Resolver el error: «" + "la oferta no trae el documento pedido por el pliego " * 4 + "»"
+    assert len(largo) > 200
+    real = calculo.proceso_de
+
+    def hecho(user, procedure, overview=None):
+        proceso = real(user, procedure, overview)
+        seis = proceso.pasos[5]
+        seis.tareas = [pasos.Accion(6, pasos.PENDIENTE, f"x{i}", largo, 1, "Ver", f"/x/{i}/") for i in range(3)]
+        proceso.acciones = [t for p in proceso.pasos for t in p.tareas]
+        return proceso
+
+    monkeypatch.setattr(calculo, "proceso_de", hecho)
+    html = html_de(client, caso_varios_en_curso)
+    carta = tarjetas(html)[6]
+    corto = mapa.acortar(largo, mapa.LIMITE_TAREA)
+    assert corto.endswith("…") and len(corto) <= mapa.LIMITE_TAREA and largo.startswith(corto[:-1])
+    assert carta.count(f'<span class="mp-txt">{corto}</span>') == 3
+    assert f'title="{largo}"' in carta  # el texto completo, en el title...
+    assert html.count(largo) >= 4  # ...y en la lista de pasos (lo que no está en el title de la tarjeta)
+    assert "Ver todo en la lista" not in carta  # con el tope de largo la tarjeta entra: no hace falta
+
+
+def test_req158_si_la_estimacion_pasa_del_ultimo_escalon_la_tarjeta_manda_a_la_lista(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (H-A2, T-363): si el alto estimado de una tarjeta pasa del último escalón (432 px; aquí, sin el tope
+    de largo) la tarjeta lleva «Ver todo en la lista» enlazado a `#paso-N` en su último renglón, y solo ella;
+    la hoja la corta entre tarea y tarea en el alto de su fila."""
+    largo = "Resolver el error: «" + "la oferta no trae el documento pedido por el pliego " * 6 + "»"
+    monkeypatch.setattr(mapa, "LIMITE_TAREA", 1000)
+    real = calculo.proceso_de
+
+    def hecho(user, procedure, overview=None):
+        proceso = real(user, procedure, overview)
+        seis = proceso.pasos[5]
+        seis.tareas = [pasos.Accion(6, pasos.PENDIENTE, f"x{i}", largo, 1, "Ver", f"/x/{i}/") for i in range(3)]
+        proceso.acciones = [t for p in proceso.pasos for t in p.tareas]
+        return proceso
+
+    monkeypatch.setattr(calculo, "proceso_de", hecho)
+    html = html_de(client, caso_varios_en_curso)
+    carta = tarjetas(html)[6]
+    assert ('<a class="mp-mas" href="#paso-6" title="Esta tarjeta no muestra todo: ver el paso 6 completo en la '
+            'lista de abajo">Ver todo en la lista</a>') in carta
+    assert "Ver todo en la lista" not in tarjetas(html)[1]
+    assert geometria_de(html).abajo == len(mapa.ESCALONES) - 1 or geometria_de(html).arriba == len(mapa.ESCALONES) - 1
+
+
+def test_req158_acortar_corta_en_un_espacio_y_no_toca_lo_que_cabe():
+    """REQ-158 (H-A2): `acortar` deja intacto lo que cabe, corta en el último espacio que deje al menos la mitad
+    y, si no hay espacio, corta duro; siempre termina en «…» y nunca pasa del límite."""
+    assert mapa.acortar("Cargar el dictamen", 110) == "Cargar el dictamen"
+    justo = "x" * 110
+    assert mapa.acortar(justo, 110) == justo
+    corto = mapa.acortar("uno dos tres " * 20, 60)
+    assert corto.endswith("…") and len(corto) <= 60 and not corto[:-1].endswith(" ")
+    assert mapa.acortar("x" * 300, 60) == "x" * 59 + "…"
+    assert mapa.acortar("palabra " * 3 + "y" * 200, 40).endswith("…")
