@@ -71,9 +71,24 @@ POR_NUMERO = {p.numero: p for p in PASOS}
 POR_CLAVE = {p.clave: p for p in PASOS}
 
 
+# Dónde se resuelve cada paso (REQ-149, REQ-154): `(ruta de expedientes:, ancla)`. El ancla es un
+# `id` que la página trae siempre. Los pasos 4 y 6 se resuelven en el cuadro de cumplimiento; el 5
+# se mira en «Indicadores» (el primer panel).
+DESTINOS = {
+    1: ("procedimiento", "#s1-pliego"),
+    2: ("pliego", "#s2-matriz"),
+    3: ("ofertas", "#s3-ofertas"),
+    4: ("cuadro", ""),
+    5: ("procedimiento", "#indicadores-titulo"),
+    6: ("cuadro", ""),
+    7: ("evaluacion", "#s4-dictamen"),
+}
+
+
 def destino_por_omision(numero, procedure):
-    """La URL de la sección donde se resuelve el paso `numero` del `procedure`."""
-    return reverse(f"expedientes:{POR_NUMERO[numero].seccion}", args=[procedure.pk])
+    """La URL (con su ancla) del lugar donde se resuelve el paso `numero` del `procedure`."""
+    ruta, ancla = DESTINOS[numero]
+    return reverse(f"expedientes:{ruta}", args=[procedure.pk]) + ancla
 
 
 @dataclass
