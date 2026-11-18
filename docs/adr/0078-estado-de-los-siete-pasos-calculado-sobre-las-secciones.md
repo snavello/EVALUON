@@ -21,7 +21,7 @@ Un módulo independiente que consulta los modelos directamente. Se gana: indepen
 
 ## Decisión
 
-Se propone **A**. Las reglas comunes son: «Hecho» = condiciones de la spec y ninguna acción abierta del paso; «En curso» = el paso empezó o tiene una acción disponible; «Todavía no» = no empezó y ninguna acción está disponible; «Con error» = su última tarea falló sin un resultado posterior. La tabla paso → reglas → datos → función está en el plan 018. Los casos que los datos no cubren (documentos «sin revisar», circulares «sin revisar», qué es «A decidir») quedan como preguntas del responsable, no como supuestos.
+Se propone **A**. Las reglas comunes son: «Hecho» = condiciones de la spec y ninguna acción abierta del paso; «En curso» = el paso empezó o tiene una acción disponible; «Todavía no» = no empezó y ninguna acción está disponible; «Con error» = su última tarea falló sin un resultado posterior. La tabla paso → reglas → datos → función está en el plan 018. Los casos que los datos no cubrían (documentos «sin revisar», circulares «sin revisar», qué es «A decidir», qué se llama a un paso que se puede empezar) se le preguntaron al responsable y los resolvió el 2026-11-17: «sin revisar» se deduce de la lectura y de `Run.documents`, sin marca nueva; «A decidir» es solo lo no determinado; un paso que se puede empezar está «En curso» y «Todavía no» queda para lo que depende de otro paso. La lista de acciones incluye también las acciones de cierre y los faltantes (decisión «Todo lo que falta»).
 
 ## Consecuencias
 
