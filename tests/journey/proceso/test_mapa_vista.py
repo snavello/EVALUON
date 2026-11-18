@@ -68,20 +68,26 @@ def test_req158_mapa_css_tiene_la_regla_de_900_px_que_oculta_mapa_y_selector():
 
 
 def test_req158_mapa_css_declara_las_mismas_posiciones_que_mapa_py():
-    """REQ-158: `pos-N`, `col-N`, lienzo y ancho de tarjeta de la hoja = las constantes de `mapa.py`; la
-    tarjeta NO fija su alto (mide lo que ocupa su contenido)."""
+    """REQ-158: `pos-N`, `fila-b-N`, `alto-b-N`, el ancho del lienzo y el de la tarjeta de la hoja = los de
+    `mapa.py`; la tarjeta NO fija su alto (mide lo que ocupa su contenido) y no hay encabezados de columna."""
     texto = css()
-    pos = {int(n): (int(x), int(y)) for n, x, y in re.findall(
-        r"\.pos-(\d)\s*\{\s*left:\s*(\d+)px;\s*top:\s*(\d+)px;?\s*\}", texto)}
-    assert pos == mapa.POSICIONES
-    col = [int(x) for x in re.findall(r"\.col-\d\s*\{\s*left:\s*(\d+)px", texto)]
-    assert col == [x for _, x in mapa.COLUMNAS]
-    lienzo = re.search(r"\.mp-lienzo\s*\{[^}]*width:\s*(\d+)px;\s*height:\s*(\d+)px", texto)
-    assert (int(lienzo.group(1)), int(lienzo.group(2))) == mapa.LIENZO
-    hilos = re.search(r"\.mp-hilos\s*\{[^}]*width:\s*(\d+)px;\s*height:\s*(\d+)px", texto)
-    assert (int(hilos.group(1)), int(hilos.group(2))) == mapa.LIENZO
-    columnas = re.search(r"\.mp-columnas\s*\{[^}]*width:\s*(\d+)px", texto)
-    assert int(columnas.group(1)) == mapa.LIENZO[0]
+    pos = {int(n): (int(x), y) for n, x, y in re.findall(
+        r"\.pos-(\d)\s*\{\s*left:\s*(\d+)px;\s*top:\s*([^;]+);\s*\}", texto)}
+    esperado = {n: (mapa.X_COLUMNA[c], f"{mapa.Y_ARRIBA}px" if fila == 0 else "var(--fila-b)")
+                for n, (c, fila) in mapa.CASILLAS.items()}
+    assert pos == esperado
+    filas = [int(v) for v in re.findall(r"\.fila-b-\d+\s*\{\s*--fila-b:\s*(\d+)px", texto)]
+    assert filas == [mapa.y_fila_b(i) for i in range(len(mapa.ESCALONES))]
+    altos = [int(v) for v in re.findall(r"\.alto-b-\d+\s*\{\s*--alto-b:\s*(\d+)px", texto)]
+    assert altos == list(mapa.ESCALONES)
+    assert [int(n) for n in re.findall(r"\.fila-b-(\d+)\s*\{", texto)] == list(range(len(mapa.ESCALONES)))
+    assert [int(n) for n in re.findall(r"\.alto-b-(\d+)\s*\{", texto)] == list(range(len(mapa.ESCALONES)))
+    calc = rf"calc\(var\(--fila-b\) \+ var\(--alto-b\) \+ {mapa.MARGEN}px\)"
+    lienzo = re.search(rf"\.mp-lienzo\s*\{{[^}}]*width:\s*(\d+)px;\s*height:\s*{calc}", texto)
+    assert int(lienzo.group(1)) == mapa.ANCHO_LIENZO
+    hilos = re.search(rf"\.mp-hilos\s*\{{[^}}]*width:\s*(\d+)px;\s*height:\s*{calc}", texto)
+    assert int(hilos.group(1)) == mapa.ANCHO_LIENZO
+    assert "mp-columnas" not in texto and not re.search(r"\.col-\d", texto)
     nodo = re.search(r"\.mp-nodo\s*\{([^}]*)\}", texto).group(1)
     assert int(re.search(r"(?<![-\w])width:\s*(\d+)px", nodo).group(1)) == mapa.ANCHO
     assert not re.search(r"(?<![-\w])(?:height|max-height|min-height):", nodo)

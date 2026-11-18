@@ -69,14 +69,21 @@ def test_req158_sin_porcentaje_ni_barra_de_avance_ni_style(client, caso_varios_e
     assert "style=" not in mp
 
 
+def geometria_de(html):
+    """La `mapa.Geometria` que la portada eligió: sus escalones salen de las clases del lienzo."""
+    k, m = re.search(r'<div class="mp-lienzo fila-b-(\d+) alto-b-(\d+)">', html).groups()
+    return mapa.geometria(int(k), int(m))
+
+
 def test_req158_las_lineas_llenas_salen_de_un_paso_hecho(client, caso_varios_en_curso):
-    """REQ-158: el conector es lleno si el paso de origen está «Hecho» y punteado si no; el `d` es
-    exactamente el de `mapa.TRAZOS`."""
+    """REQ-158: el conector es lleno si el paso de origen está «Hecho» y de rayas si no; el `d` es
+    exactamente el de la geometría que eligió la portada (`mapa.geometria`)."""
     caso = caso_varios_en_curso
     html = html_de(client, caso)
     proceso = calculo.proceso_de(caso.user, caso.procedure)
     assert [p.estado for p in proceso.pasos[:2]] == [pasos.Estado.HECHO] * 2
-    for c in mapa.TRAZOS:
+    g = geometria_de(html)
+    for c in g.trazos:
         hallado = re.search(
             rf'<path d="([^"]+)" class="(lleno|punt)" data-conector="{c.origen}-{c.destino}"/>', html)
         assert hallado, (c.origen, c.destino)
@@ -84,6 +91,29 @@ def test_req158_las_lineas_llenas_salen_de_un_paso_hecho(client, caso_varios_en_
         esperado = "lleno" if proceso.pasos[c.origen - 1].estado is pasos.Estado.HECHO else "punt"
         assert hallado.group(2) == esperado
     assert len(re.findall(r'data-conector="', html)) == 8
+    assert f'viewBox="0 0 {g.lienzo[0]} {g.lienzo[1]}"' in html
+
+
+def test_req158_la_geometria_sale_del_contenido_y_no_es_la_maxima(client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (T-363): la fila de abajo empieza donde lo pide el alto estimado de la de arriba; con tarjetas
+    llenas de tareas largas el escalón sube, y el estimado nunca es menor que el del contenido."""
+    corta = geometria_de(html_de(client, caso_varios_en_curso))
+    assert corta.arriba < len(mapa.ESCALONES) - 1 and corta.fila_b < mapa.Y_ARRIBA + mapa.ALTO_MAXIMO
+    larga = "Resolver el punto número 1 que quedó pendiente de revisión por la Comisión"
+    real = calculo.proceso_de
+
+    def lleno(user, procedure, overview=None):
+        proceso = real(user, procedure, overview)
+        for p in proceso.pasos:
+            p.tareas = [pasos.Accion(p.numero, pasos.PENDIENTE, f"x{i}", larga, 1, "Ver", "/x/") for i in range(5)]
+            p.advertencias = ["Una", "Otra"]
+        proceso.acciones = [t for p in proceso.pasos for t in p.tareas]
+        return proceso
+
+    monkeypatch.setattr(calculo, "proceso_de", lleno)
+    llena = geometria_de(html_de(client, caso_varios_en_curso))
+    assert llena.arriba > corta.arriba and llena.lienzo[1] > corta.lienzo[1]
+    assert mapa.ESCALONES[llena.arriba] >= 240  # 3 tareas de dos líneas, el dato y el renglón de «+ N más»
 
 
 def test_req158_las_dependencias_se_dicen_en_texto(client, caso_varios_en_curso):

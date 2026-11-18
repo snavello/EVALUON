@@ -76,7 +76,7 @@ Forma (no solo color): «Vence hoy» es una etiqueta de texto con borde sólido 
 
 ### 3.2 El mapa del proceso (feature 018, T-350)
 
-Tarjetas de HTML de 252 px de ancho y de alto según su contenido (hasta 297 px: `mapa.ALTO_MAXIMO`) sobre un lienzo de 1144 × 624 px (cuatro columnas y dos carriles: el camino principal 1 → 2 → 4 → 7 arriba; 3, 5 y 6 abajo; los conectores 4→5 y 6→7 son lazos que vuelven a entrar por el borde derecho), con un SVG decorativo de conectores (`mapa.css`, `_mapa.html`; geometría en `proceso/mapa.py`). Tokens propios, definidos en los dos temas:
+Tarjetas de HTML de 252 px de ancho y de alto según su contenido (hasta 297 px con tres tareas de dos líneas; `mapa.ALTO_MAXIMO`) sobre un lienzo de 1144 px de ancho y alto variable (de unos 320 a unos 700 px: `mapa.geometria`, función del alto estimado de las tarjetas; ADR-0080, enmienda de T-363). Cuatro columnas y dos filas: arriba 1, 2, 4 y 6; abajo 3, 5 y 7 (Dictamen termina abajo a la derecha). 4→5 y 6→7 son lazos que vuelven a entrar por el borde derecho; 4→5 y 4→7 comparten el tronco y se bifurcan. con un SVG decorativo de conectores (`mapa.css`, `_mapa.html`; geometría en `proceso/mapa.py`). Tokens propios, definidos en los dos temas:
 
 | Token | Claro | Negro | Uso |
 |---|---|---|---|

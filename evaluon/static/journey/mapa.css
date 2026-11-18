@@ -1,14 +1,14 @@
 /* El mapa del proceso y la línea de plazos (feature 018: REQ-146, REQ-148, REQ-156, REQ-157, REQ-158;
    ADR-0080; T-350). Tarjetas de HTML sobre un lienzo de medidas fijas, con un SVG decorativo de
-   conectores debajo. Las posiciones (`pos-1` … `pos-7`, `col-1` … `col-5`) repiten los números de
-   `evaluon/journey/proceso/mapa.py` (`POSICIONES`, `COLUMNAS`, `LIENZO`, `ANCHO`, `ALTO`): un test las
+   conectores debajo. Las posiciones (`pos-1` … `pos-7`, `fila-b-N`, `alto-b-N`) repiten los números de
+   `evaluon/journey/proceso/mapa.py` (`CASILLAS`, `X_COLUMNA`, `ESCALONES`, `ANCHO`): un test las
    compara. Todo color sale de `var(--…)` de tokens.css (nada en hexadecimal ni `style=`); `--hoy*` y
    `--vencido*` se nombran solo acá y en proceso.css (lo vigila test_lila_exclusivo.py). Cada estado lleva
    su texto escrito, además del color o el símbolo. Bajo 900 px el mapa y el selector se ocultan y queda
    la lista de pasos (que siempre está) y los plazos. */
 
-.mp { min-width: 0; background: var(--tile); border-radius: var(--r); padding: 1.1rem 1rem 1.25rem; }
-.mp-cab { display: flex; align-items: center; gap: .5rem 1.25rem; flex-wrap: wrap; margin-bottom: .75rem; }
+.mp { min-width: 0; background: var(--tile); border-radius: var(--r); padding: .9rem 1rem 1.1rem; }
+.mp-cab { display: flex; align-items: center; gap: .5rem 1.25rem; flex-wrap: wrap; margin-bottom: .5rem; }
 .mp .mp-titulo { margin: 0; font-size: 1.25rem; font-weight: 600; }
 .mp-leyenda { display: flex; flex-wrap: wrap; gap: .25rem 1rem; list-style: none; margin: 0; padding: 0; font-size: .8125rem; color: var(--ink-2); flex: 1 1 24rem; }
 .mp-leyenda li { display: inline-flex; align-items: center; gap: .375rem; }
@@ -38,17 +38,11 @@
    72 de márgenes de la página y 15 de barra de desplazamiento), el mapa se desplaza de costado dentro de su caja y la página no
    tiene desplazamiento propio. */
 @media (min-width: 900px) and (max-width: 1262px) { .mp-pista { display: block; } }
-.mp-columnas { position: relative; width: 1144px; height: 20px; margin: 0 auto; }
-.mp-columnas span { position: absolute; top: 0; width: 252px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--ink-2); }
-.col-1 { left: 8px; }
-.col-2 { left: 292px; }
-.col-3 { left: 576px; }
-.col-4 { left: 860px; }
 .mp-lienzo {
-  position: relative; width: 1144px; height: 624px; margin: 0 auto; border-radius: 12px;
+  position: relative; width: 1144px; height: calc(var(--fila-b) + var(--alto-b) + 8px); margin: 0 auto; border-radius: 12px;
   background-image: radial-gradient(var(--mapa-punto) 1px, transparent 1px); background-size: 22px 22px;
 }
-.mp-hilos { position: absolute; left: 0; top: 0; width: 1144px; height: 624px; pointer-events: none; }
+.mp-hilos { position: absolute; left: 0; top: 0; width: 1144px; height: calc(var(--fila-b) + var(--alto-b) + 8px); pointer-events: none; }
 .mp-hilos path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .mp-hilos path.lleno { stroke: var(--ink); stroke-width: 2; }
 .mp-hilos path.punt { stroke: var(--ink-3); stroke-width: 2.5; stroke-dasharray: 7 5; stroke-linecap: butt; }
@@ -57,14 +51,44 @@
 .mp-hilos path.punta.punt { fill: var(--ink-3); }
 .mp-nodos { list-style: none; margin: 0; padding: 0; }
 
-/* Posiciones de las siete tarjetas (mapa.POSICIONES): carril de arriba 1, 2, 4 y 7; carril de abajo 3, 5 y 6 */
+/* Posiciones de las siete tarjetas (mapa.CASILLAS y mapa.X_COLUMNA): fila de arriba 1, 2, 4 y 6; fila de abajo 3, 5 y 7. La fila de
+   abajo empieza donde dice `--fila-b`, que fija el escalón `fila-b-N` del lienzo (mapa.y_fila_b: 8 + alto de fila + 16); el alto
+   del lienzo es `--fila-b` + `--alto-b` (escalón `alto-b-N`, el alto de la fila de abajo) + 8. Los escalones son mapa.ESCALONES. */
 .pos-1 { left: 8px; top: 8px; }
 .pos-2 { left: 292px; top: 8px; }
-.pos-3 { left: 292px; top: 319px; }
+.pos-3 { left: 8px; top: var(--fila-b); }
 .pos-4 { left: 576px; top: 8px; }
-.pos-5 { left: 576px; top: 319px; }
-.pos-6 { left: 860px; top: 319px; }
-.pos-7 { left: 860px; top: 8px; }
+.pos-5 { left: 576px; top: var(--fila-b); }
+.pos-6 { left: 860px; top: 8px; }
+.pos-7 { left: 860px; top: var(--fila-b); }
+.fila-b-0 { --fila-b: 144px; }
+.fila-b-1 { --fila-b: 168px; }
+.fila-b-2 { --fila-b: 192px; }
+.fila-b-3 { --fila-b: 216px; }
+.fila-b-4 { --fila-b: 240px; }
+.fila-b-5 { --fila-b: 264px; }
+.fila-b-6 { --fila-b: 288px; }
+.fila-b-7 { --fila-b: 312px; }
+.fila-b-8 { --fila-b: 336px; }
+.fila-b-9 { --fila-b: 360px; }
+.fila-b-10 { --fila-b: 384px; }
+.fila-b-11 { --fila-b: 408px; }
+.fila-b-12 { --fila-b: 432px; }
+.fila-b-13 { --fila-b: 456px; }
+.alto-b-0 { --alto-b: 120px; }
+.alto-b-1 { --alto-b: 144px; }
+.alto-b-2 { --alto-b: 168px; }
+.alto-b-3 { --alto-b: 192px; }
+.alto-b-4 { --alto-b: 216px; }
+.alto-b-5 { --alto-b: 240px; }
+.alto-b-6 { --alto-b: 264px; }
+.alto-b-7 { --alto-b: 288px; }
+.alto-b-8 { --alto-b: 312px; }
+.alto-b-9 { --alto-b: 336px; }
+.alto-b-10 { --alto-b: 360px; }
+.alto-b-11 { --alto-b: 384px; }
+.alto-b-12 { --alto-b: 408px; }
+.alto-b-13 { --alto-b: 432px; }
 
 /* La tarjeta: 252 px de ancho y tanto alto como su contenido, nada recortado. Su alto máximo (mapa.PRESUPUESTO: 297 px) es
    la suma de las medidas de abajo con el nombre y el dato en dos líneas, tres tareas de dos líneas, la etiqueta de una tarea y
@@ -192,7 +216,14 @@
 .mp-regla.corta .mp-hito::before { display: none; }
 .mp-regla.corta .mp-hito .mp-fecha { display: inline-block; padding: 0 .625rem; border-radius: 999px; background: var(--ink); color: var(--bg); }
 .mp-sin-fecha { margin: .25rem 0 0; padding: 0; list-style: none; font-size: .875rem; color: var(--ink-2); }
-.mp-regla.corta + .mp-sin-fecha { display: flex; flex-wrap: wrap; gap: .125rem 1.5rem; }
+.mp-regla.corta + .mp-sin-fecha { display: flex; flex-wrap: wrap; gap: .125rem 1.25rem; }
+/* y todo en un renglón (se parte solo si la ventana es angosta): título, «Hoy» y los motivos */
+.mp-plazos:has(.mp-regla.corta) { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1rem; margin-top: .75rem; }
+.mp-plazos:has(.mp-regla.corta) > * { margin: 0; }
+.mp-plazos:has(.mp-regla.corta) .mp-sin-fecha { font-size: .8125rem; }
+/* «Sin fechas del Portal.» repite lo que dicen los motivos de al lado: queda para el lector de pantalla y no ocupa un renglón */
+.mp-plazos:has(.mp-regla.corta) .mp-sin-portal { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.mp-plazos:has(.mp-regla.corta) .mp-plazos-t { font-size: 1rem; }
 .mp-sin-portal { margin: .25rem 0 0; font-size: .875rem; color: var(--ink-2); }
 
 /* Posición de cada hito sobre el eje, en % de la fecha (0 a 100) */

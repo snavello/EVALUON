@@ -268,9 +268,7 @@ class _Mapa:
     vista: str
     tarjetas: list
     conectores: list  # [(Conector, lleno)]
-    columnas: tuple
-    ancho_lienzo: int
-    alto_lienzo: int
+    geometria: object  # `mapa.Geometria`: posiciones, lienzo y conectores para el contenido de ESTA portada
     eje: object
     sin_fecha: list  # los hitos sin fecha, con su motivo (el dictamen sin fecha no se lista)
     niveles: int  # el nivel más bajo de la línea de plazos (0, 1 o 2)
@@ -278,6 +276,22 @@ class _Mapa:
     leyenda_marcas: list
     url_mapa: str
     url_lista: str
+
+
+def _alto_de(tarjeta):
+    """El alto estimado (siempre por encima del real) de una tarjeta: lo mismo que dibuja `_mapa.html`."""
+    paso, fila = tarjeta.paso, tarjeta.fila
+    tareas = [(t.accion.texto, bool(t.accion.marca)) for t in tarjeta.tareas]
+    if not tareas and paso.espera:
+        tareas = [(paso.espera, False)]
+    return mapa.alto_estimado(paso.nombre, paso.dato, tareas, bool(tarjeta.mas or fila.advertencias))
+
+
+def _geometria_de(tarjetas):
+    """Los escalones de la fila de arriba y de la de abajo, según el alto estimado de sus tarjetas."""
+    altos = {t.paso.numero: _alto_de(t) for t in tarjetas}
+    return mapa.geometria(mapa.escalon(max(altos[n] for n in mapa.FILA_ARRIBA)),
+                          mapa.escalon(max(altos[n] for n in mapa.FILA_ABAJO)))
 
 
 def _vista(request):
@@ -292,15 +306,15 @@ def _mapa_de(request, proceso, filas, nombres):
     tarjetas = [_Tarjeta(f, f.faltan[:TARJETA_TAREAS], max(0, len(f.faltan) - TARJETA_TAREAS),
                          [f"{o}. {nombres[o]}" for o, d in mapa.CONECTORES if d == f.paso.numero])
                 for f in filas]
+    geometria = _geometria_de(tarjetas)
     conectores = [(c, proceso.pasos[c.origen - 1].estado is pasos.Estado.HECHO)
-                  for c in mapa.TRAZOS]
+                  for c in geometria.trazos]
     marcas = {p.marca for p in proceso.pasos} | {t.marca for t in proceso.acciones}
     hay = [(clave, texto) for clave, texto in pasos.TEXTOS_MARCA.items() if clave in marcas]
     base = request.path
     eje = mapa.hitos_en_eje(ingreso.plazos(proceso.procedure).events)
     return _Mapa(
-        vista=_vista(request), tarjetas=tarjetas, conectores=conectores, columnas=mapa.COLUMNAS,
-        ancho_lienzo=mapa.LIENZO[0], alto_lienzo=mapa.LIENZO[1],
+        vista=_vista(request), tarjetas=tarjetas, conectores=conectores, geometria=geometria,
         eje=eje, sin_fecha=[s for s in eje.sin_fecha if s.key != "dictamen"],
         niveles=max((h.nivel for h in eje.hitos), default=0),
         marca_mantenimiento=proceso.pasos[6].marca, leyenda_marcas=hay,
