@@ -17,10 +17,11 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role, viewing
 from evaluon.audit.models import Channel
 from evaluon.journey import memo
-from evaluon.journey.proceso import acciones, calculo, pasos
+from evaluon.journey.proceso import acciones, calculo, mapa, pasos
 from evaluon.journey.sections import sections_for
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import is_viewer
+from evaluon.journey.tablero import ingreso
 from evaluon.journey.tablero.ingreso import KEY as INGRESO_KEY
 from evaluon.journey.tablero.tiles import build_board
 from evaluon.journey.temas import s4_propuesta
@@ -238,6 +239,73 @@ def _resumen(proceso, cantidad_ofertas):
     return f"{ofertas} · {', '.join(partes)}"
 
 
+TARJETA_TAREAS = 3  # tareas que muestra una tarjeta del mapa; el resto es «+ N más»
+VISTAS = ("mapa", "lista")
+
+
+@dataclass
+class _Tarjeta:
+    """Una tarjeta del mapa: el mismo `Paso` y las mismas líneas que la lista (REQ-158). Nada se
+    calcula en la plantilla: `tareas` son las primeras de `_Fila.faltan` y `depende` sale de
+    `mapa.CONECTORES`."""
+
+    fila: object
+    tareas: list
+    mas: int
+    depende: list
+
+    @property
+    def paso(self):
+        return self.fila.paso
+
+
+@dataclass
+class _Mapa:
+    """Todo lo que `_mapa.html` y `_plazos.html` dibujan. `vista` es `mapa` o `lista`; nunca se
+    guarda (ni cookie ni sesión): viene de `?vista=`."""
+
+    vista: str
+    tarjetas: list
+    conectores: list  # [(Conector, lleno)]
+    columnas: tuple
+    ancho_lienzo: int
+    alto_lienzo: int
+    eje: object
+    sin_fecha: list  # los hitos sin fecha, con su motivo (el dictamen sin fecha no se lista)
+    niveles: int  # el nivel más bajo de la línea de plazos (0, 1 o 2)
+    marca_mantenimiento: str
+    leyenda_marcas: list
+    url_mapa: str
+    url_lista: str
+
+
+def _vista(request):
+    """`?vista=mapa|lista`; cualquier otro valor es el mapa."""
+    pedida = request.GET.get("vista", "")
+    return pedida if pedida in VISTAS else "mapa"
+
+
+def _mapa_de(request, proceso, filas, nombres):
+    """Las tarjetas, los conectores y la línea de plazos de la portada, de ESE `Proceso` y de las
+    mismas filas que dibuja la lista."""
+    tarjetas = [_Tarjeta(f, f.faltan[:TARJETA_TAREAS], max(0, len(f.faltan) - TARJETA_TAREAS),
+                         [f"{o}. {nombres[o]}" for o, d in mapa.CONECTORES if d == f.paso.numero])
+                for f in filas]
+    conectores = [(c, proceso.pasos[c.origen - 1].estado is pasos.Estado.HECHO)
+                  for c in mapa.TRAZOS]
+    marcas = {p.marca for p in proceso.pasos} | {t.marca for t in proceso.acciones}
+    hay = [(clave, texto) for clave, texto in pasos.TEXTOS_MARCA.items() if clave in marcas]
+    base = request.path
+    eje = mapa.hitos_en_eje(ingreso.plazos(proceso.procedure).events)
+    return _Mapa(
+        vista=_vista(request), tarjetas=tarjetas, conectores=conectores, columnas=mapa.COLUMNAS,
+        ancho_lienzo=mapa.LIENZO[0], alto_lienzo=mapa.LIENZO[1],
+        eje=eje, sin_fecha=[s for s in eje.sin_fecha if s.key != "dictamen"],
+        niveles=max((h.nivel for h in eje.hitos), default=0),
+        marca_mantenimiento=proceso.pasos[6].marca, leyenda_marcas=hay,
+        url_mapa=f"{base}?vista=mapa", url_lista=f"{base}?vista=lista#pasos")
+
+
 @require_GET
 @memo.scoped
 @reading
@@ -256,13 +324,14 @@ def portada(request, procedure_id):
     with viewing(request.user):
         cifras = s4_propuesta.figures_of(
             memo.matrix_page(request.user, procedure.pk, channel=Channel.SCREEN))
+    filas = [_fila(p, proceso, nombres, cifras, overview) for p in proceso.pasos]
     context = shell(request, overview)
     context.update({
         "proceso": proceso,
         "resumen": _resumen(proceso, len(memo.offers(procedure))),
         "visibles": [_Linea(a, nombres[a.paso]) for a in visibles],
         "restantes": [_Linea(a, nombres[a.paso]) for a in restantes],
-        "filas": [_fila(p, proceso, nombres, cifras, overview) for p in proceso.pasos],
+        "filas": filas, "mapa": _mapa_de(request, proceso, filas, nombres),
         "vencimiento": vencimiento,
         "vencimiento_paso": nombres[vencimiento.paso] if vencimiento else "",
         "puede_actuar": bool(request.user.commission_role),

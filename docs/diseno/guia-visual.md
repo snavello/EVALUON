@@ -74,6 +74,18 @@ Contraste medido (el lila de partida del plan era idéntico a `--ext` y se reemp
 
 Forma (no solo color): «Vence hoy» es una etiqueta de texto con borde sólido y peso 700 sobre fondo lila; «Vencido» es una etiqueta **rellena** en rojo brillante con el texto «Vencido» y los días; «Con error» y «No cumple» son etiquetas teñidas con símbolo y `--no` desaturado. Los estados de `proceso.css` (`.pr-estado.hecho|en-curso|todavia-no|con-error`) llevan siempre el texto escrito y un símbolo.
 
+### 3.2 El mapa del proceso (feature 018, T-350)
+
+Tarjetas de HTML de 172 × 240 px sobre un lienzo de 1130 × 740 px, con un SVG decorativo de conectores (`mapa.css`, `_mapa.html`; geometría en `proceso/mapa.py`). Tokens propios, definidos en los dos temas:
+
+| Token | Claro | Negro | Uso |
+|---|---|---|---|
+| `--mapa-nodo` | `#FFFFFF` | `#1F2126` | Fondo de la tarjeta |
+| `--mapa-nodo-n` | `#FAFAFA` | `#121316` | Tarjeta «Todavía no» (borde punteado `--ink-3`) |
+| `--mapa-punto` | `#DADADA` | `#2A2C31` | Puntos de la grilla del lienzo (decorativos; exento de par de contraste) |
+
+Reglas: texto de la tarjeta de 12 px como mínimo (nombre 13 px en peso 600), nunca más abajo; cada estado lleva símbolo y texto («Hecho», «En curso», «Todavía no», «Con error»); línea llena (`--ink`) si el paso de origen está «Hecho» y punteada (`--ink-3`) si no; «Vence hoy» (lila) y «Vencido» (rojo) con borde superior de 3 px en la tarjeta y etiqueta con texto en el pie y en la tarea; la advertencia lleva «!» y el texto «N advertencias» (abreviado «N adv.» con el texto completo en `title` cuando comparte el renglón con «+ N más»); el foco es un anillo de 3 px `--focus` en cada enlace y en la tarjeta que lo contiene. La leyenda lista «Vence hoy» y «Vencido» solo si aparecen. Bajo 900 px el mapa y el selector se ocultan y queda la lista.
+
 ## 4. Regla del verde lima
 
 El lima resalta, no decora ni estructura. Se usa en: pestaña activa (negro), contadores de las pestañas, avance de los procesos, la cifra más baja del orden económico, y la acción principal en el tema negro. Reglas:
