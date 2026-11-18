@@ -46,6 +46,8 @@ Sin esto, quien entra no sabe cómo está el procedimiento ni qué le toca, y el
 | 2026-11-17 | Mapa del proceso | «Cómo está armado hoy creo que en la  página del detalle de cada procedimiento sería útil poder tener una visión más gráfica con un grafico tipo pert con las bolitas representando los pasos y tareas con el color de estado.» Sobre la primera maqueta: «Está bien el diseño del grafo es muy elemental , busca un diseño para profesional y más elaborado. Es muy basico». Sobre la segunda (`a-grafo.html`, «Mapa del proceso»), ante la pregunta «¿sumo este mapa a la spec y al plan como portada del procedimiento, en lugar de la barra de siete pasos?», respondió: «Sí, sumalo». Lectura del Coordinador, a confirmar al aprobar el plan: sin porcentaje de avance (el responsable descartó un porcentaje en la 017 y no respondió si lo quería acá); cada tarjeta muestra un conteo real («0 de 4 tareas») cuando lo hay. |
 | 2026-11-17 | Nombres de los pasos y aprobación del plan | Ante el pedido de aprobación del plan y de la firma de la tabla de 21 estados, respondió: «Solo cambiamos los nombres de  los pasos  nada mas . 1) Carga de Pliego  2 Matriz de requisitos de pliego. 3 Recepcion de ofertas  4) Cumplimiento de ofertas (matriz)  5 Comparacion de ofertas 6 Evaluacion Comision  7 Dicamen». Lectura del Coordinador: aprueba el plan y la tabla con ese único cambio; «Dicamen» es «Dictamen»; los nombres van con mayúscula inicial y tildes. Lo confirmó después: «Apruebo y firmo el resto». |
 | 2026-11-18 | Tarjetas del mapa (revisión del primer corte) | Ante la pregunta «las tareas largas se cortan con puntos suspensivos, varias tarjetas quedan medio vacías y la lista "Qué se puede hacer ahora" queda debajo de la primera pantalla: ¿cómo lo ajusto?», con las opciones «Tarjetas más anchas y a medida», «Mapa solo con estados» y «Dejarlo como está», eligió: «Tarjetas más anchas y a medida (Recomendada)». Se aplica en T-363: tareas enteras en hasta dos líneas y alto según el contenido. |
+| 2026-11-18 | Mapa del proceso rehecho | Al ver la disposición nueva del mapa (cuatro columnas y dos filas, tarjetas a medida), respondió: «si ok. me gusta como queda». |
+| 2026-11-18 | Tope de tiempo de las pantallas | Ante el dato de que el inicio con 20 procedimientos abiertos tarda entre 1,5 y 1,85 s y con procedimientos reales se estima en más de 2,4 s, respondió: «podemos a levantar el limite a 3 segundos,  no es algo que entren todo el tiempo y son pantallas muy completa». Lectura del Coordinador: el tope de 3 segundos vale para el inicio, la portada y el cuadro. |
 
 Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el diagnóstico y la comparación; `e.html`, `a.html` con el mapa de `a-grafo.html`, y `c.html` son las elegidas; `b.html` y `d.html` quedan como alternativas no elegidas).
 
@@ -125,8 +127,8 @@ Por requisito:
 
 ## Requisitos no funcionales
 
-- Inicio de la aplicación: 2 segundos o menos con 20 procedimientos abiertos.
-- Portada de un procedimiento y cuadro de cumplimiento: 2 segundos o menos con un procedimiento real del piloto (hasta 60 requisitos y 10 ofertas).
+- Inicio de la aplicación: 3 segundos o menos con 20 procedimientos abiertos (enmienda del 2026-11-18; antes 2).
+- Portada de un procedimiento y cuadro de cumplimiento: 3 segundos o menos con un procedimiento real del piloto (hasta 60 requisitos y 10 ofertas) (enmienda del 2026-11-18; antes 2).
 - Sin datos nuevos guardados para el estado de los pasos (REQ-145).
 - Implementable en 8000 sobre las plantillas actuales, sin un marco de interfaz nuevo, como la 017.
 - Uso completo con teclado y foco visible.

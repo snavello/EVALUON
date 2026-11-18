@@ -14,7 +14,7 @@ from tests.journey.proceso.test_portada import entrar
 
 pytestmark = pytest.mark.django_db
 
-PRESUPUESTO = 2.0
+PRESUPUESTO = 3.0  # decisión del responsable del 2026-11-18 (antes 2.0)
 
 
 def test_req150_veinte_abiertos_en_dos_segundos(client, evaluator_user, expected, fake_ai,
