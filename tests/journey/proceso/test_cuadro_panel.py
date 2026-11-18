@@ -244,3 +244,20 @@ def test_T361_H4_el_panel_ofrece_ir_a_decidir_junto_a_siguiente(client, caso_var
         category="tecnico", items=[1])
     html = client.get(url_de(caso.procedure, f"?celda={offer.pk}-{tecnico.pk}")).content.decode()
     assert "cu-decidir" not in html
+
+
+def test_T361_el_panel_de_una_celda_tecnica_en_espera_dice_lo_que_pasa(client, caso_varios_en_curso):
+    """REQ-154 (T-361): desde el cuadro, la celda técnica «Espera informe» dice que espera el informe
+    del área, con el enlace a donde se carga; la página del par conserva su texto de siempre."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    tecnico = caso.procedure.matrix_versions.get(number=1).requirements.get(
+        category="tecnico", items=[1])
+    html = client.get(url_de(caso.procedure, f"?celda={caso.offers[0].pk}-{tecnico.pk}")
+                      ).content.decode()
+    assert "Espera el informe técnico del área: esta fila se resuelve con el ok de ese informe." in html
+    assert f'href="{reverse("expedientes:evaluacion", args=[caso.procedure.pk])}#s4-informe"' in html
+    assert "Falta su decisión: confirmar, corregir o rechazar" not in html
+    par = client.get(acciones.pair_url(caso.procedure, caso.offers[0].pk, tecnico.pk)).content.decode()
+    assert "Falta su decisión: confirmar, corregir o rechazar la propuesta." in par
+    assert "Espera el informe técnico del área" not in par

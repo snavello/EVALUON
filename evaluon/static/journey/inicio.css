@@ -39,7 +39,7 @@ body.pag-inicio .wrap { padding: 0 clamp(14px, 3vw, 36px); }  /* = --pad-x de se
 
 /* La fila antes de calcular sus pasos (T-361): la lista sale enseguida y cada fila se completa aparte. */
 .ini-cargando { grid-column: 2 / -1; font-size: .875rem; color: var(--ink-2); }
-.ini-cargando a { margin-left: .5rem; }
+
 
 .ini-foto { grid-column: 2 / -1; display: block; margin-top: .25rem; }
 .ini-foto .pr-foto { gap: .5rem 1.25rem; }  /* los rótulos 5 y 6 no se tocan (V-3) */

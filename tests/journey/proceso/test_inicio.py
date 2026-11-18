@@ -102,7 +102,7 @@ def test_req150_la_lista_sale_sin_calcular_y_cada_fila_se_pide_aparte(client, ca
     assert f'data-carga-url="{fila}"' in bloque
     assert caso.procedure.number in bloque and "Sin fecha de vencimiento" in bloque
     assert f'href="{reverse("expedientes:portada", args=[caso.procedure.pk])}"' in bloque
-    assert "pr-foto" not in bloque and "data-accion" not in bloque and "Calculando" in bloque
+    assert "pr-foto" not in bloque and "data-accion" not in bloque and "Abrir el procedimiento" in bloque and "ini-cargando-t" in bloque
     assert "journey/recorrido.js" in html and " style=" not in html
     assert client.get(fila).status_code == 200
     assert client.get(reverse("expedientes:fila", args=[caso.procedure.pk + 999])).status_code == 404

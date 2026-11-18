@@ -256,9 +256,21 @@ def _enumerar(partes):
     return partes[0] if len(partes) == 1 else ", ".join(partes[:-1]) + " y " + partes[-1]
 
 
+def _cifras_de_la_nota(page):
+    """Las ofertas de la nota del paso 4 con la MISMA cuenta que el dato del paso y el pie del cuadro
+    (`s4_propuesta.visible_counts`): las filas técnicas sin el ok del informe esperan el informe.
+    `None` si no hay evaluación (T-361)."""
+    if s4_propuesta.figures_of(page) is None:
+        return None
+    from types import SimpleNamespace
+    return SimpleNamespace(offers=[
+        SimpleNamespace(ok=c["ok"], no=c["no"], nd=c["nd"], pe=c["pe"] + c["esp"], na=c["na"])
+        for c in s4_propuesta.visible_counts(page).values()])
+
+
 def nota_de_cruces(cifras):
     """La nota del paso 4: de cuántos cruces requisito–oferta habla el dato y dónde cae cada uno.
-    Sale de las mismas cifras que el cuadro (`figures_of`), sin cálculo paralelo: los números de la
+    Sale de la misma cuenta que el dato del paso y el pie del cuadro (`visible_counts`), sin cálculo paralelo: los números de la
     frase suman el total que la encabeza. Vacía sin evaluación."""
     if cifras is None:
         return ""
@@ -466,8 +478,8 @@ def portada(request, procedure_id):
     visibles, restantes = acciones.cortar(proceso.acciones)
     vencimiento = proceso.vencimiento
     with viewing(request.user):
-        cifras = s4_propuesta.figures_of(
-            memo.matrix_page(request.user, procedure.pk, channel=Channel.SCREEN))
+        cifras = _cifras_de_la_nota(memo.matrix_page(request.user, procedure.pk,
+                                                      channel=Channel.SCREEN))
     filas = [_fila(p, proceso, nombres, cifras, overview) for p in proceso.pasos]
     context = shell(request, overview)
     context.update({

@@ -288,16 +288,7 @@ def geometria(arriba, abajo):
     return Geometria(arriba, abajo, fila_b, lienzo, posiciones, trazos)
 
 
-# La línea de plazos no puede pisar sus etiquetas (T-361, H-2): el nivel de cada hito sale de lo que
-# ocupa su texto, no de una distancia fija en %. Se supone el eje más angosto en que se dibuja (900
-# px de ventana; bajo eso es una lista), el ancho máximo de la etiqueta (15 rem) y un ancho por
-# carácter algo mayor que el real: la estimación sobra, nunca falta.
-EJE_PX = 840.0
-PX_POR_LETRA = 7.5
-ETIQUETA_MAX_PX = 280.0
-HOLGURA_PX = 12.0  # aire mínimo entre dos etiquetas del mismo nivel
-NIVELES = 2  # sobre el eje (0) y arriba de él (1); lo que no entra va en lista
-UMBRAL_BORDE = 15.0  # % desde el borde a partir del cual la etiqueta se alinea a ese borde (plantilla)
+SEPARACION = 12.0  # a menos de este % de distancia, el segundo hito baja un nivel
 
 
 @dataclass(frozen=True)
@@ -322,47 +313,26 @@ class SinFecha:
 class Eje:
     hitos: tuple
     sin_fecha: tuple
-    en_lista: tuple = ()  # hitos con fecha que no entraron en los dos niveles sin pisarse (T-361)
-
-
-def _ocupa(pos, texto, etiqueta, nota, es_hoy):
-    """`(desde, hasta)` en px sobre el eje de lo que ocupa la etiqueta del hito, según se alinee
-    (igual que la plantilla: al borde izquierdo, centrada o al borde derecho)."""
-    ancho = 12.0 + max(len(texto), len(etiqueta), len(nota)) * PX_POR_LETRA
-    ancho = min(ETIQUETA_MAX_PX, ancho + (20.0 if es_hoy else 0.0))
-    x = pos / 100 * EJE_PX
-    if pos < UMBRAL_BORDE:
-        return x, x + ancho
-    if pos > 100 - UMBRAL_BORDE:
-        return x - ancho, x
-    return x - ancho / 2, x + ancho / 2
 
 
 def hitos_en_eje(events):
     """Pone los hitos con fecha sobre el eje en proporción a la fecha (del primer al último día,
-    «hoy» incluido). Cada hito va en el primer nivel (0 o 1) donde su etiqueta no pisa a la de otro;
-    el que no entra en ninguno de los dos no se dibuja sobre el eje: va en `en_lista`, con su fecha,
-    debajo del eje. Los hitos sin fecha tampoco se dibujan: van aparte, con su motivo.
-    `events` son los `Terms` de `tablero.ingreso.plazos()` (key, label, day, date_text, state, note)."""
+    «hoy» incluido). Si dos quedan a menos de 12 % uno del otro, el segundo baja un nivel. Los
+    hitos sin fecha no se dibujan: van aparte, con su motivo. `events` son los `Terms` de
+    `tablero.ingreso.plazos()` (key, label, day, date_text, state, note)."""
     con_fecha = [e for e in events if e.day is not None]
     sin_fecha = tuple(SinFecha(e.key, e.label, e.note or e.date_text) for e in events if e.day is None)
     if not con_fecha:
         return Eje((), sin_fecha)
     primero = min(e.day for e in con_fecha)
     total = (max(e.day for e in con_fecha) - primero).days
-    puestos, ocupados, en_lista = [], [], []  # ocupados: (desde, hasta, nivel) de los ya puestos
+    puestos, ocupados = [], []  # ocupados: (posición, nivel) de los ya puestos
     for e in sorted(con_fecha, key=lambda e: e.day):  # estable: a igual fecha, el orden dado
         pos = 50.0 if total == 0 else round((e.day - primero).days / total * 100, 2)
+        nivel = 0
+        while any(n == nivel and abs(pos - p) < SEPARACION for p, n in ocupados):
+            nivel += 1
+        ocupados.append((pos, nivel))
         etiqueta = f"Hoy · {e.date_text}" if e.key == "hoy" else e.label
-        desde, hasta = _ocupa(pos, etiqueta if e.key == "hoy" else e.date_text,
-                              "" if e.key == "hoy" else e.label, e.note or "", e.key == "hoy")
-        nivel = next((n for n in range(NIVELES) if not any(
-            m == n and desde < h + HOLGURA_PX and d < hasta + HOLGURA_PX
-            for d, h, m in ocupados)), None)
-        hito = Hito(e.key, etiqueta, e.date_text, pos, nivel or 0, e.state, e.note)
-        if nivel is None:
-            en_lista.append(hito)
-            continue
-        ocupados.append((desde, hasta, nivel))
-        puestos.append(hito)
-    return Eje(tuple(puestos), sin_fecha, tuple(en_lista))
+        puestos.append(Hito(e.key, etiqueta, e.date_text, pos, nivel, e.state, e.note))
+    return Eje(tuple(puestos), sin_fecha)

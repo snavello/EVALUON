@@ -417,3 +417,20 @@ def test_req158_acortar_corta_en_un_espacio_y_no_toca_lo_que_cabe():
     assert corto.endswith("…") and len(corto) <= 60 and not corto[:-1].endswith(" ")
     assert mapa.acortar("x" * 300, 60) == "x" * 59 + "…"
     assert mapa.acortar("palabra " * 3 + "y" * 200, 40).endswith("…")
+
+
+def test_T361_H2_H3_los_plazos_son_un_eje_fino_y_una_linea_de_texto(client, caso_varios_en_curso,
+                                                                    monkeypatch):
+    """REQ-148, REQ-158 (T-361): con apertura, «Hoy» y vencimiento muy cerca el eje solo lleva las
+    marcas (una por hito) y los hitos van en orden en una sola lista de texto debajo, sin niveles:
+    el texto nunca va encima del eje, así que no se pisa."""
+    _fechas(monkeypatch, HOY + timedelta(days=3))
+    html = html_de(client, caso_varios_en_curso)
+    plazos = html[html.index('class="mp-plazos"'):html.index('id="ahora-titulo"')]
+    assert plazos.count('<i class="mp-marca ') == plazos.count('class="mp-hito ') == 3
+    assert plazos.index('class="mp-eje"') < plazos.index('class="mp-regla')
+    assert re.search(r'Apertura de ofertas</span> <b class="mp-fecha">', plazos)
+    assert plazos.index("Apertura de ofertas") < plazos.index("Hoy ·") < plazos.index(
+        "Vence el mantenimiento")
+    css = (Path(__file__).resolve().parents[3] / "evaluon/static/journey/mapa.css").read_text(encoding="utf-8")
+    assert not re.search(r"\.mp-hito\s*\{[^}]*position:\s*absolute", css)
