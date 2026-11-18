@@ -56,9 +56,9 @@
   --pe: #7488A4;
   --ext: #8C7AB0;
   /* «Vence hoy» (lila) y «Vencido» (rojo brillante relleno): solo proceso.css y mapa.css (REQ-156/157) */
-  --hoy: #8C7AB0;
-  --hoy-bg: #E6DFF3;
-  --hoy-ink: #4B3A78;
+  --hoy: #7A4FD0;
+  --hoy-bg: #EBE3FA;
+  --hoy-ink: #3F2A80;
   --vencido: #D10F2F;
   --vencido-bg: var(--vencido);          /* la etiqueta es rellena: su fondo es el propio rojo */
   --vencido-ink: #FFFFFF;
@@ -100,9 +100,9 @@
   --nd: #B98C39;
   --pe: #8094B0;
   --ext: #9A8AC0;
-  --hoy: #9A8AC0;
-  --hoy-bg: #2F2745;
-  --hoy-ink: #DCD2F7;
+  --hoy: #A98BFF;
+  --hoy-bg: #2A2145;
+  --hoy-ink: #E4D9FF;
   --vencido: #FF4D5E;
   --vencido-bg: var(--vencido);
   --vencido-ink: #1A0508;

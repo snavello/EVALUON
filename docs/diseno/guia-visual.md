@@ -63,14 +63,14 @@ Dos tokens de color propios, **distintos de `--ext` y de `--no`**, que se usan s
 
 | Token | Claro | Negro | Uso |
 |---|---|---|---|
-| `--hoy` | `#8C7AB0` | `#9A8AC0` | Marca lateral y punto con anillo de lo que vence hoy |
-| `--hoy-bg` | `#E6DFF3` | `#2F2745` | Fondo de la etiqueta «Vence hoy» |
-| `--hoy-ink` | `#4B3A78` | `#DCD2F7` | Texto de la etiqueta |
+| `--hoy` | `#7A4FD0` | `#A98BFF` | Marca lateral y punto con anillo de lo que vence hoy |
+| `--hoy-bg` | `#EBE3FA` | `#2A2145` | Fondo de la etiqueta «Vence hoy» |
+| `--hoy-ink` | `#3F2A80` | `#E4D9FF` | Texto de la etiqueta |
 | `--vencido` | `#D10F2F` | `#FF4D5E` | Relleno de la etiqueta «Vencido» y marca lateral |
 | `--vencido-bg` | `var(--vencido)` | `var(--vencido)` | La etiqueta es rellena: su fondo es el propio rojo |
 | `--vencido-ink` | `#FFFFFF` | `#1A0508` | Texto de la etiqueta rellena |
 
-Contraste medido (los valores de partida del plan pasaron sin ajuste): «Vence hoy» texto/fondo 7,45:1 claro y 9,76:1 negro; marca `--hoy` contra `--bg`/`--tile`/`--tile-h` 3,80/3,46/3,22 claro y 6,31/5,72/5,19 negro; «Vencido» texto/relleno 5,50:1 claro y 6,06:1 negro; marca `--vencido` contra las tres superficies 5,50/5,00/4,65 claro y 6,03/5,47/4,97 negro.
+Contraste medido (el lila de partida del plan era idéntico a `--ext` y se reemplazó por uno más saturado y más violeta; distancia de color ΔE (CIE76) contra `--ext`: 45,7 en el claro y 34,2 en el negro, el test exige 20 como mínimo): «Vence hoy» texto/fondo 9,11:1 claro y 11,18:1 negro; `--hoy-ink` sobre `--bg`/`--tile` 11,33/10,30 claro y 14,60/13,23 negro; marca `--hoy` contra `--bg`/`--tile`/`--tile-h` 5,45/4,95/4,61 claro y 7,29/6,61/6,00 negro (el anillo del punto es `--hoy` sobre `--tile`: 4,95 y 6,61); «Vencido» texto/relleno 5,50:1 claro y 6,06:1 negro; marca `--vencido` contra las tres superficies 5,50/5,00/4,65 claro y 6,03/5,47/4,97 negro.
 
 Forma (no solo color): «Vence hoy» es una etiqueta de texto con borde sólido y peso 700 sobre fondo lila; «Vencido» es una etiqueta **rellena** en rojo brillante con el texto «Vencido» y los días; «Con error» y «No cumple» son etiquetas teñidas con símbolo y `--no` desaturado. Los estados de `proceso.css` (`.pr-estado.hecho|en-curso|todavia-no|con-error`) llevan siempre el texto escrito y un símbolo.
 

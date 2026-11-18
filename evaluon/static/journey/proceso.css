@@ -58,7 +58,7 @@
 .pr-accion .pr-que a { color: inherit; }
 .pr-accion .pr-que a:focus-visible, .pr-accion .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pr-accion.hoy { border-left-color: var(--hoy); }
-.pr-accion.hoy .pr-punto { background: var(--hoy); box-shadow: 0 0 0 3px var(--hoy-bg); }
+.pr-accion.hoy .pr-punto { background: var(--hoy); box-shadow: 0 0 0 2px var(--tile), 0 0 0 4px var(--hoy); }
 .pr-accion.vencido { border-left-color: var(--vencido); }
 .pr-accion.vencido .pr-punto { background: var(--vencido); box-shadow: 0 0 0 3px var(--tile), 0 0 0 5px var(--vencido); }
 .pr-restantes > summary { cursor: pointer; padding: .625rem .75rem; color: var(--ink); font-weight: 500; }

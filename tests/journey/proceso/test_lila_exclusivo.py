@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.journey.test_contraste import variables
+from tests.journey.test_contraste import color, variables
 
 RAIZ = Path(__file__).resolve().parents[3] / "evaluon"
 ESTATICOS = RAIZ / "static"
@@ -88,3 +88,51 @@ def test_las_etiquetas_llevan_simbolo_ademas_del_color():
     css = (ESTATICOS / "journey" / "proceso.css").read_text(encoding="utf-8")
     for clase in ("hecho", "en-curso", "todavia-no", "con-error"):
         assert f".pr-estado.{clase}::before" in css, clase
+
+
+# --- «Vence hoy» no se confunde con «externo» ni «Vencido» con «Con error» -----------------
+
+DISTANCIA_MINIMA = 20.0  # ΔE (CIE76) mínimo entre `--hoy` y `--ext`; ~20 se distingue a simple vista
+
+
+def _lab(rgb):
+    """RGB 0-255 a CIE Lab (D65)."""
+    lin = [(c / 255 / 12.92) if c / 255 <= 0.04045 else ((c / 255 + 0.055) / 1.055) ** 2.4 for c in rgb]
+    x = 0.4124 * lin[0] + 0.3576 * lin[1] + 0.1805 * lin[2]
+    y = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+    z = 0.0193 * lin[0] + 0.1192 * lin[1] + 0.9505 * lin[2]
+
+    def f(t):
+        return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    fx, fy, fz = f(x / 0.95047), f(y), f(z / 1.08883)
+    return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+
+
+def distancia(css: str, tema: str) -> float:
+    v = variables(css, tema)
+    a, b = _lab(color("--hoy", v)), _lab(color("--ext", v))
+    return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+
+
+@pytest.mark.parametrize("tema", ["claro", "negro"])
+def test_hoy_es_distinto_de_ext_y_esta_a_distancia_minima(tema):
+    """REQ-157: el lila de «Vence hoy» no es el de «externo»: distinto y a ΔE >= 20 en cada tema."""
+    css = TOKENS.read_text(encoding="utf-8")
+    v = variables(css, tema)
+    assert v["--hoy"].lower() != v["--ext"].lower()
+    assert distancia(css, tema) >= DISTANCIA_MINIMA
+
+
+def test_el_test_de_distancia_falla_con_los_valores_viejos():
+    """REQ-157 (prueba de alteración): con `--hoy` igual a `--ext`, como estaba, la distancia es 0 y no pasa."""
+    css = TOKENS.read_text(encoding="utf-8")
+    viejo = css.replace(variables(css, "claro")["--hoy"], variables(css, "claro")["--ext"], 1)
+    assert viejo != css
+    assert distancia(viejo, "claro") < DISTANCIA_MINIMA
+
+
+@pytest.mark.parametrize("tema", ["claro", "negro"])
+def test_vencido_bg_es_el_relleno_pleno(tema):
+    """REQ-157 (aviso A3): `--vencido-bg` es `var(--vencido)`; eso distingue «Vencido» (rellena) de «Con error» (teñida)."""
+    v = variables(TOKENS.read_text(encoding="utf-8"), tema)
+    assert v["--vencido-bg"] == "var(--vencido)"
