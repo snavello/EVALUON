@@ -109,6 +109,22 @@ def uploaded_dictamenes(procedure):
                 .filter(kind=DocumentKind.DICTAMEN).select_related("loaded_by"))
 
 
+_NO_DADO = object()
+
+
+def dictamen_cargado(procedure, uploaded=None, portal=_NO_DADO):
+    """Si el procedimiento tiene un dictamen cargado: uno subido vigente o el del Portal ya
+    aprobado (T-342). Un retirado o uno del Portal sin aprobar no cuentan. `uploaded` y
+    `portal` son opcionales: quien ya los leyó los pasa y evita repetir las consultas."""
+    if uploaded is None:
+        uploaded = uploaded_dictamenes(procedure)
+    if uploaded:
+        return True
+    if portal is _NO_DADO:
+        portal = portal_dictamen(procedure)
+    return portal is not None and portal.state in TAKEN
+
+
 def withdrawn_dictamenes(procedure):
     return list(document_history.withdrawn_documents(procedure)
                 .filter(kind=DocumentKind.DICTAMEN).select_related("loaded_by"))
@@ -197,14 +213,15 @@ def context(user, procedure, request):
     aviso = acciones.unpack(request.GET.get("aviso")) if request is not None else None
     portal = portal_dictamen(procedure)
     view = _portal_view(portal) if portal is not None else None
+    uploaded_docs = uploaded_dictamenes(procedure)
     uploaded = [{"document": d, "loaded": when(d.loaded_at),
                  "by": d.loaded_by.get_username() if d.loaded_by_id else "—",
                  "issued": f"{d.issued_on:%d/%m/%Y}" if d.issued_on else "",
                  "timeline": timeline(d)}
-                for d in uploaded_dictamenes(procedure)]
+                for d in uploaded_docs]
     withdrawn = [{"document": d, "timeline": timeline(d), **_withdrawal(d)}
                  for d in withdrawn_dictamenes(procedure)]
-    loaded = bool(uploaded) or (view is not None and view.state in TAKEN)
+    loaded = dictamen_cargado(procedure, uploaded_docs, portal)
     waiting = view is not None and view.state == ItemState.PROPUESTO
     if loaded:
         cta = "cargado"

@@ -20,6 +20,8 @@ La etapa solo lee. Los enlaces son la matriz (`assessment:matrix`) y, cuando lo 
 son preguntas, las preguntas (`assessment:questions`); solo el evaluador recibe el de decidir.
 """
 
+from typing import NamedTuple
+
 from django.urls import reverse
 
 from evaluon.assessment.services import discards as discards_service
@@ -58,6 +60,30 @@ def _technical_pending_offers(page):
     return len(_technical_pending_offer_statuses(page))
 
 
+class Counts(NamedTuple):
+    """Lo que espera una decisión en la matriz, por tipo (T-342, REQ-145)."""
+
+    pairs: int
+    questions: int
+    reports: int
+    discards: int
+
+    @property
+    def pending(self):
+        return self.pairs + self.questions + self.reports + self.discards
+
+
+def counts(page):
+    """Pares por decidir, preguntas abiertas, ofertas con el ok del informe técnico pendiente y
+    descartes propuestos: las cuentas de `compute`, públicas para quien las necesite."""
+    return Counts(
+        pairs=_undecided_pairs(page),
+        questions=sum(len(status.open_questions) for status in page.statuses),
+        reports=_technical_pending_offers(page),
+        discards=sum(1 for u in discards_service.units(page)
+                     if u.state == discards_service.PROPOSED))
+
+
 def compute(user, procedure):
     page = memo.matrix_page(user, procedure.pk)
     view_url = reverse("expedientes:evaluacion", args=[procedure.pk])
@@ -70,12 +96,9 @@ def compute(user, procedure):
                           detail="Todavía no hay ninguna evaluación." + hint, **common,
                           decide_url=view_url if base.is_evaluator(user) else None)
 
-    pairs = _undecided_pairs(page)
-    questions = sum(len(status.open_questions) for status in page.statuses)
-    reports = _technical_pending_offers(page)
-    discards = sum(1 for u in discards_service.units(page)
-                   if u.state == discards_service.PROPOSED)
-    pending = pairs + questions + reports + discards
+    found = counts(page)
+    pairs, questions, reports, discards = found
+    pending = found.pending
 
     decide_url = None
     if base.is_evaluator(user):
