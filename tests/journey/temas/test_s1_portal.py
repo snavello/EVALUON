@@ -356,8 +356,7 @@ def test_the_tab_shows_the_pending_proposal_and_counts_it(client, operator_user,
     assert pending > 0
     html = tab(client, loaded).content.decode()
     assert 'id="s1-propuesta"' in html and f"Propuesta del Portal: {pending} sin aprobar" in html
-    portada = client.get(reverse("expedientes:portada", args=[loaded.pk]),
-                         follow=True).content.decode()
+    portada = client.get(reverse("expedientes:procedimiento", args=[loaded.pk])).content.decode()
     assert f"Propuesta del Portal: {pending} sin aprobar" in portada
     assert decision_links(mine(html)) == []
     for page in (html, portada):
@@ -389,8 +388,7 @@ def test_a_new_circular_is_a_pending_novelty_and_nothing_loads(
     assert "Novedades del Portal" in block and "2 sin aprobar" in block
     assert "Ofertas" in block  # a dónde queda
     assert "Novedades del Portal: 2 sin aprobar" in html
-    portada = client.get(reverse("expedientes:portada", args=[loaded.pk]),
-                         follow=True).content.decode()
+    portada = client.get(reverse("expedientes:procedimiento", args=[loaded.pk])).content.decode()
     assert row_links(portada, "Novedades del Portal: 2 sin aprobar")[0].endswith("#s1-novedades")
     assert Document.objects.filter(procedure=loaded).count() == documents_before
     assert decision_links(mine(html)) == []

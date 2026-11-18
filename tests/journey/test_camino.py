@@ -116,26 +116,22 @@ def test_without_anything_missing_the_line_says_so_without_a_missing_list(
     pytest.skip("todas las secciones tienen faltantes en este caso")
 
 
-def test_the_front_page_redirects_to_the_first_panel_keeping_the_query(client, procedure,
-                                                                       operator_user):
-    """REQ-128, REQ-132: `expedientes/<id>/` redirige (302) a `procedimiento/` con la consulta."""
+def test_the_front_page_no_longer_redirects_to_the_first_panel(client, procedure, operator_user):
+    """REQ-148 (T-348): `expedientes/<id>/` ya no redirige (302) a `procedimiento/`: dibuja la
+    portada del proceso, con o sin consulta."""
     log_in(client, operator_user)
     base = reverse("expedientes:portada", args=[procedure.pk])
-    first = url("procedimiento", procedure)
-    response = client.get(base)
-    assert response.status_code == 302 and response["Location"] == first
-    response = client.get(base, {"oferta": "3", "ficha": "2"})
-    assert response.status_code == 302
-    assert response["Location"] == f"{first}?oferta=3&ficha=2"
+    assert client.get(base).status_code == 200
+    assert client.get(base, {"oferta": "3", "ficha": "2"}).status_code == 200
 
 
 def test_the_first_panel_is_the_first_section_with_the_path(client, procedure, operator_user):
-    """REQ-128: al seguir la redirección se llega al cuerpo de la sección 1, con el camino."""
+    """REQ-128, REQ-148: el primer panel (hoy «Indicadores») es el cuerpo de la sección 1, con el
+    camino."""
     log_in(client, operator_user)
-    response = client.get(reverse("expedientes:portada", args=[procedure.pk]), follow=True)
+    response = client.get(url("procedimiento", procedure))
     assert response.status_code == 200
     html = response.content.decode()
-    assert response.redirect_chain[-1][0] == url("procedimiento", procedure)
     assert 'id="seccion-titulo"' in html and 'class="hay-falta"' in html
 
 
@@ -145,9 +141,11 @@ def test_the_front_page_of_a_missing_procedure_is_a_404(client, operator_user):
     assert client.get(reverse("expedientes:portada", args=[999999])).status_code == 404
 
 
-def test_the_old_front_page_template_is_gone():
-    """REQ-128: sin referencias, la plantilla de la portada vieja se retira."""
-    assert not (TEMPLATES / "portada.html").exists()
+def test_the_front_page_template_is_the_one_of_the_process():
+    """REQ-128, REQ-146 (T-348): la plantilla vieja de la portada se había retirado; `portada.html`
+    ahora es la del proceso (siete pasos), no la anterior."""
+    text = (TEMPLATES / "portada.html").read_text(encoding="utf-8")
+    assert "pr-pasos" in text and "hay-falta" not in text
 
 
 def test_hay_falta_has_no_inline_styles_or_scripts():

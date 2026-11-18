@@ -83,8 +83,8 @@ def test_req147_varios_en_curso_lista_literal(caso_varios_en_curso):
         (6, "pendiente", "Resolver 1 descarte propuesto", 1),
         (6, "pendiente", "Contestar 4 preguntas", 4),
         (6, "pendiente", "Decidir 6 puntos no determinados", 6),
-        (6, "pendiente", "Revisar 1 “no cumple”", 1),
-        (6, "pendiente", "Confirmar 5 propuestas “cumple”", 5),
+        (6, "pendiente", "Revisar 1 «no cumple»", 1),
+        (6, "pendiente", "Confirmar 5 propuestas «cumple»", 5),
         (4, "cierre", "Evaluar las ofertas", 0),
         (1, "faltante", "Tomar del Portal lo que falta de los datos (2)", 0),
         (3, "faltante", "Subir la hoja de compliance (2 ofertas)", 0)]

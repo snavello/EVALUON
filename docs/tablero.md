@@ -81,7 +81,7 @@ flowchart LR
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
-| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 4 de 7 · Desarrollo | 10/22 | █████░░░░░ 45% |
+| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 4 de 7 · Desarrollo | 11/22 | █████░░░░░ 50% |
 
 <a id="001"></a>
 
@@ -1889,8 +1889,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 12 tareas sin terminar.
-- ○ T-348 · Dibujar la portada: acciones, lista de pasos, advertencias e «Indicadores» (pendiente)
+- **Próximo paso:** Desarrollar: 11 tareas sin terminar.
 - ○ T-350 · Dibujar el mapa del proceso, la línea de plazos y el selector Mapa / Lista (pendiente)
 - ○ T-352 · Dibujar el cuadro de cumplimiento con el panel lado a lado (pendiente)
 - ○ T-353 · Llevar pasos y acciones al lugar donde se resuelven (cuadro incluido) (pendiente)
@@ -1914,6 +1913,7 @@ flowchart LR
 - ✓ T-345 · Calcular el estado de los pasos 1 a 3 y armar `proceso_de` (`dbdd7ae1` 2026-11-18)
 - ✓ T-346 · Calcular los pasos 4 a 7, datos, resúmenes y advertencias; pasar 21 de 21 (`04c01e18` 2026-11-18)
 - ✓ T-347 · Definir los tokens de «Vence hoy» y «Vencido» y la hoja `proceso.css` (`4fab4860` 2026-11-17, `52812de9` 2026-11-17)
+- ✓ T-348 · Dibujar la portada: acciones, lista de pasos, advertencias e «Indicadores» (`be11f91f` 2026-11-18, `18d50b4b` 2026-11-18)
 - ✓ T-349 · Escribir la geometría constante del mapa y los hitos de la línea de plazos (`53b7445e` 2026-11-17)
 - ✓ T-351 · Extraer el panel del par para reutilizarlo y aceptar `desde=cuadro` (`ed1d1d51` 2026-11-18, `8dd73e97` 2026-11-17)
 
@@ -1929,7 +1929,7 @@ flowchart TD
   T345["✓ T-345 · Calcular el estado de los pasos 1 a 3 y arm…"]:::done
   T346["✓ T-346 · Calcular los pasos 4 a 7, datos, resúmenes…"]:::done
   T347["✓ T-347 · Definir los tokens de «Vence hoy» y «Vencid…"]:::done
-  T348["○ T-348 · Dibujar la portada: acciones, lista de paso…"]:::todo
+  T348["✓ T-348 · Dibujar la portada: acciones, lista de paso…"]:::done
   T349["✓ T-349 · Escribir la geometría constante del mapa y…"]:::done
   T350["○ T-350 · Dibujar el mapa del proceso, la línea de pl…"]:::todo
   T351["✓ T-351 · Extraer el panel del par para reutilizarlo…"]:::done
@@ -1987,8 +1987,8 @@ flowchart TD
 | REQ-144 | Cada paso tiene su propio estado, independiente del de los demás: «Hecho», «En curso», «Todavía no» o «Con error». Varios pasos pueden estar en curso a la vez. No existe un «paso actual» del procedimiento. | T-340, T-341, T-345, T-346, T-348, T-354 | ▶ en proceso |
 | REQ-145 | El estado de cada paso se calcula con los datos que el sistema ya tiene; no se guarda una fase del procedimiento ni se pide a nadie que la marque. Un paso «Hecho» vuelve a «En curso» cuando aparece algo nuevo que le corresponde (por ejemplo, una circular modificatoria o un documento agregado a una oferta). | T-340, T-342, T-345, T-346 | ✓ cubierto |
 | REQ-146 | La portada de un procedimiento muestra, en este orden: el mapa del proceso (REQ-158); la lista «Qué se puede hacer ahora»; y los siete pasos, cada uno con un resumen de una línea de lo que ya hay y, si está en curso, lo que le falta con su acción a mano. Los faltantes menores (un dato o un documento opcional que falta completar, como el número de expediente o una hoja de compliance) no cambian el estado del paso: un paso «Hecho» con faltantes muestra el aviso «N advertencias» con su detalle. | T-344, T-346, T-348, T-350, T-354 | ▶ en proceso |
-| REQ-147 | «Qué se puede hacer ahora» lista todo lo que falta y se puede hacer en cualquier paso: los pendientes que el sistema ya cuenta, las acciones de cierre (proponer y validar la matriz, tomar del Portal lo que falta, agregar las ofertas del acta, evaluar las ofertas, resolver un error, cargar el dictamen) y cada faltante que hoy muestra la línea «Hay / Falta» de las secciones. No hay orden obligatorio entre ellas; cada una dice a qué paso pertenece. Una acción que depende de otra todavía no hecha no aparece en la lista: el paso dice de qué depende. | T-342, T-344, T-346, T-348 | ▶ en proceso |
-| REQ-148 | Los plazos importantes (REQ-131) se ven en la portada del procedimiento. El tablero de mosaicos del primer panel (REQ-128) deja de ser la portada y queda a un clic con el nombre «Indicadores», sin perder ningún dato. | T-348, T-350 | ○ pendiente |
+| REQ-147 | «Qué se puede hacer ahora» lista todo lo que falta y se puede hacer en cualquier paso: los pendientes que el sistema ya cuenta, las acciones de cierre (proponer y validar la matriz, tomar del Portal lo que falta, agregar las ofertas del acta, evaluar las ofertas, resolver un error, cargar el dictamen) y cada faltante que hoy muestra la línea «Hay / Falta» de las secciones. No hay orden obligatorio entre ellas; cada una dice a qué paso pertenece. Una acción que depende de otra todavía no hecha no aparece en la lista: el paso dice de qué depende. | T-342, T-344, T-346, T-348 | ✓ cubierto |
+| REQ-148 | Los plazos importantes (REQ-131) se ven en la portada del procedimiento. El tablero de mosaicos del primer panel (REQ-128) deja de ser la portada y queda a un clic con el nombre «Indicadores», sin perder ningún dato. | T-348, T-350 | ▶ en proceso |
 | REQ-149 | Las cinco secciones y sus tableros (features 014 y 017) se mantienen. Cada paso y cada acción de la portada llevan al lugar de la sección donde se resuelven. | T-353 | ○ pendiente |
 | REQ-150 | El inicio de la aplicación es la lista de procedimientos abiertos. Por cada uno muestra: nombre y número, el estado de los siete pasos, qué se puede hacer ahora y el vencimiento más próximo. Enmienda a REQ-128 solo en esto: entrar al sistema ya no abre el último procedimiento visto. Un procedimiento pasa solo a «Terminados» cuando su dictamen está cargado, y vuelve solo a la lista de abiertos si el dictamen se quita; no se guarda un estado final ni lo archiva una persona. | T-356, T-357 | ○ pendiente |
 | REQ-151 | El inicio muestra todas las acciones disponibles de todos los procedimientos abiertos, agrupadas por procedimiento. Cada procedimiento se puede colapsar y expandir: colapsado muestra su línea (REQ-150) y cuántas acciones tiene; expandido lista sus acciones, cada una con un botón que lleva a resolverla. | T-357 | ○ pendiente |
