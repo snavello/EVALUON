@@ -1,6 +1,7 @@
 {% load static %}{% comment %}
 El primer panel de la sección Procedimiento (T-321, T-322; REQ-128, REQ-129, REQ-135, REQ-138). Foto de fondo muy suave (una `<img>` en una capa absoluta, sin estilos ni scripts en línea), datos principales del procedimiento sin normativa, acciones, ventana del proceso. Hay/Falta y el pendiente general son cuadros del tablero (T-337, `tablero/resumen.py`). La foto la elige `photos.pick_for` al servir la página. Variables (tablero/ingreso.py): `foto`, `expediente`, `numeros`, `window`, `window_url`, `portal_link`, `pending_items`, `suggestion_items`, además de `overview`, `procedure` y `section` de la vista.
 {% endcomment %}<link rel="stylesheet" href="{% static 'journey/ingreso.css' %}">
+<div class="encab-parte"><h2 id="indicadores-titulo">Indicadores</h2><a class="btn secundario chico" href="{% url 'expedientes:portada' procedure.pk %}">Volver al proceso</a></div>
 <section class="hero" id="ingreso" aria-labelledby="seccion-titulo">
   <div class="photo-bg" aria-hidden="true"><img class="enter" src="{{ foto.url }}" alt=""></div>
   <span class="who-photo">{{ foto.label }}</span>

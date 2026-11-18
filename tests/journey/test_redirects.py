@@ -43,8 +43,6 @@ def test_every_old_reading_page_redirects_to_its_tab(client, procedure, matrix, 
             reverse("expedientes:nuevo_enlace", args=[link.pk]),
         reverse("journey:index"): reverse("inicio"),
         reverse("journey:procedure", args=[procedure.pk]): tab("procedimiento", procedure),
-        # La portada del procedimiento es el primer panel (REQ-128; T-312).
-        reverse("expedientes:portada", args=[procedure.pk]): tab("procedimiento", procedure),
     }
     for old, new in expected.items():
         response = client.get(old)
@@ -88,7 +86,10 @@ def test_entering_opens_the_last_procedure_the_user_opened(client, procedure, op
     log_in(client, operator_user)
     assert client.get("/")["Location"] == tab("procedimiento", newer)
     assert client.get(tab("pliego", older)).status_code == 200
-    assert client.cookies[COOKIE.format(operator_user.pk)].value == str(older.pk)
+    # T-348: abrir una sección ya no recuerda el procedimiento (la cookie la retira T-357).
+    assert COOKIE.format(operator_user.pk) not in client.cookies
+    assert client.get("/")["Location"] == tab("procedimiento", newer)
+    client.cookies[COOKIE.format(operator_user.pk)] = str(older.pk)
     assert client.get("/")["Location"] == tab("procedimiento", older)
     client.cookies[COOKIE.format(operator_user.pk)] = "999999"
     assert client.get("/")["Location"] == tab("procedimiento", newer)

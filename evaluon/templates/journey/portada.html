@@ -1,0 +1,54 @@
+{% extends "journey/seccion_base.html" %}
+{% load static %}
+
+{% comment %}La portada del procedimiento (REQ-143 a REQ-148, REQ-157, REQ-158; plan 018, «Portada del procedimiento»; T-348): título con su resumen y «Abrir indicadores», el mapa del proceso con sus plazos (`_mapa.html`), «Qué se puede hacer ahora» y la lista de los siete pasos, cada uno con su estado propio (no hay «paso actual»). Todo lo arma `portada.portada` desde un único `Proceso`; la plantilla solo recorre. Cada `data-pieza` es una pieza de la primera pantalla (el criterio de 15). Sin estilos ni scripts en línea.{% endcomment %}
+
+{% block title %}{{ procedure.number }} · EVALUON{% endblock %}
+
+{% block section_css %}<link rel="stylesheet" href="{% static 'journey/proceso.css' %}">
+<link rel="stylesheet" href="{% static 'journey/portada.css' %}">
+<link rel="stylesheet" href="{% static 'journey/mapa.css' %}">{% endblock %}
+
+{% block site_header %}<div data-pieza="encabezado">{% include "journey/_sprite.html" %}{% include "journey/_encabezado.html" %}</div>{% endblock %}
+
+{% block cuerpo %}
+<div class="portada">
+  <section class="pr-titulo" data-pieza="titulo" aria-labelledby="portada-titulo">
+    <div class="pr-titulo-texto">
+      <h1 id="portada-titulo">{{ procedure.subject }}</h1>
+      <p class="pr-sub">{{ procedure.procedure_type }} · N.º <span class="num">{{ procedure.number }}</span> · {{ resumen }}</p>
+      {% if vencimiento %}<p class="pr-sub">Próximo vencimiento: {% if vencimiento.marca == "hoy" %}<span class="pr-hoy">Vence hoy</span>{% elif vencimiento.marca == "vencido" %}<span class="pr-vencido">Vencido</span> {{ vencimiento.texto|cut:"Vencido " }}{% else %}{{ vencimiento.texto }}{% endif %} · paso {{ vencimiento.paso }}, {{ vencimiento_paso }}</p>{% endif %}
+    </div>
+    <a class="btn secundario" href="{{ indicadores_url }}">Abrir indicadores</a>
+  </section>
+
+  {% include "journey/_mapa.html" %}
+
+  {% include "journey/_acciones.html" %}
+
+  <section class="pr-lista" id="pasos" aria-labelledby="pasos-titulo">
+    <h2 id="pasos-titulo">Los siete pasos</h2>
+    <p class="pr-sub">Cada paso tiene su propio estado: varios pueden estar en curso a la vez, y los números dan el orden de lectura, no un orden obligatorio.</p>
+    <ol class="pr-pasos">
+      {% for f in filas %}{% with p=f.paso %}<li class="pr-paso {{ f.clase }}" data-pieza="paso" data-paso="{{ p.numero }}">
+        <span class="pr-num" aria-hidden="true">{{ p.numero }}</span>
+        <div class="pr-paso-cuerpo">
+          <h3 id="paso-{{ p.numero }}"><a href="{{ p.destino }}"><span class="sr-only">Paso </span>{{ p.nombre }}</a></h3>
+          {% if p.dato %}<p class="pr-dato">{{ p.dato }}</p>{% endif %}
+          {% if f.nota %}<p class="pr-nota">{{ f.nota }}</p>{% endif %}
+          <p class="pr-resumen">{{ p.resumen }}</p>
+          {% if f.espera %}<p class="pr-resumen">{{ f.espera }}</p>{% endif %}
+          {% if f.advertencias %}<details class="pr-advertencias">
+            <summary class="pr-advertencia">{{ f.advertencias|length }} advertencia{{ f.advertencias|length|pluralize }}</summary>
+            <ul class="pr-advertencia-detalle">{% for texto in f.advertencias %}<li>{{ texto }}</li>{% endfor %}</ul>
+          </details>{% endif %}
+          {% if f.faltan or f.sin_leer %}<div class="pr-faltan"><p class="pr-faltan-titulo">Lo que falta</p>
+            {% if f.sin_leer %}<ul class="pr-sin-leer">{% for texto, url in f.sin_leer %}<li>{{ texto }} {% if puede_actuar %}<a href="{{ url }}">Ver la oferta</a>{% endif %}</li>{% endfor %}</ul>{% endif %}
+            {% if f.faltan %}<ul class="pr-acciones">{% include "journey/_acciones.html" with lineas=f.faltan solo_lineas=True pieza=False sin_paso=True %}</ul>{% endif %}</div>{% endif %}
+        </div>
+        <div class="pr-paso-estado"><span class="pr-estado {{ f.clase }}">{{ p.estado.texto }}</span>{% if p.marca == "hoy" %} <span class="pr-hoy">Vence hoy</span>{% elif p.marca == "vencido" %} <span class="pr-vencido">Vencido</span>{% endif %}</div>
+      </li>{% endwith %}{% endfor %}
+    </ol>
+  </section>
+</div>
+{% endblock %}

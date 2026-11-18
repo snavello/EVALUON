@@ -1,0 +1,15 @@
+{% comment %}«Qué se puede hacer ahora» (REQ-146, REQ-147, REQ-157; T-348). Lo usan la portada y, después, el inicio. Variables: `visibles` y `restantes` (listas de líneas con `accion` y `paso_nombre`; ya cortadas en 6 por `acciones.cortar`), `puede_actuar` (el usuario de lectura no ve botones) y `next_url`. Con `solo_lineas` dibuja únicamente los `<li>` de `lineas` (así lo reusan el corte «ver las N restantes» y lo que falta de cada paso); `pieza` marca cada línea con `data-pieza` (las ocultas y las de un paso no cuentan: el paso ya es una pieza) y `sin_paso` oculta el «Paso N» cuando el paso ya se nombra al lado. Las etiquetas «Vence hoy» (lila) y «Vencido» (rojo) llevan siempre el texto escrito (REQ-156). Sin estilos ni scripts en línea: las clases son de proceso.css.{% endcomment %}{% if solo_lineas %}{% for l in lineas %}{% with a=l.accion %}<li class="pr-accion{% if a.marca %} {{ a.marca }}{% endif %}" data-accion="{{ a.id }}"{% if pieza %} data-pieza="accion"{% endif %}>
+  <span class="pr-punto" aria-hidden="true"></span>
+  <div class="pr-que"><span>{{ a.texto }}</span>{% if a.marca == "hoy" %} <span class="pr-hoy">Vence hoy</span>{% elif a.marca == "vencido" %} <span class="pr-vencido">Vencido</span>{% endif %}{% if not sin_paso %}<small class="pr-paso-de">Paso {{ a.paso }} · {{ l.paso_nombre }}</small>{% endif %}</div>
+  <div class="pr-boton">{% if puede_actuar %}{% if a.post %}<form class="accion-form" method="post" action="{{ a.post.0 }}">{% csrf_token %}{% for name, value in a.post.1 %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}{% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}<button type="submit" class="btn primario chico" aria-label="{{ l.etiqueta }}">{{ l.boton }}</button></form>{% elif a.url %}<a class="btn primario chico" href="{{ a.url }}" aria-label="{{ l.etiqueta }}">{{ l.boton }}</a>{% endif %}{% endif %}</div>
+</li>{% endwith %}{% endfor %}{% else %}<section class="pr-ahora" data-pieza="acciones" aria-labelledby="ahora-titulo">
+  <h2 id="ahora-titulo">Qué se puede hacer ahora</h2>
+  <p class="pr-sub">En cualquier orden. Cada línea dice a qué paso pertenece.</p>
+  {% if visibles %}
+  <ul class="pr-acciones">{% include "journey/_acciones.html" with lineas=visibles solo_lineas=True pieza=True sin_paso=False %}</ul>
+  {% if restantes %}<details class="pr-restantes">
+    <summary>{% if restantes|length == 1 %}ver la restante{% else %}ver las {{ restantes|length }} restantes{% endif %}</summary>
+    <ul class="pr-acciones">{% include "journey/_acciones.html" with lineas=restantes solo_lineas=True pieza=False sin_paso=False %}</ul>
+  </details>{% endif %}
+  {% else %}<p class="pr-vacio">No hay nada para hacer ahora.</p>{% endif %}
+</section>{% endif %}

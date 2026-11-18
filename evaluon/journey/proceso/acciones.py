@@ -8,7 +8,7 @@ escriben y no deciden estados (P3). Tres familias, todas con un `Accion` (`pasos
   su `origen` (`PASO_DE_ORIGEN`) y agrupados por `(paso, kind)` con la cuenta sumada. La suma de
   sus cuentas es `Overview.pending` menos las de Normativas. El `par` de la evaluación (paso 6)
   se parte con `s4_propuesta._bucket`, la definición única del estado de una celda, en «Decidir N
-  puntos no determinados», «Revisar N “no cumple”» y «Confirmar N propuestas “cumple”».
+  puntos no determinados», «Revisar N «no cumple»» y «Confirmar N propuestas «cumple»».
 - **Cierres** (`tipo = cierre`, cuenta 0): siete acciones, cada una con su disparador.
 - **Faltantes** (`tipo = faltante`, cuenta 0): los `Missing` de `Section.tema_missing` que ninguna
   línea de pendiente o de cierre cubre. No cambian el estado del paso: cada uno es además una
@@ -154,12 +154,16 @@ def _pares_por_estado(user, procedure):
     return cuentas
 
 
+# El rótulo del botón es el verbo de su línea (los cuatro «Resolver» seguidos no se distinguían).
+BOTON_DE_PAR = {K_DECIDIR: "Decidir", K_NO_CUMPLE: "Revisar", K_CUMPLE: "Confirmar"}
+
+
 def _texto_pares(kind, n):
     if kind == K_DECIDIR:
         return f"Decidir {_plural(n, 'punto no determinado', 'puntos no determinados')}"
     if kind == K_NO_CUMPLE:
-        return f"Revisar {_plural(n, '“no cumple”', '“no cumple”')}"
-    return f"Confirmar {_plural(n, 'propuesta “cumple”', 'propuestas “cumple”')}"
+        return f"Revisar {_plural(n, '«no cumple»', '«no cumple»')}"
+    return f"Confirmar {_plural(n, 'propuesta «cumple»', 'propuestas «cumple»')}"
 
 
 def _agrupar(overview):
@@ -204,20 +208,20 @@ def _linea_pendiente(paso, kind, grupo, procedure):
         texto, url = "Abrir la versión nueva de la matriz" + (f" ({n})" if n > 1 else ""), primero.url
     elif kind == K_MATRIZ:
         base = reverse("expedientes:pliego", args=[procedure.pk])
-        texto, url, boton = f"Validar la matriz: {n} por resolver", f"{base}?filtro=falta#s2-matriz", "Resolver"
+        texto, url, boton = f"Validar la matriz: {n} por resolver", f"{base}?filtro=falta#s2-matriz", "Validar"
     elif kind == K_BORRADORES:
         texto, boton = f"Revisar {_plural(n, 'oferta subida', 'ofertas subidas')} por archivos", "Revisar"
         url = primero.url if len(grupo["items"]) == 1 else (primero.group_url or primero.url)
     elif kind == K_FICHA:
-        texto, boton = f"Confirmar {_plural(n, 'fila', 'filas')} de la ficha", "Resolver"
+        texto, boton = f"Confirmar {_plural(n, 'fila', 'filas')} de la ficha", "Confirmar"
     elif kind == K_INFORME_FALTA:
         texto = f"Cargar el informe técnico del área (falta en {_plural(n, 'oferta', 'ofertas')})"
         url, boton = f"{ev}{s4_informe.ANCHOR}", "Subir"
     elif kind == K_INFORME_OK:
         texto = f"Dar el ok al informe técnico ({_plural(n, 'oferta', 'ofertas')})"
-        url, boton = f"{ev}{s4_informe.ANCHOR}", "Resolver"
+        url, boton = f"{ev}{s4_informe.ANCHOR}", "Dar el ok"
     elif kind == "pregunta":
-        texto, url, boton = f"Contestar {_plural(n, 'pregunta', 'preguntas')}", f"{ev}?preg=abiertas#s4-preguntas", "Responder"
+        texto, url, boton = f"Contestar {_plural(n, 'pregunta', 'preguntas')}", f"{ev}?preg=abiertas#s4-preguntas", "Contestar"
     elif kind == "descarte":
         texto, boton = f"Resolver {_plural(n, 'descarte propuesto', 'descartes propuestos')}", "Resolver"
     elif kind == pasos.KIND_DICTAMEN:
@@ -243,7 +247,7 @@ def _pendientes(user, procedure, overview):
         for kind, n in _pares_por_estado(user, procedure).items():
             if n:
                 acciones.append(pasos.Accion(6, pasos.PENDIENTE, kind, _texto_pares(kind, n), n,
-                                             "Resolver", url))
+                                             BOTON_DE_PAR[kind], url))
     return acciones
 
 

@@ -62,6 +62,10 @@
   --vencido: #D10F2F;
   --vencido-bg: var(--vencido);          /* la etiqueta es rellena: su fondo es el propio rojo */
   --vencido-ink: #FFFFFF;
+  /* Mapa del proceso (REQ-158; mapa.css): tarjeta, tarjeta «Todavía no» y puntos de la grilla del lienzo */
+  --mapa-nodo: #FFFFFF;
+  --mapa-nodo-n: #FAFAFA;
+  --mapa-punto: #DADADA;     /* decorativo: la grilla no lleva información */
   --s2: #868686;             /* serie neutra; maqueta #8E8E8E */
   --s3: #5C5E62;             /* tercera serie, gris medio-oscuro; la maqueta usaba #C9C9C9 (1,5:1) */
   --trk: #E2E2E2;
@@ -106,6 +110,9 @@
   --vencido: #FF4D5E;
   --vencido-bg: var(--vencido);
   --vencido-ink: #1A0508;
+  --mapa-nodo: #1F2126;
+  --mapa-nodo-n: #121316;
+  --mapa-punto: #2A2C31;
   --s2: #8A8C91;
   --s3: #6A6D74;             /* maqueta #4A4C51 (2,06:1) */
   --trk: #2A2C31;

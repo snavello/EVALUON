@@ -1,0 +1,61 @@
+/* La portada del procedimiento (feature 018: REQ-143, REQ-146; T-348). Solo la disposición: los
+   colores y las etiquetas de estado, «Vence hoy» y «Vencido» son de proceso.css y los tokens salen de
+   tokens.css (nada en hexadecimal ni `style=`). La barra `pr-foto` es la del inicio (T-357). */
+
+.portada { display: grid; gap: 1.5rem; }
+.portada h1 { margin: 0 0 .25rem; }
+.portada h2 { margin: 0 0 .25rem; }
+.pr-sub { margin: 0 0 .375rem; color: var(--ink-2); }
+
+.pr-titulo { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem 1.5rem; flex-wrap: wrap; }
+.pr-titulo-texto { min-width: 0; flex: 1 1 24rem; }
+
+/* «Qué se puede hacer ahora» */
+.pr-ahora { background: var(--tile); border-radius: var(--r); padding: 1.25rem 1.4rem; }
+.pr-ahora .pr-acciones { margin-top: .5rem; }
+.pr-ahora .pr-accion:first-child { border-top: 0; }
+.pr-paso-de { display: block; margin-top: .125rem; font-size: .8125rem; font-weight: 400; color: var(--ink-2); }
+.pr-que .pr-hoy, .pr-que .pr-vencido { margin-left: .5rem; }
+.pr-boton form { margin: 0; }
+.pr-vacio { margin: .5rem 0 0; color: var(--ink-2); }
+
+/* La lista de pasos */
+.pr-pasos { list-style: none; margin: 0; padding: 0; }
+.pr-paso {
+  display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) auto; gap: .25rem 1rem;
+  padding: 1rem 0; border-top: 1px solid var(--line); align-items: start;
+}
+.pr-num {
+  width: 2.25rem; height: 2.25rem; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 700; background: var(--tile); color: var(--ink-2);
+}
+.pr-paso.hecho .pr-num { background: var(--ink); color: var(--bg); }
+.pr-paso.en-curso .pr-num { background: var(--lime); color: var(--on-lime); outline: 1px solid var(--ink); }
+.pr-paso h3 { margin: 0; font-size: 1.0625rem; font-weight: 600; }
+.pr-paso h3 a { text-decoration: none; }
+.pr-paso h3 a:hover { text-decoration: underline; }
+.pr-dato { margin: .125rem 0 0; font-weight: 600; }
+.pr-nota { margin: .125rem 0 0; font-size: .8125rem; color: var(--ink-2); }
+.pr-resumen { margin: .25rem 0 0; color: var(--ink-2); font-size: .9375rem; }
+.pr-paso-estado { display: flex; flex-wrap: wrap; gap: .375rem; justify-content: flex-end; }
+.pr-advertencias { margin-top: .375rem; }
+.pr-advertencias > summary { cursor: pointer; }
+.pr-advertencias > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pr-faltan { margin-top: .5rem; }
+.pr-faltan-titulo { margin: 0; font-size: .8125rem; font-weight: 600; color: var(--ink-2); }
+
+/* La foto de los siete pasos (la usa el inicio) */
+.pr-foto { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .25rem; list-style: none; margin: 0; padding: 0; }
+.pr-foto-paso { font-size: .8125rem; color: var(--ink-2); border-top: 6px solid var(--line); padding-top: .375rem; }
+.pr-foto-paso b { display: block; color: var(--ink); }
+.pr-foto-estado { font-weight: 600; }
+
+@media (max-width: 700px) {
+  .pr-paso { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .pr-paso-estado { grid-column: 2; justify-content: flex-start; }
+  .pr-accion { grid-template-columns: 1.25rem minmax(0, 1fr); }
+  .pr-accion .pr-boton { grid-column: 2; }
+  .pr-foto { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.pr-sin-leer { list-style: none; margin: .25rem 0 0; padding: .625rem .75rem; border-top: 1px solid var(--line); }
+.pr-sin-leer a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
