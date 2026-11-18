@@ -1,6 +1,6 @@
 {% comment %}Cuerpo del par oferta × requisito (T-351, REQ-154): lo usan la página del par (desde="par", por omisión) y el panel del cuadro de cumplimiento (desde="cuadro"). Los formularios envían a la misma ruta de decisión; `desde` (y `filtro`, si viene) solo dicen adónde se vuelve.{% endcomment %}  {% if desde != "cuadro" %}<p class="volver"><a href="{{ tab_url }}#ev-{{ page.requirement.number }}">← Volver a Evaluación</a></p>{% endif %}
   <div class="encab-parte">
-    <h2 id="seccion-titulo">Oferta {{ page.offer.number }} × requisito {{ page.requirement.number }}</h2>
+    <h2{% if desde != "cuadro" %} id="seccion-titulo"{% endif %}>Oferta {{ page.offer.number }} × requisito {{ page.requirement.number }}</h2>
   </div>
   <p class="resumen-linea">El sistema propone <b>{{ page.result.get_outcome_display|lower }}</b>{% if page.result.doubt %} ({{ page.result.get_doubt_display|lower }}){% endif %}. Es una propuesta: decide la Comisión.</p>
 
