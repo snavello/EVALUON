@@ -58,7 +58,7 @@ Qué significa cada prefijo:
 | **010** | 010 | Asistente técnico: Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por… |  |
 | **011** | 011 | Pautas para documentos legibles por IA: Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y… |  |
 
-## Tareas (346)
+## Tareas (368)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -408,6 +408,28 @@ Qué significa cada prefijo:
 | **T-337** | 017 | Cuadros de indicadores arriba y detalle debajo en todas las secciones y el primer panel («Qué hay y qué falta»… | terminada |
 | **T-338** | 017 | Pliego y matriz más claros: Hay/Falta coherente, cumplimiento desglosado, renglones técnicos con su bien y cláusulas… | terminada |
 | **T-339** | 017 | Renglones técnicos de Evaluación sin repetir (mismo criterio que T-338) | terminada |
+| **T-340** | 018 | Armar los fixtures de los tres procedimientos de la tabla con el caso chico | pendiente |
+| **T-341** | 018 | Escribir la tabla de 21 estados como test, antes del cálculo | pendiente |
+| **T-342** | 018 | Preparar el cálculo sin cambiar comportamiento (origen de renglones, cuentas públicas, dictamen cargado, guarda de… | pendiente |
+| **T-343** | 018 | Crear los tipos y nombres de los siete pasos y la marca de vencimientos | pendiente |
+| **T-344** | 018 | Calcular las acciones: pendientes, cierres, faltantes, orden y corte de 6 | pendiente |
+| **T-345** | 018 | Calcular el estado de los pasos 1 a 3 y armar proceso_de | pendiente |
+| **T-346** | 018 | Calcular los pasos 4 a 7, datos, resúmenes y advertencias; pasar 21 de 21 | pendiente |
+| **T-347** | 018 | Definir los tokens de «Vence hoy» y «Vencido» y la hoja proceso.css | pendiente |
+| **T-348** | 018 | Dibujar la portada: acciones, lista de pasos, advertencias e «Indicadores» | pendiente |
+| **T-349** | 018 | Escribir la geometría constante del mapa y los hitos de la línea de plazos | pendiente |
+| **T-350** | 018 | Dibujar el mapa del proceso, la línea de plazos y el selector Mapa / Lista | pendiente |
+| **T-351** | 018 | Extraer el panel del par para reutilizarlo y aceptar desde=cuadro | pendiente |
+| **T-352** | 018 | Dibujar el cuadro de cumplimiento con el panel lado a lado | pendiente |
+| **T-353** | 018 | Llevar pasos y acciones al lugar donde se resuelven (cuadro incluido) | pendiente |
+| **T-354** | 018 | Medir el corte vertical con el caso chico y revisar con el Coordinador | pendiente |
+| **T-355** | 018 | Agregar filtros, grupos resumidos y «Siguiente a decidir» al cuadro | pendiente |
+| **T-356** | 018 | Separar abiertos y terminados con dos consultas | pendiente |
+| **T-357** | 018 | Reemplazar la entrada y la lista «Expedientes» por el inicio | pendiente |
+| **T-358** | 018 | Unificar el vocabulario en pantalla | pendiente |
+| **T-359** | 018 | Cierre técnico: guía visual y glosario | pendiente |
+| **T-360** | 018 | Medición final con el procedimiento del piloto y revisión visual | pendiente |
+| **T-361** | 018 | Corregir los hallazgos de la medición final (condicional) | pendiente |
 
 ## Requisitos (149)
 
