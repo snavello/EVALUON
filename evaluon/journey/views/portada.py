@@ -231,7 +231,8 @@ def _resumen(proceso, cantidad_ofertas):
     """«N ofertas · X pasos hechos, Y en curso, Z sin empezar» (y los que tienen error)."""
     cuentas = {estado: sum(1 for p in proceso.pasos if p.estado is estado)
                for estado in pasos.Estado}
-    partes = [f"{cuentas[pasos.Estado.HECHO]} hechos", f"{cuentas[pasos.Estado.EN_CURSO]} en curso",
+    hechos = cuentas[pasos.Estado.HECHO]
+    partes = [f"{hechos} hecho" + ("" if hechos == 1 else "s"), f"{cuentas[pasos.Estado.EN_CURSO]} en curso",
               f"{cuentas[pasos.Estado.TODAVIA_NO]} sin empezar"]
     if cuentas[pasos.Estado.CON_ERROR]:
         partes.append(f"{cuentas[pasos.Estado.CON_ERROR]} con error")

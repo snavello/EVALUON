@@ -246,3 +246,69 @@ def test_req158_mas_n_mas_dice_y_hace_lo_mismo(client, caso_varios_en_curso, mon
     assert ('<a class="mp-mas" href="#paso-6" title="Ver todas las tareas del paso 6 en la lista de '
             'abajo">+ 2 más</a>') in carta
     assert 'id="paso-6"' in html[html.index('id="pasos"'):]
+
+
+# --- T-363: tarjetas anchas y sin recorte, advertencia enlazada, texto que dice lo que se ve -----------
+
+def test_req158_la_advertencia_es_un_enlace_a_la_lista_del_paso_y_sigue_el_orden_de_tabulacion(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (T-363): «N advertencias» es un `<a>` enfocable a `#paso-N` (con el paso dicho para el lector
+    de pantalla); en la tarjeta el orden de tabulación es nombre, tareas, «+ N más» y advertencias."""
+    _con_tareas(monkeypatch, 5, adv=("Una", "Otra"))
+    html = html_de(client, caso_varios_en_curso)
+    carta = tarjetas(html)[6]
+    assert re.search(r'<a class="mp-adv" href="#paso-6" title="Una · Otra"><i aria-hidden="true">!</i>'
+                     r'2 advertencias<span class="sr-only"> del paso 6: ver en la lista</span></a>', carta)
+    enlaces = [m.start() for m in re.finditer(r"<a ", carta)]
+    nombre, tarea, mas, adv = (carta.index('<h3 class="mp-nom">'), carta.index('<li class="mp-tarea'),
+                               carta.index('class="mp-mas"'), carta.index('class="mp-adv"'))
+    assert nombre < tarea < mas < adv and len(enlaces) == 1 + 3 + 1 + 1
+    assert 'id="paso-6"' in html[html.index('id="pasos"'):]  # el destino existe
+
+
+def test_req158_el_resumen_del_titulo_dice_1_hecho_en_singular(client, caso_recien_cargado):
+    """REQ-158 (H-A4, T-363): con un solo paso hecho dice «1 hecho», nunca «1 hechos»."""
+    uno = html_de(client, caso_recien_cargado)
+    assert "1 hecho, 1 en curso" in uno and "1 hechos" not in uno
+
+
+def test_req158_el_resumen_del_titulo_dice_hechos_en_plural(client, caso_varios_en_curso):
+    """REQ-158 (H-A4, T-363): con dos pasos hechos dice «2 hechos»."""
+    assert "2 hechos, 4 en curso" in html_de(client, caso_varios_en_curso)
+
+
+def test_req158_la_leyenda_dice_rayas_y_no_punteada(client, caso_varios_en_curso):
+    """REQ-158 (T-363): el conector que todavía puede cambiar se dibuja de rayas; la leyenda lo dice así."""
+    html = html_de(client, caso_varios_en_curso)
+    mp = html[html.index('class="mp mp-mapa"'):html.index('id="ahora-titulo"')]
+    assert "Línea de rayas: todavía puede cambiar" in mp and "unteada" not in mp
+
+
+def test_req148_sin_fechas_la_linea_de_plazos_es_corta_y_con_fechas_dibuja_el_eje(
+        client, caso_varios_en_curso, monkeypatch):
+    """REQ-148 (H-B6, T-363): con menos de dos fechas la regla no ocupa su alto de eje (clase `corta`); con
+    apertura y vencimiento sí se dibuja el eje completo."""
+    sin = html_de(client, caso_varios_en_curso)
+    assert 'class="mp-regla niveles-0 corta"' in sin
+    _fechas(monkeypatch, HOY + timedelta(days=23))
+    con = html_de(client, caso_varios_en_curso)
+    assert 'class="mp-regla niveles-0"' in con and "corta" not in con[con.index('class="mp-plazos"'):con.index('id="ahora-titulo"')]
+    css = (Path(__file__).resolve().parents[3] / "evaluon/static/journey/mapa.css").read_text(encoding="utf-8")
+    assert re.search(r"\.mp-regla\.corta\s*\{\s*height:\s*auto", css)
+
+
+def test_req158_ninguna_tarea_lleva_recorte_en_su_html(client, caso_varios_en_curso, monkeypatch):
+    """REQ-158 (T-363): el texto de cada tarea y del dato va entero en el HTML (el recorte, si lo hubiera, sería
+    de la hoja, que un test aparte vigila); una frase de 74 caracteres no se corta."""
+    larga = "Resolver el punto número 1 que quedó pendiente de revisión por la Comisión"
+    real = calculo.proceso_de
+
+    def hecho(user, procedure, overview=None):
+        proceso = real(user, procedure, overview)
+        proceso.pasos[5].tareas = [pasos.Accion(6, pasos.PENDIENTE, "x0", larga, 1, "Ver", "/x/")]
+        proceso.acciones = [t for p in proceso.pasos for t in p.tareas]
+        return proceso
+
+    monkeypatch.setattr(calculo, "proceso_de", hecho)
+    carta = tarjetas(html_de(client, caso_varios_en_curso))[6]
+    assert f'<span class="mp-txt">{larga}</span>' in carta and "…" not in carta

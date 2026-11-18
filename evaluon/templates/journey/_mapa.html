@@ -10,7 +10,7 @@
       <li><i class="mp-k espera" aria-hidden="true"></i>Espera a otro paso</li>
       {% for clave, texto in mapa.leyenda_marcas %}<li><i class="mp-k {{ clave }}" aria-hidden="true"></i>{{ texto }}</li>{% endfor %}
       <li><i class="mp-ln lleno" aria-hidden="true"></i>Línea llena: el paso anterior está hecho</li>
-      <li><i class="mp-ln punt" aria-hidden="true"></i>Línea punteada: todavía puede cambiar</li>
+      <li><i class="mp-ln punt" aria-hidden="true"></i>Línea de rayas: todavía puede cambiar</li>
     </ul>{% endif %}
     <nav class="mp-selector" aria-label="Vista del proceso">
       <a href="{{ mapa.url_mapa }}"{% if mapa.vista == "mapa" %} aria-current="page"{% endif %}>Mapa</a>
@@ -36,7 +36,7 @@
             {% for l in t.tareas %}{% with a=l.accion %}<li class="mp-tarea{% if a.marca %} {{ a.marca }}{% endif %}" data-accion="{{ a.id }}"><a href="{% firstof a.url p.destino %}" title="{{ a.texto }}"><i class="mp-punto" aria-hidden="true"></i><span class="mp-cuerpo"><span class="mp-txt">{{ a.texto }}</span>{% if a.marca == "hoy" %}<span class="mp-hoy">Vence hoy</span>{% elif a.marca == "vencido" %}<span class="mp-vencido">Vencido</span>{% endif %}</span></a></li>{% endwith %}{% endfor %}
             {% if not t.tareas and p.espera %}<li class="mp-tarea espera"><a href="{{ p.destino }}" title="{{ f.espera|default:p.espera }}"><i class="mp-punto" aria-hidden="true"></i><span class="mp-cuerpo"><span class="mp-txt">{{ p.espera }}</span></span></a></li>{% endif %}
           </ul>
-          {% if t.mas or f.advertencias %}<p class="mp-resto{% if t.mas %} con-mas{% endif %}">{% if t.mas %}<a class="mp-mas" href="#paso-{{ p.numero }}" title="Ver todas las tareas del paso {{ p.numero }} en la lista de abajo">+ {{ t.mas }} más</a>{% endif %}{% if f.advertencias %}<span class="mp-adv" title="{{ f.advertencias|join:' · ' }}"><i aria-hidden="true">!</i><span class="mp-adv-largo">{{ f.advertencias|length }} advertencia{{ f.advertencias|length|pluralize }}</span><span class="mp-adv-corto" aria-hidden="true">{{ f.advertencias|length }} adv.</span><span class="sr-only mp-adv-sr">{{ f.advertencias|length }} advertencia{{ f.advertencias|length|pluralize }}</span></span>{% endif %}</p>{% endif %}
+          {% if t.mas or f.advertencias %}<p class="mp-resto{% if t.mas %} con-mas{% endif %}">{% if t.mas %}<a class="mp-mas" href="#paso-{{ p.numero }}" title="Ver todas las tareas del paso {{ p.numero }} en la lista de abajo">+ {{ t.mas }} más</a>{% endif %}{% if f.advertencias %}<a class="mp-adv" href="#paso-{{ p.numero }}" title="{{ f.advertencias|join:' · ' }}"><i aria-hidden="true">!</i>{{ f.advertencias|length }} advertencia{{ f.advertencias|length|pluralize }}<span class="sr-only"> del paso {{ p.numero }}: ver en la lista</span></a>{% endif %}</p>{% endif %}
         </li>{% endwith %}{% endfor %}
       </ol>
     </div>
