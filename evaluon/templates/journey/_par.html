@@ -1,0 +1,76 @@
+{% comment %}Cuerpo del par oferta × requisito (T-351, REQ-154): lo usan la página del par (desde="par", por omisión) y el panel del cuadro de cumplimiento (desde="cuadro"). Los formularios envían a la misma ruta de decisión; `desde` (y `filtro`, si viene) solo dicen adónde se vuelve.{% endcomment %}  {% if desde != "cuadro" %}<p class="volver"><a href="{{ tab_url }}#ev-{{ page.requirement.number }}">← Volver a Evaluación</a></p>{% endif %}
+  <div class="encab-parte">
+    <h2{% if desde != "cuadro" %} id="seccion-titulo"{% endif %}>Oferta {{ page.offer.number }} × requisito {{ page.requirement.number }}</h2>
+  </div>
+  <p class="resumen-linea">El sistema propone <b>{{ page.result.get_outcome_display|lower }}</b>{% if page.result.doubt %} ({{ page.result.get_doubt_display|lower }}){% endif %}. Es una propuesta: decide la Comisión.</p>
+
+  {% if aviso %}<p class="aviso {% if aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s4-aviso" role="{% if aviso.ok %}status{% else %}alert{% endif %}">{{ aviso.text }}</p>{% else %}<span id="s4-aviso"></span>{% endif %}
+
+  <div class="bloque">
+    <div class="bloque-cab"><h3>Estado</h3></div>
+    <p>{% if review.state == "propuesto" %}{% include "journey/_icono.html" with icon="nodet" name="A decidir" %} Falta su decisión: confirmar, corregir o rechazar la propuesta.{% else %}{% include "journey/_icono.html" with icon="cumple" name="Decidido" %} {{ decided }}{% endif %}</p>
+    {% if page.newer_version %}<p class="aviso aviso-error">Hay una versión más nueva de la matriz ({{ page.newer_version.number }}): esta propuesta se hizo con la {{ page.run.matrix_version.number }}.</p>{% endif %}
+    {% if page.question %}<p>Pregunta abierta a la Comisión: {{ page.question.text }}</p>{% endif %}
+    <p class="ayuda">{{ external_line }}</p>
+  </div>
+
+  <div class="dos">
+    <div class="bloque"><div class="bloque-cab"><h3>Lo que exige el pliego</h3></div>
+      {% if points %}{% include "journey/_punto_pliego.html" with points=points %}
+      {% for c in page.requirement_citations %}{% if c.original_text %}<p class="ayuda">Texto vigente después de una circular:</p><blockquote class="cita">{{ c.text }}</blockquote>{% endif %}{% endfor %}
+      {% else %}{% for c in page.requirement_citations %}<blockquote class="cita">{{ c.text }}</blockquote>{% empty %}<p class="suave">Este requisito no tiene cita guardada.</p>{% endfor %}{% endif %}
+      <p class="ayuda">Matriz versión {{ page.run.matrix_version.number }}</p></div>
+    <div class="bloque"><div class="bloque-cab"><h3>Lo que presentó la oferta</h3></div>
+      {% for c in page.offer_citations %}<blockquote class="cita">{{ c.text }}</blockquote><p class="ayuda"><a href="{% url 'offers:document_original' c.document.pk %}#page={{ c.page }}">{{ c.document.title }} · página {{ c.page }}</a></p>
+      {% if c.by_vision %}{% include "journey/_cita_vision.html" with document_id=c.document_id page=c.page %}
+      <figure class="vision-page"><img src="{% url 'assessment:vision_page' page.offer.pk page.requirement.pk c.document.pk c.page %}" alt="Imagen de la página {{ c.page }} de {{ c.document.title }}, que el sistema leyó por visión" width="480" loading="lazy"><figcaption class="ayuda">Página {{ c.page }} tal como la vio el sistema.</figcaption></figure>{% endif %}
+      {% empty %}<p class="suave">Sin texto de la oferta que respalde una conclusión.{% if read_note %} {{ read_note }}{% endif %}</p>{% endfor %}
+      {% for c in page.portal_citations %}<p class="ayuda">Dato del Portal: {{ c.text }}<br><span class="registro">{% if c.label %}{{ c.label }} · {% endif %}{% include "portal/_fuente_dato.html" with item=c.portal_item %}</span></p>{% endfor %}</div>
+  </div>
+
+  {% if page.norm_citations or page.answer_citations %}
+  <div class="bloque"><div class="bloque-cab"><h3>Normativa y respuestas de la Comisión</h3></div>
+    {% for c in page.norm_citations %}<blockquote class="cita">{{ c.text }}</blockquote><p class="ayuda">{{ c.label }}</p>{% endfor %}
+    {% for c in page.answer_citations %}<blockquote class="cita">{{ c.text }}</blockquote><p class="ayuda">Respuesta de {{ c.answer.answered_by.username }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="bloque">
+    <div class="bloque-cab"><h3>Propuesta del sistema</h3></div>
+    <p><span class="suave">Explicación del sistema (no es texto de la oferta ni del pliego):</span> {{ page.result.explanation|default:"sin explicación" }}</p>
+    {% if conditions %}<div class="condiciones"><span class="suave">Condiciones del requisito, una por una (cada una con su dato y su resultado):</span>
+      <ul class="lista-condiciones">{% for k in conditions %}<li>{% include "journey/_icono.html" with icon=k.icon name=k.name %} <b>{{ k.name }}</b> · {{ k.text }} <span class="suave">· {% if k.datum %}dato: {{ k.datum }}{% else %}sin dato{% endif %}</span>{% if k.where %} <span class="registro">({{ k.where }})</span>{% endif %}</li>{% endfor %}</ul></div>{% endif %}
+    {% if technical %}
+    <div class="bloque-pie"><span class="suave">Esta fila se decide con el ok del informe técnico del área.</span></div>
+    {% elif can_decide %}
+    <div class="bloque-pie acciones-fila">
+      <form class="en-linea" method="post" action="{% url 'expedientes:s4_decidir' pid page.result.pk %}">{% csrf_token %}<input type="hidden" name="action" value="confirmar"><input type="hidden" name="desde" value="{{ desde|default:'par' }}">{% if filtro %}<input type="hidden" name="filtro" value="{{ filtro }}">{% endif %}<button class="btn primario" type="submit">Confirmar</button></form>
+      <details class="acc"><summary class="btn secundario">Corregir</summary>
+        <form method="post" action="{% url 'expedientes:s4_decidir' pid page.result.pk %}">{% csrf_token %}
+          <input type="hidden" name="action" value="corregir"><input type="hidden" name="desde" value="{{ desde|default:'par' }}">{% if filtro %}<input type="hidden" name="filtro" value="{{ filtro }}">{% endif %}
+          <label>Resultado correcto <select name="outcome_after" required>{% for value, label in review.outcomes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+          <label>Motivo (obligatorio) <textarea name="note" rows="2" required></textarea></label>
+          <button class="btn primario chico" type="submit">Guardar la corrección</button>
+        </form></details>
+      <details class="acc"><summary class="btn secundario">Rechazar</summary>
+        <form method="post" action="{% url 'expedientes:s4_decidir' pid page.result.pk %}">{% csrf_token %}
+          <input type="hidden" name="action" value="rechazar"><input type="hidden" name="desde" value="{{ desde|default:'par' }}">{% if filtro %}<input type="hidden" name="filtro" value="{{ filtro }}">{% endif %}
+          <label>Motivo (obligatorio) <textarea name="note" rows="2" required></textarea></label>
+          <button class="btn secundario chico" type="submit">Rechazar la propuesta</button>
+        </form></details>
+    </div>
+    {% else %}
+    <div class="bloque-pie"><span class="suave">Confirmar, corregir o rechazar lo propuesto lo decide un evaluador.</span></div>
+    {% endif %}
+  </div>
+
+  <div class="bloque" id="par-historial">
+    <div class="bloque-cab"><h3>Historial del par <span class="cta">{{ stages|length }} evaluación{{ stages|length|pluralize:",es" }}</span></h3><span class="linea-portal">Cada propuesta queda como se generó; las decisiones se agregan aparte.</span></div>
+    <ol class="historial">
+      {% for stage in stages %}
+      <li><b>Evaluación {{ stage.run.number }}{% if stage.is_current %} (vigente){% endif %}</b> · matriz versión {{ stage.run.matrix_version.number }}<br>
+        Propuesta del sistema: <b>{{ stage.result.get_outcome_display }}</b>{% if stage.result.doubt %} ({{ stage.result.get_doubt_display }}){% endif %}.
+        {% if stage.lines %}<ul>{% for line in stage.lines %}<li>{{ line }}</li>{% endfor %}</ul>{% else %}<span class="suave">Sin decisiones.</span>{% endif %}</li>
+      {% endfor %}
+    </ol>
+  </div>

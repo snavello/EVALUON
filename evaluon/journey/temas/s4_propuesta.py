@@ -733,14 +733,11 @@ def opens(request):
 # --- Detalle de un par, dentro de la pestaña ------------------------------------------------------
 
 
-@require_GET
-def pair(request, procedure_id, offer_id, requirement_id):
-    """El par abierto dentro de la pestaña: lo que exige el pliego, lo que presentó la oferta, la
-    propuesta, la decisión y todo el recorrido (propuestas y decisiones, con quién y cuándo)."""
-    from evaluon.journey.views import portada
-
-    overview = portada.overview_of(request, procedure_id)
-    procedure = overview.procedure
+def par_context(request, procedure, offer_id, requirement_id, *, desde="par", filtro=None):
+    """Lo que `journey/_par.html` necesita para dibujar el par oferta × requisito: lo usan la
+    página del par (`desde="par"`) y el panel del cuadro de cumplimiento (`desde="cuadro"`, T-351,
+    REQ-154). `filtro` es el del cuadro y solo vale si es uno conocido. Levanta `Http404` si el
+    requisito no se evaluó para esa oferta o la oferta no es del procedimiento."""
     try:
         page = evaluate.pair_page(request.user, offer_id, requirement_id,
                                   channel=Channel.SCREEN)
@@ -757,9 +754,8 @@ def pair(request, procedure_id, offer_id, requirement_id):
         stage.lines = [decision_line(d) for d in stage.decisions]
     notes = ({} if page.offer_citations
              else reading_note.notes_for([page.result]))
-    context = portada.shell(request, overview, active=SECTION)
-    context.update({
-        "section": overview.get(SECTION), "page": page, "stages": stages,
+    return {
+        "page": page, "stages": stages,
         "review": pair_review, "technical": technical,
         "can_decide": pair_review.can_decide and not technical,
         "aviso": acciones.unpack(request.GET.get("aviso")), "pid": procedure.pk,
@@ -770,7 +766,23 @@ def pair(request, procedure_id, offer_id, requirement_id):
         "read_note": notes.get(page.result.pk, ""),
         "conditions": condition_views(page.result.facts),
         "external_line": external_stages.line([page.run]),
-    })
+        "desde": "cuadro" if desde == "cuadro" else "par",
+        "filtro": filtro if filtro in acciones.FILTROS_CUADRO else None,
+    }
+
+
+@require_GET
+def pair(request, procedure_id, offer_id, requirement_id):
+    """El par abierto dentro de la pestaña: lo que exige el pliego, lo que presentó la oferta, la
+    propuesta, la decisión y todo el recorrido (propuestas y decisiones, con quién y cuándo)."""
+    from evaluon.journey.views import portada
+
+    overview = portada.overview_of(request, procedure_id)
+    procedure = overview.procedure
+    panel = par_context(request, procedure, offer_id, requirement_id)
+    context = portada.shell(request, overview, active=SECTION)
+    context.update(panel)
+    context["section"] = overview.get(SECTION)
     return render(request, "journey/temas/s4_propuesta_par.html", context)
 
 

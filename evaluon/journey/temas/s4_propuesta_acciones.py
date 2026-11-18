@@ -59,10 +59,26 @@ def pair_url(procedure, offer_id, requirement_id):
     return reverse("expedientes:s4_par", args=[procedure.pk, offer_id, requirement_id])
 
 
-def back(procedure, text, ok=True, *, pair=None, anchor=ANCHOR):
-    """Vuelve a la pestaña (o al detalle del par, si la acción salió de ahí) con el mensaje.
+# Los filtros del cuadro de cumplimiento (REQ-153); `desde=cuadro` es el único valor nuevo y `filtro` solo vale si es de acá,
+# así el regreso nunca sale del sitio.
+FILTROS_CUADRO = ("todos", "pendiente", "a-decidir", "no-cumple", "espera-informe")
+
+
+def cuadro_url(procedure, offer_id, requirement_id, filtro=""):
+    """El cuadro de cumplimiento con la celda abierta (`cuadro/?celda=<oferta>-<requisito>`)."""
+    query = f"celda={offer_id}-{requirement_id}"
+    if filtro in FILTROS_CUADRO:
+        query += f"&filtro={filtro}"
+    return reverse("expedientes:portada", args=[procedure.pk]) + f"cuadro/?{query}"
+
+
+def back(procedure, text, ok=True, *, pair=None, anchor=ANCHOR, cuadro=None):
+    """Vuelve a la pestaña (o al detalle del par o al cuadro, si la acción salió de ahí) con el
+    mensaje.
     `anchor` es el aviso dentro del detalle de la acción (T-335): cada tema dibuja el suyo y el
     tablero abre ese detalle; por omisión, el de la propuesta."""
+    if cuadro is not None:
+        return redirect(f"{cuadro_url(procedure, *cuadro)}&aviso={pack(text, ok)}{anchor}")
     if pair is not None:
         return redirect(f"{pair_url(procedure, *pair)}?aviso={pack(text, ok)}{anchor}")
     return redirect(f"{tab_url(procedure)}?aviso={pack(text, ok)}{anchor}")
@@ -111,17 +127,20 @@ def decide(request, procedure_id, result_id):
     if result is None:
         raise Http404("No hay un resultado con ese número en este procedimiento.")
     post = request.POST
-    pair = ((result.offer_id, result.requirement_id) if post.get("desde") == "par" else None)
+    desde = post.get("desde")
+    pair = ((result.offer_id, result.requirement_id) if desde == "par" else None)
+    cuadro = ((result.offer_id, result.requirement_id, post.get("filtro", ""))
+              if desde == "cuadro" else None)
     action = post.get("action", "")
     try:
         review.decide(request.user, result.pk, action,
                       outcome_after=post.get("outcome_after", ""), note=post.get("note", ""),
                       channel=CHANNEL)
     except review.ReviewRefused as error:
-        return back(procedure, str(error), ok=False, pair=pair)
+        return back(procedure, str(error), ok=False, pair=pair, cuadro=cuadro)
     text = (f"{DECIDED[action]} la propuesta de la oferta {result.offer.number} para el "
             f"requisito {result.requirement.number}. Quedó registrado quién y cuándo.")
-    return back(procedure, text, pair=pair)
+    return back(procedure, text, pair=pair, cuadro=cuadro)
 
 
 urlpatterns = [
