@@ -49,3 +49,15 @@ def test_subido_cuenta_y_retirado_no(client, procedure, operator_user):
         {"note": "error de carga"}))
     assert ok
     assert s4_dictamen.dictamen_cargado(procedure) is False
+
+
+@pytest.mark.parametrize("state", list(s4_dictamen.STATES))
+def test_la_vista_y_el_item_dan_el_mismo_estado(state):
+    """REQ-145: antes `context` miraba `view.state` (vista del Portal) y ahora el del ítem:
+    `_portal_view` copia `item.state` sin cambiarlo, en todos los estados posibles, y la
+    decisión de «cargado» da lo mismo con uno u otro."""
+    item = pm.PortalItem(key="d", state=state, payload={"fecha": "2026-10-06"})
+    view = s4_dictamen._portal_view(item)
+    assert view.state == item.state
+    assert (view.state in s4_dictamen.TAKEN) == (item.state in s4_dictamen.TAKEN)
+    assert s4_dictamen.dictamen_cargado(None, [], item) == (view.state in s4_dictamen.TAKEN)

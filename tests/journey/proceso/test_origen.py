@@ -40,3 +40,27 @@ def test_todo_renglon_de_las_secciones_tiene_origen(procedure, operator_user):
             visto += 1
             assert one.origen.startswith("etapa:") or one.origen in temas, one
     assert visto > 0
+
+
+def test_el_pendiente_de_una_etapa_lleva_etapa_y_su_clave(procedure, offer, operator_user,
+                                                          monkeypatch):
+    """REQ-147: el renglón pendiente genérico que `build_section` arma para una etapa con pares
+    por decidir lleva `etapa:<clave>`. Los temas de la sección 4 lo reemplazan por renglones
+    propios (`detailed_stages`); acá se les quita para ver el genérico, y esos renglones de
+    tema, con la clave de su tema."""
+    from dataclasses import replace
+
+    from evaluon.journey.temas import s4_informe, s4_propuesta
+    from tests.assessment.test_matrix import add_run, requirement
+
+    for tema in (s4_propuesta, s4_informe):
+        original = tema.status
+        monkeypatch.setattr(tema, "status", lambda u, p, f=original: replace(
+            f(u, p), detailed_stages=()))
+    declaration = requirement(procedure, "declaración jurada")
+    add_run(operator_user, procedure, offer, {declaration: "cumple"})
+    section = next(s for s in sections_for(operator_user, procedure).sections
+                   if s.key == "evaluacion")
+    genericos = [i for i in section.pending_items if i.origen.startswith("etapa:")]
+    assert [i.origen for i in genericos] == ["etapa:matriz_evaluacion"]
+    assert all(i.origen for i in section.pending_items)
