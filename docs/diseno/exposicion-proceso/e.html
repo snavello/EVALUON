@@ -62,13 +62,24 @@ td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:to
 .pts{display:inline-flex;gap:3px;vertical-align:middle;margin-right:.5rem}
 .pts i{width:14px;height:6px;border-radius:3px;background:var(--line)}
 .pts i.h{background:var(--ink)}.pts i.a{background:var(--lime);outline:1px solid var(--ink)}
-.proc td{padding:.9rem .6rem}
-.proc a.nom{font-weight:600;text-decoration:none}.proc a.nom:hover{text-decoration:underline}
-.proc small{display:block;color:var(--ink-2)}
-.hoy{list-style:none;margin:0;padding:0}
-.hoy li{display:flex;justify-content:space-between;gap:1rem;padding:.7rem 0;border-top:1px solid #33363d;align-items:center}
-.hoy li:first-child{border-top:0}
-.vence{font-weight:600;white-space:nowrap}.vence.pronto{color:#8A3A34}
+.barra{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:.5rem;flex-wrap:wrap}
+details.proc{border-top:1px solid var(--line)}
+details.proc:last-of-type{border-bottom:1px solid var(--line)}
+details.proc summary{display:grid;grid-template-columns:1.6rem 1.5fr 1.4fr 7rem 9rem;gap:1rem;align-items:center;padding:1rem .4rem;cursor:pointer;list-style:none}
+details.proc summary::-webkit-details-marker{display:none}
+details.proc summary::before{content:"▸";font-size:1.1rem;color:var(--ink-2)}
+details.proc[open] summary::before{content:"▾"}
+details.proc summary:hover{background:var(--tile)}
+.nom{font-weight:600}.nom small,.est-p small{display:block;font-weight:400;color:var(--ink-2)}
+.est-p{font-size:.9rem}
+.cuenta{font-size:.85rem;font-weight:600;background:var(--tile);border-radius:999px;padding:.2rem .7rem;justify-self:start;white-space:nowrap}
+.vence{font-weight:600;white-space:nowrap;text-align:right}.vence.pronto{color:#8A3A34}
+.acc{list-style:none;margin:0 0 1rem 2.6rem;padding:0;background:var(--tile);border-radius:var(--r-sm)}
+.acc li{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 1rem;border-top:1px solid var(--line)}
+.acc li:first-child{border-top:0}
+.acc small{color:var(--ink-2);display:block}
+.acc .btn{padding:.45rem .9rem;font-size:.88rem}
+@media(max-width:900px){details.proc summary{grid-template-columns:1.6rem 1fr}.acc{margin-left:0}}
 </style></head><body>
 <header class="top"><div class="wrap">
   <div class="fila"><a class="logo" href="#"><b>EVALU</b><i>ON</i></a>
@@ -78,35 +89,45 @@ td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:to
 
 <main class="wrap">
   <h1>Procedimientos en evaluación</h1>
-  <p class="sub">4 abiertos · 2 esperan una decisión de la Comisión</p>
+  <div class="barra"><p class="sub" style="margin:0">4 abiertos · 9 acciones disponibles · primero lo que vence antes</p>
+    <span><a class="btn sec" href="#">Colapsar todos</a> <a class="btn sec" href="#">Terminados (9)</a> <a class="btn" href="#">Nuevo desde el Portal</a></span></div>
 
-  <section class="tile oscuro" style="margin-bottom:1.5rem">
-    <h2>Para hoy</h2>
-    <ul class="hoy">
-      <li><span><b>Sillas ergonómicas</b> · decidir 12 puntos que el sistema no pudo concluir</span><a class="btn lima" href="a.html">Seguir</a></li>
-      <li><span><b>Servicio de limpieza, sede Rosario</b> · validar la matriz de requisitos (3 sugerencias sin resolver)</span><a class="btn lima" href="#">Seguir</a></li>
-      <li><span><b>Tóner y cartuchos</b> · el mantenimiento de oferta vence en 6 días y falta el dictamen</span><a class="btn lima" href="#">Ver</a></li>
+  <details class="proc" open>
+    <summary><span class="nom">Provisión de tóner y cartuchos<small>0A1PC000000-0019-CDI26 · 2 ofertas</small></span>
+      <span class="est-p"><span class="pts"><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="a"></i></span><small>En curso: Dictamen</small></span>
+      <span class="cuenta">1 acción</span><span class="vence pronto">02/05 · 6 días</span></summary>
+    <ul class="acc"><li><span>Cargar el dictamen<small>Paso 7 · el mantenimiento de oferta vence en 6 días</small></span><a class="btn" href="#">Cargar</a></li></ul>
+  </details>
+
+  <details class="proc">
+    <summary><span class="nom">Servicio de limpieza, sede Rosario<small>0A1PC000000-0044-LPR26 · sin ofertas todavía</small></span>
+      <span class="est-p"><span class="pts"><i class="h"></i><i class="a"></i><i></i><i></i><i></i><i></i><i></i></span><small>En curso: Matriz de requisitos</small></span>
+      <span class="cuenta">1 acción</span><span class="vence">apertura 02/05</span></summary>
+    <ul class="acc"><li><span>Validar la matriz de requisitos (3 sugerencias sin resolver)<small>Paso 2</small></span><a class="btn" href="#">Validar</a></li></ul>
+  </details>
+
+  <details class="proc" open>
+    <summary><span class="nom">Mantenimiento de ascensores, edificio central<small>0A1PC000000-0052-LPU26 · sin ofertas todavía</small></span>
+      <span class="est-p"><span class="pts"><i class="a"></i><i class="a"></i><i></i><i></i><i></i><i></i><i></i></span><small>En curso: Pliego (circular nueva), Matriz</small></span>
+      <span class="cuenta">2 acciones</span><span class="vence">apertura 12/05</span></summary>
+    <ul class="acc">
+      <li><span>Revisar la circular modificatoria del 24/04<small>Paso 1 · Pliego publicado</small></span><a class="btn" href="#">Revisar</a></li>
+      <li><span>Armar una versión nueva de la matriz con la circular<small>Paso 2 · la matriz vigente es anterior a la circular</small></span><a class="btn" href="#">Armar</a></li>
     </ul>
-  </section>
+  </details>
 
-  <table class="proc">
-    <thead><tr><th>Procedimiento</th><th>Estado de los 7 pasos</th><th>Qué sigue</th><th>Vence</th></tr></thead>
-    <tbody>
-      <tr><td><a class="nom" href="a.html">Adquisición de sillas ergonómicas para oficinas</a><small>0A1PC000000-0031-LPU26 · 3 ofertas</small></td>
-        <td><span class="pts"><i class="h"></i><i class="h"></i><i class="a"></i><i class="a"></i><i class="h"></i><i class="a"></i><i></i></span>En curso: Ofertas, Cumplimiento, Evaluación</td>
-        <td>Decidir 12 puntos · subir informe técnico · revisar 1 documento</td><td class="vence">19/05 · 23 días</td></tr>
-      <tr><td><a class="nom" href="#">Servicio de limpieza, sede Rosario</a><small>0A1PC000000-0044-LPR26 · apertura el 02/05</small></td>
-        <td><span class="pts"><i class="h"></i><i class="a"></i><i></i><i></i><i></i><i></i><i></i></span>En curso: Matriz de requisitos</td>
-        <td>Validar la matriz</td><td class="vence">apertura 02/05</td></tr>
-      <tr><td><a class="nom" href="#">Provisión de tóner y cartuchos</a><small>0A1PC000000-0019-CDI26 · 2 ofertas</small></td>
-        <td><span class="pts"><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="a"></i></span>En curso: Dictamen</td>
-        <td>Cargar el dictamen</td><td class="vence pronto">02/05 · 6 días</td></tr>
-      <tr><td><a class="nom" href="#">Mantenimiento de ascensores, edificio central</a><small>0A1PC000000-0052-LPU26 · sin ofertas todavía</small></td>
-        <td><span class="pts"><i class="h"></i><i class="a"></i><i class="a"></i><i></i><i></i><i></i><i></i></span>En curso: Matriz (circular nueva), Ofertas</td>
-        <td>Revisar la circular nueva · esperar la apertura</td><td class="vence">apertura 12/05</td></tr>
-    </tbody>
-  </table>
-  <p style="margin-top:1.2rem"><a class="btn sec" href="#">Nuevo procedimiento desde el Portal</a> <a class="btn sec" href="#">Terminados (9)</a></p>
+  <details class="proc" open>
+    <summary><span class="nom">Adquisición de sillas ergonómicas para oficinas<small>0A1PC000000-0031-LPU26 · 3 ofertas</small></span>
+      <span class="est-p"><span class="pts"><i class="h"></i><i class="h"></i><i class="a"></i><i class="a"></i><i class="a"></i><i class="a"></i><i></i></span><small>En curso: Ofertas, Cumplimiento, Comparación, Evaluación</small></span>
+      <span class="cuenta">5 acciones</span><span class="vence">19/05 · 23 días</span></summary>
+    <ul class="acc">
+      <li><span>Decidir 12 puntos que el sistema no pudo concluir<small>Paso 6 · Evaluación de la Comisión</small></span><a class="btn" href="a.html">Decidir</a></li>
+      <li><span>Cargar el informe técnico del área (falta en las 3 ofertas)<small>Paso 4 · destraba 18 resultados técnicos y la comparación</small></span><a class="btn" href="#">Subir</a></li>
+      <li><span>Revisar 1 documento que llegó por subsanación a la Oferta 3<small>Paso 3 · Ofertas recibidas</small></span><a class="btn" href="#">Revisar</a></li>
+      <li><span>Revisar 1 «no cumple» (Oferta 2, garantía de oferta)<small>Paso 6 · Evaluación de la Comisión</small></span><a class="btn" href="#">Revisar</a></li>
+      <li><span>Contestar 4 preguntas y pedidos de subsanación<small>Paso 6 · Evaluación de la Comisión</small></span><a class="btn" href="#">Contestar</a></li>
+    </ul>
+  </details>
 
-  <p class="pie">Opción E · Portada de la aplicación (no del procedimiento): hoy el inicio abre el último procedimiento visto. Combina con A, B, C o D. La barra muestra el estado de cada uno de los 7 pasos (negro hecho, lima en curso, gris sin empezar): puede haber varios en curso. Ese estado y «qué sigue» se calculan con datos que ya existen. <span class="dev">Desarrollo chico</span> «Para hoy» por persona necesita registrar quiénes integran la Comisión de cada procedimiento; sin eso se muestra igual para todos. Datos inventados.</p>
+  <p class="pie">Inicio de la aplicación (spec 018, REQ-150 y REQ-151): todas las acciones de todos los procedimientos abiertos, agrupadas por procedimiento; cada uno se colapsa y se expande (el de limpieza está colapsado). La barra muestra el estado de cada uno de los 7 pasos: negro hecho, lima en curso, gris sin empezar. Un procedimiento pasa a «Terminados» cuando se carga su dictamen. Las mismas acciones para todos: mostrarlas por persona necesita registrar quiénes integran la Comisión de cada procedimiento (fuera de alcance). Datos inventados.</p>
 </main></body></html>

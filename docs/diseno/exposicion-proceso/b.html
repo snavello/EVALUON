@@ -86,7 +86,7 @@ td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:to
 
 <main class="wrap" id="panel"></main>
 
-<div class="wrap"><p class="pie">Opción B · El riel es una foto: cada paso tiene su propio estado y varios pueden estar en curso a la vez (acá 3, 4 y 6). Reemplaza a las 5 pestañas y está en todas las pantallas; cada paso muestra solo sus mosaicos (hoy repartidos y repetidos). Normativas pasa a un enlace de consulta. Solo exposición: los mosaicos y los datos son los que ya existen. Tocá los pasos del riel. Datos inventados.</p></div>
+<div class="wrap"><p class="pie">Opción B · El riel es una foto: cada paso tiene su propio estado y varios pueden estar en curso a la vez (acá 3, 4, 5 y 6). Reemplaza a las 5 pestañas y está en todas las pantallas; cada paso muestra solo sus mosaicos (hoy repartidos y repetidos). Normativas pasa a un enlace de consulta. Solo exposición: los mosaicos y los datos son los que ya existen. Tocá los pasos del riel. Datos inventados.</p></div>
 
 <script>
 const P=[
@@ -109,10 +109,10 @@ const P=[
   mos:[["Dictamen","Todavía no","se toma del Portal o se sube"],["Exportar","2","planilla por oferta y cuadro comparativo"],["Mantenimiento de oferta","23 días","vence el 19/05/2026"]],tareas:[],firme:[]}
 ];
 /* Cada paso tiene su propio estado: h = hecho, c = en curso, n = todavía no. Varios pueden estar en curso a la vez. */
-const E=['h','h','c','c','h','c','n'];const ACTUAL=5;let sel=ACTUAL;
+const E=['h','h','c','c','c','c','n'];const ACTUAL=5;let sel=ACTUAL;
 P[2].res='1 documento nuevo';P[2].tareas=[["Revisar 1 documento nuevo de la Oferta 3 (subsanación)","Falta"]];P[2].firme=["3 ofertas del acta del 20/03","41 documentos cargados","3 hojas de compliance"];
 P[3].res='falta informe técnico';P[3].tareas=[["Cargar el informe técnico del área","Falta en 3 ofertas"]];P[3].firme=["50 cruces cumplen","1 no cumple (Oferta 2)","12 pasaron a decisión de la Comisión"];
-P[5].res='0 de 3 tareas';P[5].tareas=P[5].tareas.slice(0,3);
+P[4].res='falta el cumplimiento';P[5].res='0 de 3 tareas';P[5].tareas=P[5].tareas.slice(0,3);
 function pinta(){
   document.getElementById('riel').innerHTML=P.map((p,i)=>{
     const c=E[i]==='h'?'hecho':E[i]==='c'?'actual':'futuro';

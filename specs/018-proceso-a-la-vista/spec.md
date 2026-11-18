@@ -33,6 +33,7 @@ Sin esto, quien entra no sabe cómo está el procedimiento ni qué le toca, y el
 | 2026-11-17 | Informe técnico del área | Ante la pregunta «¿va en el paso 4, "Cumplimiento de cada oferta", o en el paso 6, "Evaluación de la Comisión"?», respondió: «Paso 4». |
 | 2026-11-17 | Comparación de ofertas | Ante la pregunta «¿cuándo se da por hecha la "Comparación de ofertas"?», respondió: «Con el cumplimiento hecho». |
 | 2026-11-17 | Acciones en el inicio | Ante la pregunta «¿cuántas acciones muestra "Para hoy" y en qué orden?», respondió: «Todas, que sea posible colapsar  y expandir un procedimiento». Lectura del Coordinador, a confirmar al aprobar: no hay un bloque «Para hoy» aparte; la lista de procedimientos es una sola y cada procedimiento se expande para mostrar sus acciones. Los procedimientos se ordenan por el vencimiento más próximo y abren expandidos. |
+| 2026-11-17 | Procedimientos terminados | Ante las opciones «1. cuando se carga el dictamen» y «2. lo archiva una persona a mano», respondió: «Opción 1». |
 
 Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el diagnóstico y la comparación; `e.html`, `a.html` y `c.html` son las elegidas; `b.html` y `d.html` quedan como alternativas no elegidas).
 
@@ -59,7 +60,7 @@ Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el 
 | REQ-147 | «Qué se puede hacer ahora» lista las acciones disponibles de cualquier paso, sin orden obligatorio entre ellas; cada una dice a qué paso pertenece. Una acción que depende de otra todavía no hecha no aparece en la lista: el paso dice de qué depende. | — |
 | REQ-148 | Los plazos importantes (REQ-131) se ven en la portada del procedimiento. El tablero de mosaicos del primer panel (REQ-128) deja de ser la portada y queda a un clic con el nombre «Indicadores», sin perder ningún dato. | — |
 | REQ-149 | Las cinco secciones y sus tableros (features 014 y 017) se mantienen. Cada paso y cada acción de la portada llevan al lugar de la sección donde se resuelven. | — |
-| REQ-150 | El inicio de la aplicación es la lista de procedimientos abiertos. Por cada uno muestra: nombre y número, el estado de los siete pasos, qué se puede hacer ahora y el vencimiento más próximo. Enmienda a REQ-128 solo en esto: entrar al sistema ya no abre el último procedimiento visto. | — |
+| REQ-150 | El inicio de la aplicación es la lista de procedimientos abiertos. Por cada uno muestra: nombre y número, el estado de los siete pasos, qué se puede hacer ahora y el vencimiento más próximo. Enmienda a REQ-128 solo en esto: entrar al sistema ya no abre el último procedimiento visto. Un procedimiento pasa solo a «Terminados» cuando su dictamen está cargado, y vuelve solo a la lista de abiertos si el dictamen se quita; no se guarda un estado final ni lo archiva una persona. | — |
 | REQ-151 | El inicio muestra todas las acciones disponibles de todos los procedimientos abiertos, agrupadas por procedimiento. Cada procedimiento se puede colapsar y expandir: colapsado muestra su línea (REQ-150) y cuántas acciones tiene; expandido lista sus acciones, cada una con un botón que lleva a resolverla. | — |
 | REQ-152 | Hay un cuadro de cumplimiento: los requisitos de la matriz vigente en filas, agrupados por tipo, y las ofertas en columnas con su total. Cada celda muestra con texto uno de estos estados: «Cumple», «No cumple», «A decidir», «Espera informe» o «Sin resultado». Al pie, cuántos requisitos cumple cada oferta hasta ahora. Se llega desde los pasos 4 y 6. | — |
 | REQ-153 | El cuadro se puede filtrar por: todos, con algo pendiente, a decidir, no cumple y los que esperan informe técnico. Un grupo donde todas las ofertas cumplen todo se muestra resumido en una línea. | — |
@@ -97,7 +98,7 @@ Por requisito:
 - **REQ-147.** Dado un procedimiento sin matriz validada y con ofertas cargadas, cuando miro «Qué se puede hacer ahora», entonces aparece «Validar la matriz» y no aparece ninguna acción de evaluación; el paso 4 dice «Todavía no: depende de la matriz de requisitos».
 - **REQ-148.** Dada la portada, cuando toco «Abrir indicadores», entonces veo los mismos mosaicos y cifras que hoy muestra el primer panel.
 - **REQ-149.** Dada la acción «Cargar el informe técnico del área» en la portada, cuando la toco, entonces llego al lugar de la sección Evaluación y dictamen donde se sube, sin pasos intermedios.
-- **REQ-150.** Dado un usuario que la vez anterior dejó abierto un procedimiento, cuando entra al sistema, entonces ve la lista de procedimientos abiertos con el estado de los siete pasos de cada uno, y no ese procedimiento.
+- **REQ-150.** Dado un usuario que la vez anterior dejó abierto un procedimiento, cuando entra al sistema, entonces ve la lista de procedimientos abiertos con el estado de los siete pasos de cada uno, y no ese procedimiento. Dado un procedimiento abierto, cuando se carga su dictamen, entonces deja la lista de abiertos y aparece en «Terminados».
 - **REQ-151.** Dados cuatro procedimientos abiertos con 9 acciones disponibles entre todos, cuando entro, entonces veo las 9 agrupadas bajo su procedimiento; cuando colapso uno, quedan su línea y «N acciones», y cuando lo expando vuelven a verse; el botón de cada acción lleva a resolverla.
 - **REQ-152.** Dado un procedimiento con 27 requisitos y 3 ofertas evaluadas, cuando abro el cuadro, entonces veo 27 filas en 3 grupos y 3 columnas, cada celda con su estado en texto, y al pie cuántos cumple cada oferta; los totales coinciden con los del mosaico «Resultado por oferta».
 - **REQ-153.** Dado el cuadro anterior con 12 puntos a decidir, cuando elijo «A decidir», entonces solo quedan las filas que tienen al menos una celda «A decidir».
@@ -135,4 +136,6 @@ Para el responsable, de a una:
 2. Paso 1 · Circulares: resuelta el 2026-11-17 (van en el paso 1).
 3. Paso 4 · Informe técnico del área: resuelta el 2026-11-17 (va en el paso 4).
 4. Paso 5 · Comparación de ofertas: resuelta el 2026-11-17 (hecha cuando el cumplimiento está hecho).
-5. [A ACLARAR: cuándo un procedimiento deja la lista de abiertos y pasa a «Terminados», ya que no hay estado final guardado; propuesta: cuando el dictamen está cargado]
+5. Procedimientos terminados: resuelta el 2026-11-17 (cuando se carga el dictamen).
+
+No quedan dudas abiertas. Al aprobar, el responsable confirma la lectura del Coordinador sobre las acciones en el inicio (ver «Decisiones del responsable»).
