@@ -1914,7 +1914,7 @@ flowchart LR
 - ✓ T-355 · Agregar filtros, grupos resumidos y «Siguiente a decidir» al cuadro (`4c8d73dd` 2026-11-18)
 - ✓ T-356 · Separar abiertos y terminados con dos consultas (`e9f29989` 2026-11-18)
 - ✓ T-357 · Reemplazar la entrada y la lista «Expedientes» por el inicio (`9819b2e4` 2026-11-18)
-- ✓ T-358 · Unificar el vocabulario en pantalla (`0fd7f037` 2026-11-18)
+- ✓ T-358 · Unificar el vocabulario en pantalla (`d4e5aaca` 2026-11-18, `0fd7f037` 2026-11-18)
 - ✓ T-359 · Cierre técnico: guía visual y glosario (`b6e0dad2` 2026-11-18)
 - ✓ T-362 · Corregir los hallazgos del corte vertical en el cuadro y en Indicadores (`ffdf004c` 2026-11-18)
 - ✓ T-363 · Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido (`8f440574` 2026-11-18, `6c987481` 2026-11-18, `e5e9ec37` 2026-11-18, `a7e941ad` 2026-11-18)
