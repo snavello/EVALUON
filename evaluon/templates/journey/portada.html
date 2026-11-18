@@ -36,13 +36,14 @@
           {% if p.dato %}<p class="pr-dato">{{ p.dato }}</p>{% endif %}
           {% if f.nota %}<p class="pr-nota">{{ f.nota }}</p>{% endif %}
           <p class="pr-resumen">{{ p.resumen }}</p>
-          {% if p.espera and p.espera not in p.resumen %}<p class="pr-resumen">Depende de otro paso: {{ p.espera }}.</p>{% endif %}
-          {% if p.advertencias %}<details class="pr-advertencias">
-            <summary class="pr-advertencia">{{ p.advertencias|length }} advertencia{{ p.advertencias|length|pluralize }}</summary>
-            <ul class="pr-advertencia-detalle">{% for texto in p.advertencias %}<li>{{ texto }}</li>{% endfor %}</ul>
+          {% if f.espera %}<p class="pr-resumen">{{ f.espera }}</p>{% endif %}
+          {% if f.advertencias %}<details class="pr-advertencias">
+            <summary class="pr-advertencia">{{ f.advertencias|length }} advertencia{{ f.advertencias|length|pluralize }}</summary>
+            <ul class="pr-advertencia-detalle">{% for texto in f.advertencias %}<li>{{ texto }}</li>{% endfor %}</ul>
           </details>{% endif %}
-          {% if f.faltan %}<div class="pr-faltan"><p class="pr-faltan-titulo">Lo que falta</p>
-            <ul class="pr-acciones">{% include "journey/_acciones.html" with lineas=f.faltan solo_lineas=True pieza=False sin_paso=True %}</ul></div>{% endif %}
+          {% if f.faltan or f.sin_leer %}<div class="pr-faltan"><p class="pr-faltan-titulo">Lo que falta</p>
+            {% if f.sin_leer %}<ul class="pr-sin-leer">{% for texto, url in f.sin_leer %}<li>{{ texto }} {% if puede_actuar %}<a href="{{ url }}">Ver la oferta</a>{% endif %}</li>{% endfor %}</ul>{% endif %}
+            {% if f.faltan %}<ul class="pr-acciones">{% include "journey/_acciones.html" with lineas=f.faltan solo_lineas=True pieza=False sin_paso=True %}</ul>{% endif %}</div>{% endif %}
         </div>
         <div class="pr-paso-estado"><span class="pr-estado {{ f.clase }}">{{ p.estado.texto }}</span>{% if p.marca == "hoy" %} <span class="pr-hoy">Vence hoy</span>{% elif p.marca == "vencido" %} <span class="pr-vencido">Vencido</span>{% endif %}</div>
       </li>{% endwith %}{% endfor %}

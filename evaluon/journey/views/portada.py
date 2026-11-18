@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, field
 from functools import wraps
 
+from django.db.models import Exists, OuterRef
 from django.http import Http404
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -18,10 +19,15 @@ from evaluon.audit.models import Channel
 from evaluon.journey import memo
 from evaluon.journey.proceso import acciones, calculo, pasos
 from evaluon.journey.sections import sections_for
+from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import is_viewer
 from evaluon.journey.tablero.ingreso import KEY as INGRESO_KEY
 from evaluon.journey.tablero.tiles import build_board
+from evaluon.journey.temas import s4_propuesta
 from evaluon.journey.window import window_for
+from evaluon.offers.models import Document as OfferDocument
+from evaluon.offers.models import DocumentKind as OfferDocumentKind
+from evaluon.offers.models import Reading
 from evaluon.tenders.models import Procedure
 
 OPERATION = "evaluon.journey.views.portada.lista"
@@ -102,6 +108,18 @@ class _Linea:
     accion: object
     paso_nombre: str
 
+    @property
+    def boton(self):
+        """El rótulo del botón: el verbo de la línea."""
+        return self.accion.boton or ("Aprobar" if self.accion.post else "Ver")
+
+    @property
+    def etiqueta(self):
+        """El nombre accesible del botón: el texto de la línea, con el verbo delante solo si la
+        línea no empieza ya por él («Proponer la matriz», no «Proponer: Proponer la matriz»)."""
+        texto = self.accion.texto
+        return texto if texto.lower().startswith(self.boton.lower()) else f"{self.boton}: {texto}"
+
 
 @dataclass
 class _Fila:
@@ -113,6 +131,9 @@ class _Fila:
     clase: str
     faltan: list = field(default_factory=list)
     nota: str = ""
+    advertencias: list = field(default_factory=list)
+    espera: str = ""
+    sin_leer: list = field(default_factory=list)  # [(texto, url)] documentos que nadie leyó
 
 
 _CLASE_DE_ESTADO = {estado: estado.value.replace("_", "-") for estado in pasos.Estado}
@@ -123,10 +144,30 @@ def _enumerar(partes):
     return partes[0] if len(partes) == 1 else ", ".join(partes[:-1]) + " y " + partes[-1]
 
 
-def _nota_del_paso(paso):
+def nota_de_cruces(cifras):
+    """La nota del paso 4: de cuántos cruces requisito–oferta habla el dato y dónde cae cada uno.
+    Sale de las mismas cifras que el cuadro (`figures_of`), sin cálculo paralelo: los números de la
+    frase suman el total que la encabeza. Vacía sin evaluación."""
+    if cifras is None:
+        return ""
+    ofertas = cifras.offers
+    cuentas = [(sum(o.ok for o in ofertas), "cumple", "cumplen"),
+               (sum(o.no for o in ofertas), "no cumple", "no cumplen"),
+               (sum(o.nd for o in ofertas), "a decidir", "a decidir"),
+               (sum(o.pe for o in ofertas), "espera el resultado o el informe técnico",
+                "esperan el resultado o el informe técnico"),
+               (sum(o.na for o in ofertas), "no aplica", "no aplican")]
+    total = sum(n for n, _, _ in cuentas)
+    partes = [f"{n} {uno if n == 1 else varios}" for n, uno, varios in cuentas
+              if n or uno != "no aplica"]
+    return (f"De {total} cruce{'' if total == 1 else 's'} requisito–oferta: "
+            f"{_enumerar(partes)}.")
+
+
+def _nota_del_paso(paso, cifras):
     """El desglose que explica el dato de un paso (avisos de T-345/T-346). El «D de T puntos
     decididos» del paso 6 cuenta como pendientes los «cumple» y «no cumple» que nadie confirmó; el
-    dato del paso 4 suma todas las ofertas y las filas técnicas."""
+    dato del paso 4 es de otra cuenta, los cruces requisito–oferta."""
     if paso.numero == 6:
         cuentas = {t.kind: t.cuenta for t in paso.tareas}
         partes = [formato.format(cuentas[kind]) for kind, formato in (
@@ -134,8 +175,55 @@ def _nota_del_paso(paso):
             (acciones.K_CUMPLE, "{} «cumple» sin confirmar")) if cuentas.get(kind)]
         return f"Los puntos sin decidir son {_enumerar(partes)}." if partes else ""
     if paso.numero == 4 and "cumplen" in paso.dato:
-        return "Suma de todas las ofertas, con las filas técnicas."
+        return nota_de_cruces(cifras)
     return ""
+
+
+_DEPENDE_DE_UN_PASO = re.compile(r"depende del paso (\d)\b")
+
+
+def _espera(paso, nombres):
+    """Lo que el paso espera, dicho una sola vez y con el nombre real del otro paso; vacío si su
+    resumen ya lo dice («Todavía no: depende de …»)."""
+    if not paso.espera or paso.espera in paso.resumen:
+        return ""
+    uno = _DEPENDE_DE_UN_PASO.match(paso.espera)
+    if uno:
+        return f"Depende del paso {uno[1]}, {nombres[int(uno[1])]}."
+    return paso.espera[:1].upper() + paso.espera[1:] + "."
+
+
+def _sin_leer(overview, procedure):
+    """Los documentos de las ofertas que nadie leyó, por oferta, con su enlace al lugar de la
+    sección Ofertas donde está (la fila de la oferta). Si la lectura corre, lo dice."""
+    etapa = next(e for e in overview.journey.stages if e.key == "ofertas")
+    leyendo = etapa.state == stage_base.EN_CURSO
+    ofertas = {o.pk: o.number for o in memo.offers(procedure)}
+    cuentas = {}
+    for oferta_id in (OfferDocument.objects.filter(offer__in=list(ofertas))
+                      .exclude(kind=OfferDocumentKind.INFORME_TECNICO)
+                      .annotate(leido=Exists(Reading.objects.filter(document=OuterRef("pk"))))
+                      .filter(leido=False).values_list("offer_id", flat=True)):
+        cuentas[oferta_id] = cuentas.get(oferta_id, 0) + 1
+    base = reverse("expedientes:ofertas", args=[procedure.pk])
+    lineas = []
+    for oferta_id, n in sorted(cuentas.items(), key=lambda kv: ofertas[kv[0]]):
+        documentos = f"{n} documento" + ("" if n == 1 else "s")
+        texto = (f"Se está leyendo {documentos} de la Oferta {ofertas[oferta_id]}." if leyendo else
+                 f"Falta leer {documentos} de la Oferta {ofertas[oferta_id]}.")
+        lineas.append((texto, f"{base}#s3-anexos-oferta-{ofertas[oferta_id]}"))
+    return lineas
+
+
+def _fila(paso, proceso, nombres, cifras, overview):
+    faltan = [_Linea(t, paso.nombre) for t in paso.tareas
+              if t.tipo != pasos.FALTANTE or paso.estado is not pasos.Estado.HECHO]
+    # Una advertencia que el resumen del paso ya dice no se repite.
+    advertencias = [t for t in paso.advertencias if t.rstrip(".") not in paso.resumen]
+    sin_leer = (_sin_leer(overview, proceso.procedure)
+                if paso.numero == 3 and paso.estado is not pasos.Estado.HECHO else [])
+    return _Fila(paso, _CLASE_DE_ESTADO[paso.estado], faltan, _nota_del_paso(paso, cifras),
+                 advertencias, _espera(paso, nombres), sin_leer)
 
 
 def _resumen(proceso, cantidad_ofertas):
@@ -165,16 +253,16 @@ def portada(request, procedure_id):
     nombres = {p.numero: p.nombre for p in proceso.pasos}
     visibles, restantes = acciones.cortar(proceso.acciones)
     vencimiento = proceso.vencimiento
+    with viewing(request.user):
+        cifras = s4_propuesta.figures_of(
+            memo.matrix_page(request.user, procedure.pk, channel=Channel.SCREEN))
     context = shell(request, overview)
     context.update({
         "proceso": proceso,
         "resumen": _resumen(proceso, len(memo.offers(procedure))),
         "visibles": [_Linea(a, nombres[a.paso]) for a in visibles],
         "restantes": [_Linea(a, nombres[a.paso]) for a in restantes],
-        "filas": [_Fila(p, _CLASE_DE_ESTADO[p.estado],
-                        [_Linea(t, p.nombre) for t in p.tareas if t.tipo != pasos.FALTANTE],
-                        _nota_del_paso(p))
-                  for p in proceso.pasos],
+        "filas": [_fila(p, proceso, nombres, cifras, overview) for p in proceso.pasos],
         "vencimiento": vencimiento,
         "vencimiento_paso": nombres[vencimiento.paso] if vencimiento else "",
         "puede_actuar": bool(request.user.commission_role),

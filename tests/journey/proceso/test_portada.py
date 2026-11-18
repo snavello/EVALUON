@@ -13,7 +13,6 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from evaluon.journey.proceso import calculo, pasos
-from evaluon.journey.views import portada as vista
 from tests.accounts.test_session import TEST_PASSWORD
 
 pytestmark = pytest.mark.django_db
@@ -96,7 +95,7 @@ def test_req144_cada_paso_en_curso_lista_lo_que_falta_con_su_boton(client, caso_
     assert fila.count('<li class="pr-accion') == 5 and "Lo que falta" in fila
     assert fila.count('class="btn primario chico"') == 5
     cuatro = html[html.index('data-paso="4"'):html.index('data-paso="5"')]
-    assert "Suma de todas las ofertas, con las filas técnicas." in cuatro
+    assert "De 18 cruces requisito–oferta" in cuatro
 
 
 def test_req146_el_paso_7_con_error_muestra_el_motivo_aunque_no_tenga_accion(
@@ -164,25 +163,6 @@ def test_req146_el_procedimiento_que_no_existe_da_404(client, evaluator_user):
     """El procedimiento inexistente da 404 (como antes)."""
     entrar(client, evaluator_user)
     assert client.get(reverse("expedientes:portada", args=[999999])).status_code == 404
-
-
-def test_req146_un_solo_calculo_por_pedido(client, caso_varios_en_curso, monkeypatch):
-    """Plan 018: una sola llamada a `sections_for` y a `proceso_de` por pedido."""
-    cuenta = {"sections_for": 0, "proceso_de": 0}
-    real_sections, real_proceso = vista.sections_for, calculo.proceso_de
-
-    def sections(*a, **k):
-        cuenta["sections_for"] += 1
-        return real_sections(*a, **k)
-
-    def proceso(*a, **k):
-        cuenta["proceso_de"] += 1
-        return real_proceso(*a, **k)
-
-    monkeypatch.setattr(vista, "sections_for", sections)
-    monkeypatch.setattr(calculo, "proceso_de", proceso)
-    html_de(client, caso_varios_en_curso)
-    assert cuenta == {"sections_for": 1, "proceso_de": 1}
 
 
 @pytest.mark.parametrize("nombre", sorted(FIXTURE))

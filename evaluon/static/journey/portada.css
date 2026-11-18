@@ -57,3 +57,5 @@
   .pr-accion .pr-boton { grid-column: 2; }
   .pr-foto { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+.pr-sin-leer { list-style: none; margin: .25rem 0 0; padding: .625rem .75rem; border-top: 1px solid var(--line); }
+.pr-sin-leer a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
