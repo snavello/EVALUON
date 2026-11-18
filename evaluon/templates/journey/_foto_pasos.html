@@ -1,4 +1,4 @@
 {% comment %}La foto de los siete pasos: una fila con el número, el nombre y el estado ESCRITO de cada uno (REQ-143, REQ-144, REQ-156). Es la barra del inicio (T-357); la portada del procedimiento no la usa, la reemplaza el mapa (T-350). Variable: `pasos` (los `Paso` de un `Proceso`). Los nombres y los estados salen de `proceso/pasos.py`; esta plantilla no calcula nada.{% endcomment %}<ol class="pr-foto" aria-label="Estado de cada paso">
-  {% for p in pasos %}<li class="pr-foto-paso" data-paso="{{ p.numero }}"><b>{{ p.numero }} {{ p.nombre }}</b><span class="pr-foto-estado">{{ p.estado.texto }}</span>{% if p.marca == "hoy" %} <span class="pr-hoy">Vence hoy</span>{% elif p.marca == "vencido" %} <span class="pr-vencido">Vencido</span>{% endif %}</li>
+  {% for p in pasos %}<li class="pr-foto-paso" data-paso="{{ p.numero }}" data-estado="{{ p.estado.value }}"><b>{{ p.numero }} {{ p.nombre }}</b><span class="pr-foto-estado">{{ p.estado.texto }}</span>{% if p.marca == "hoy" %} <span class="pr-hoy">Vence hoy</span>{% elif p.marca == "vencido" %} <span class="pr-vencido">Vencido</span>{% endif %}</li>
   {% endfor %}
 </ol>

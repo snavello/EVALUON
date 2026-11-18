@@ -4,6 +4,7 @@ proceso). Solo traducen y llaman a `sections_for`: no tienen formularios de deci
 
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from functools import wraps
 
 from django.db.models import Exists, OuterRef
@@ -17,7 +18,7 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role, viewing
 from evaluon.audit.models import Channel
 from evaluon.journey import memo
-from evaluon.journey.proceso import acciones, calculo, mapa, pasos
+from evaluon.journey.proceso import acciones, calculo, lote, mapa, pasos
 from evaluon.journey.sections import sections_for
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import is_viewer
@@ -92,14 +93,86 @@ def reading(view):
     return wrapper
 
 
+@dataclass
+class _Abierto:
+    """Un procedimiento abierto del inicio: su `Proceso` (el mismo de la portada) y lo que la
+    plantilla dibuja sin calcular nada (REQ-150, REQ-151)."""
+
+    proceso: object
+    ofertas: int
+    lineas: list
+    en_curso: str
+
+    @property
+    def procedure(self):
+        return self.proceso.procedure
+
+    @property
+    def vencimiento(self):
+        return self.proceso.vencimiento
+
+    @property
+    def cantidad(self):
+        n = len(self.lineas)
+        return "Sin acciones" if n == 0 else "1 acción" if n == 1 else f"{n} acciones"
+
+    @property
+    def orden(self):
+        """Vencidos (el más viejo primero), vencen hoy, futuros por fecha y sin fecha; a igual
+        fecha, por número de procedimiento."""
+        v = self.vencimiento
+        return (v.orden[0], v.orden[1], self.procedure.number) if v else (3, date.max,
+                                                                         self.procedure.number)
+
+
+def _en_curso(proceso):
+    """«En curso: Pliego, Matriz» (y «Con error: …» si algún paso falló)."""
+    partes = []
+    for estado, rotulo in ((pasos.Estado.EN_CURSO, "En curso"), (pasos.Estado.CON_ERROR, "Con error")):
+        nombres = [p.nombre for p in proceso.pasos if p.estado is estado]
+        if nombres:
+            partes.append(f"{rotulo}: {', '.join(nombres)}")
+    return ". ".join(partes)
+
+
+def _abierto(user, procedure):
+    """El `Proceso` de ese procedimiento, calculado una vez con su propia memoria por pedido."""
+    with memo.scope():
+        overview = sections_for(user, procedure, channel=Channel.SCREEN)
+        proceso = calculo.proceso_de(user, procedure, overview)
+        nombres = {p.numero: p.nombre for p in proceso.pasos}
+        lineas = [_Linea(a, nombres[a.paso]) for a in proceso.acciones]
+        return _Abierto(proceso, len(memo.offers(procedure)), lineas, _en_curso(proceso))
+
+
+def _terminado(procedure):
+    return procedure, ingreso.dictamen_day(procedure)
+
+
 @require_GET
+@reading
 def lista(request):
+    """El inicio de la aplicación (REQ-150, REQ-151; T-357): los procedimientos abiertos con sus
+    acciones, o con `?ver=terminados` los que ya tienen el dictamen cargado (sin calcular sus
+    pasos). Es la misma vista de `/` y de `expedientes/`."""
     if not is_viewer(request.user):
         require_commission_role(request.user, CommissionRole.OPERATOR, operation=OPERATION,
                                 channel=Channel.SCREEN)
-    rows = [sections_for(request.user, p, channel=Channel.SCREEN)
-            for p in Procedure.objects.order_by("-created_at", "-pk")]
-    return render(request, "journey/expedientes.html", {"rows": rows})
+    procedimientos = list(Procedure.objects.order_by("-created_at", "-pk"))
+    ids_abiertos, ids_terminados = lote.abiertos_y_terminados(procedimientos)
+    por_id = {p.pk: p for p in procedimientos}
+    context = {"cantidad_terminados": len(ids_terminados), "next_url": request.path,
+               "puede_actuar": bool(request.user.commission_role)}
+    if request.GET.get("ver") == "terminados":
+        context.update({"terminados": [_terminado(por_id[i]) for i in ids_terminados]})
+        return render(request, "journey/inicio.html", context)
+    abiertos = sorted((_abierto(request.user, por_id[i]) for i in ids_abiertos),
+                      key=lambda a: a.orden)
+    acciones_en_total = sum(len(a.lineas) for a in abiertos)
+    context.update({
+        "abiertos": abiertos, "total_acciones": acciones_en_total,
+        "hay_procedimientos": bool(procedimientos)})
+    return render(request, "journey/inicio.html", context)
 
 
 @dataclass
