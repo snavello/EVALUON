@@ -81,7 +81,7 @@ flowchart LR
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
-| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 4 de 7 · Desarrollo | 7/22 | ███░░░░░░░ 32% |
+| [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 4 de 7 · Desarrollo | 8/22 | ████░░░░░░ 36% |
 
 <a id="001"></a>
 
@@ -1889,12 +1889,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 15 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 14 tareas sin terminar.
 - ○ T-345 · Calcular el estado de los pasos 1 a 3 y armar `proceso_de` (pendiente)
 - ○ T-346 · Calcular los pasos 4 a 7, datos, resúmenes y advertencias; pasar 21 de 21 (pendiente)
 - ○ T-348 · Dibujar la portada: acciones, lista de pasos, advertencias e «Indicadores» (pendiente)
 - ○ T-350 · Dibujar el mapa del proceso, la línea de plazos y el selector Mapa / Lista (pendiente)
-- ○ T-351 · Extraer el panel del par para reutilizarlo y aceptar `desde=cuadro` (pendiente)
 - ○ T-352 · Dibujar el cuadro de cumplimiento con el panel lado a lado (pendiente)
 - ○ T-353 · Llevar pasos y acciones al lugar donde se resuelven (cuadro incluido) (pendiente)
 - ○ T-354 · Medir el corte vertical con el caso chico y revisar con el Coordinador (pendiente)
@@ -1916,6 +1915,7 @@ flowchart LR
 - ✓ T-344 · Calcular las acciones: pendientes, cierres, faltantes, orden y corte de 6 (`5735e679` 2026-11-18, `5179f1b3` 2026-11-17)
 - ✓ T-347 · Definir los tokens de «Vence hoy» y «Vencido» y la hoja `proceso.css` (`4fab4860` 2026-11-17, `52812de9` 2026-11-17)
 - ✓ T-349 · Escribir la geometría constante del mapa y los hitos de la línea de plazos (`53b7445e` 2026-11-17)
+- ✓ T-351 · Extraer el panel del par para reutilizarlo y aceptar `desde=cuadro` (`ed1d1d51` 2026-11-18, `8dd73e97` 2026-11-17)
 
 ### Mapa de tareas
 
@@ -1932,7 +1932,7 @@ flowchart TD
   T348["○ T-348 · Dibujar la portada: acciones, lista de paso…"]:::todo
   T349["✓ T-349 · Escribir la geometría constante del mapa y…"]:::done
   T350["○ T-350 · Dibujar el mapa del proceso, la línea de pl…"]:::todo
-  T351["○ T-351 · Extraer el panel del par para reutilizarlo…"]:::todo
+  T351["✓ T-351 · Extraer el panel del par para reutilizarlo…"]:::done
   T352["○ T-352 · Dibujar el cuadro de cumplimiento con el pa…"]:::todo
   T353["○ T-353 · Llevar pasos y acciones al lugar donde se r…"]:::todo
   T354["○ T-354 · Medir el corte vertical con el caso chico y…"]:::todo
@@ -1994,7 +1994,7 @@ flowchart TD
 | REQ-151 | El inicio muestra todas las acciones disponibles de todos los procedimientos abiertos, agrupadas por procedimiento. Cada procedimiento se puede colapsar y expandir: colapsado muestra su línea (REQ-150) y cuántas acciones tiene; expandido lista sus acciones, cada una con un botón que lleva a resolverla. | T-357 | ○ pendiente |
 | REQ-152 | Hay un cuadro de cumplimiento: los requisitos de la matriz vigente en filas, agrupados por tipo, y las ofertas en columnas con su total. Cada celda muestra con texto uno de estos estados: «Cumple», «No cumple», «A decidir», «Espera informe», «Sin resultado» o «No aplica» (no cuenta en los totales). «A decidir» es solo lo que el sistema no pudo concluir (no determinado); un «Cumple» o «No cumple» propuesto que ninguna persona confirmó conserva su texto con la leyenda «sin confirmar». Al pie, cuántos requisitos cumple cada oferta hasta ahora. Se llega desde los pasos 4 y 6. | T-352, T-354 | ○ pendiente |
 | REQ-153 | El cuadro se puede filtrar por: todos, con algo pendiente, a decidir, no cumple y los que esperan informe técnico. Un grupo donde todas las ofertas cumplen todo se muestra resumido en una línea. | T-355 | ○ pendiente |
-| REQ-154 | Al tocar una celda se ve, sin salir del cuadro: qué pide el pliego (texto y dónde está), qué trajo esa oferta (texto y dónde está), por qué el sistema propone lo que propone, y las mismas acciones de decisión que existen hoy. Desde ahí se pasa al siguiente punto a decidir. | T-351, T-352, T-353, T-354, T-355 | ○ pendiente |
+| REQ-154 | Al tocar una celda se ve, sin salir del cuadro: qué pide el pliego (texto y dónde está), qué trajo esa oferta (texto y dónde está), por qué el sistema propone lo que propone, y las mismas acciones de decisión que existen hoy. Desde ahí se pasa al siguiente punto a decidir. | T-351, T-352, T-353, T-354, T-355 | ▶ en proceso |
 | REQ-155 | Vocabulario único en pantalla: «Procedimientos» (no «Expedientes») para la lista; «Matriz de requisitos» para la lista de lo que pide el pliego; «Cuadro de cumplimiento» para requisitos por ofertas. Los nombres de los siete pasos no cambian de una pantalla a otra. | T-358 | ○ pendiente |
 | REQ-156 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). | T-347, T-350, T-352, T-359 | ▶ en proceso |
 | REQ-158 | El mapa del proceso es un grafo de los siete pasos. Cada paso es una tarjeta con su número, nombre, un dato clave, su estado escrito y con su color, y sus tareas (hasta 3 y «+N más»; las advertencias y lo que espera a otro paso se distinguen). Las líneas muestran de qué depende cada paso: 1→2, 2→4, 3→4, 3→5, 4→5, 4→6, 4→7 y 6→7; una línea llena dice que lo anterior está completo y una punteada, que todavía puede cambiar. Debajo, una línea de plazos con los hitos que el sistema conoce (REQ-131) y el día de hoy. Cada tarjeta y cada tarea llevan a donde se resuelven. Un selector «Mapa / Lista» permite ver solo la lista de pasos, y en pantallas angostas se muestra la lista. «Vence hoy» (lila) y «Vencido» (rojo brillante) marcan la tarjeta y la tarea (REQ-157). No se muestra porcentaje de avance. | T-349, T-350, T-354, T-359, T-360 | ▶ en proceso |
