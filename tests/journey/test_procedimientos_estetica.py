@@ -17,7 +17,7 @@ pytestmark = pytest.mark.django_db
 ROOT = Path(__file__).resolve().parents[2] / "evaluon"
 CSS = ROOT / "static" / "journey" / "procedimientos.css"
 TEMPLATES = [ROOT / "templates" / "journey" / name
-             for name in ("expedientes.html", "nuevo.html", "s1_pliego_borrador.html")]
+             for name in ("inicio.html", "nuevo.html", "s1_pliego_borrador.html")]
 THEMES = ("claro", "negro")
 
 
@@ -53,12 +53,12 @@ def test_the_three_pages_load_in_both_themes_with_the_new_sheet(client, operator
                              html), name
 
 
-def test_the_list_keeps_its_table_and_its_actions(client, operator_user, procedure):
-    """REQ-133: el listado sigue siendo una tabla con un enlace por procedimiento y el botón de
-    alta: se cambia la estética, no el comportamiento."""
+def test_the_list_keeps_its_links_and_its_actions(client, operator_user, procedure):
+    """REQ-133, REQ-150: el listado (T-357: el inicio) lleva un enlace a cada procedimiento y el
+    botón de alta."""
     log_in(client, operator_user)
     html = client.get(reverse("expedientes:index")).content.decode()
-    assert 'id="t-expedientes"' in html
+    assert 'id="lista-abiertos"' in html
     assert reverse("expedientes:portada", args=[procedure.pk]) in html
     assert reverse("expedientes:nuevo") in html and "Nuevo procedimiento" in html
 
