@@ -19,6 +19,7 @@ Las citas de todas las celdas se traen juntas, sin una consulta por celda (T-223
 """
 
 import dataclasses
+from collections import Counter
 from dataclasses import dataclass, field
 
 from django.http import Http404
@@ -195,6 +196,34 @@ def _technical_cells(page):
     """Los pares de las filas técnicas: se deciden con el ok del informe del área, no acá."""
     return {(status.offer.pk, row.requirement.pk)
             for status in page.statuses for row in status.technical}
+
+
+def waiting_cells(page):
+    """Los pares de filas técnicas cuya oferta todavía no tiene el ok del informe técnico: la
+    decisión de esas filas es ese ok (no la de la Comisión par por par), aunque el sistema ya
+    tenga una propuesta para ellas."""
+    return {(status.offer.pk, row.requirement.pk)
+            for status in page.statuses for row in status.technical if not row.approved}
+
+
+def visible_state(cell, waiting):
+    """La clave de estado que ven el cuadro, el paso 4 y sus totales: `_bucket` (ok, no, nd, pe,
+    na) y `esp` para lo que espera el informe técnico. `waiting` es `True` si el par es de una fila
+    técnica sin el ok del informe. Un par sin resultado sigue siendo `pe` y uno que no aplica `na`."""
+    bucket = _bucket(cell)
+    if bucket in ("ok", "no", "nd") and cell.result is not None and waiting:
+        return "esp"
+    if bucket == "pe" and cell.result is not None and cell.reason == Doubt.PENDIENTE_INFORME_TECNICO:
+        return "esp"
+    return bucket
+
+
+def visible_counts(page):
+    """`{numero de oferta: Counter de estados}` de las ofertas evaluadas, con `visible_state`."""
+    waiting = waiting_cells(page)
+    return {status.offer.number: Counter(
+        visible_state(page.cells[(status.offer.pk, r.pk)], (status.offer.pk, r.pk) in waiting)
+        for r in page.requirements) for status in page.statuses if status.evaluated}
 
 
 # --- Estado y lista de pendientes ----------------------------------------------------------------

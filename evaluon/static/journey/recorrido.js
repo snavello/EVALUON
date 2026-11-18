@@ -96,6 +96,30 @@
     });
   }
 
+  // Carga única (T-361, ADR-0079): un elemento con `data-carga-url` se pide una vez al abrir la
+  // página y se reemplaza por lo que devuelve el servidor. El inicio lo usa para completar cada
+  // procedimiento (pasos y acciones) sin demorar la lista. Si falla, queda el enlace al procedimiento.
+  var PLAZO_CARGA_MS = 20000;  // pasado este plazo la fila muestra el mismo aviso de error
+  document.querySelectorAll("[data-carga-url]").forEach(function (el) {
+    var aviso = el.querySelector(".ini-cargando");
+    // Con JavaScript la fila dice que está calculando; sin él queda el texto que invita a abrir el procedimiento.
+    if (aviso) { aviso.querySelector(".ini-cargando-t").textContent = " · calculando los pasos y las acciones…"; }
+    var control = window.AbortController ? new AbortController() : null;
+    var reloj = window.setTimeout(function () { if (control) { control.abort(); } }, PLAZO_CARGA_MS);
+    fetch(el.dataset.cargaUrl, {credentials: "same-origin", cache: "no-store",
+                                signal: control ? control.signal : undefined})
+      .then(function (response) {
+        window.clearTimeout(reloj);
+        if (response.redirected || !response.ok) { throw new Error("carga"); }
+        return response.text();
+      })
+      .then(function (html) { el.outerHTML = html; })
+      .catch(function () {
+        var estado = el.querySelector(".ini-cargando");
+        if (estado) { estado.querySelector(".ini-cargando-t").textContent = " · no se pudieron calcular los pasos."; }
+      });
+  });
+
   var stages = document.getElementById("journey-stages");
   if (stages) { watch(stages, stages.dataset.url); }
   document.querySelectorAll("[data-poll-url]").forEach(function (root) {

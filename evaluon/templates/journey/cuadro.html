@@ -51,15 +51,15 @@
           {% endfor %}
           <tfoot><tr>
             <th scope="row" class="cu-req">Cumple hasta ahora</th>
-            {% for col in columns %}<td class="cu-pie">{% if col.figures %}<b>{{ col.figures.ok }} de {{ col.count }}</b><small>No cumple {{ col.figures.no }} · A decidir {{ col.figures.nd }} · Espera informe {{ col.waiting }}{% if col.without %} · Sin resultado {{ col.without }}{% endif %}</small>{% else %}<span class="cu-sin">Sin evaluar</span>{% endif %}</td>{% endfor %}
+            {% for col in columns %}<td class="cu-pie">{% if col.figures %}<b>{{ col.ok }} de {{ col.count }}</b><small>No cumple {{ col.no }} · A decidir {{ col.nd }} · Espera informe {{ col.waiting }}{% if col.without %} · Sin resultado {{ col.without }}{% endif %}</small>{% else %}<span class="cu-sin">Sin evaluar</span>{% endif %}</td>{% endfor %}
           </tr></tfoot>
         </table>
       </div>
-      <p class="cu-ayuda">Cada celda abre el detalle del par a la derecha. «No aplica» no se cuenta en los totales; «sin confirmar» es una propuesta del sistema que nadie confirmó todavía.</p>
+      <p class="cu-ayuda">Cada celda abre el detalle del par a la derecha. «No aplica» no se cuenta en los totales; «sin confirmar» es una propuesta del sistema que nadie confirmó todavía. Las filas técnicas se deciden con el ok del informe técnico: hasta entonces dicen «Espera informe» (la propuesta del sistema se ve en el panel), y no se cuentan en «Cumple» ni «A decidir»; el mosaico «Resultado por oferta» de la pestaña sí cuenta esa propuesta. Los filtros cuentan <b>filas</b>; las acciones («Decidir N puntos») cuentan <b>puntos</b>, una fila por oferta.</p>
     </section>
 
     {% if panel %}
-    <aside class="cu-panel s4-prop" id="cu-panel" aria-label="Detalle de la celda elegida">{% if siguiente %}<p class="cu-sig"><a class="btn" href="{{ siguiente }}">Siguiente a decidir ›</a></p>{% else %}<p class="cu-sig cu-sig-fin">No hay otro punto para decidir.</p>{% endif %}{{ panel }}</aside>
+    <aside class="cu-panel s4-prop" id="cu-panel" aria-label="Detalle de la celda elegida"><p class="cu-sig">{% if con_acciones %}<a class="btn primario" href="#cu-decidir">Ir a decidir ↓</a>{% endif %}{% if siguiente %}<a class="btn" href="{{ siguiente }}">Siguiente a decidir ›</a>{% else %}<span class="cu-sig-fin">{% if filtro and filtro != "todos" %}No hay otro punto en este filtro.{% else %}No hay otro punto para decidir.{% endif %}</span>{% endif %}</p>{{ panel }}</aside>
     {% endif %}
   </div>
   {% endif %}

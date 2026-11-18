@@ -37,6 +37,7 @@ expedientes_urlpatterns = [
     path("normativas/", include(s5_normas.general_urlpatterns)),
     path("<int:procedure_id>/", portada.portada, name="portada"),
     path("<int:procedure_id>/barra/", portada.barra, name="barra"),
+    path("<int:procedure_id>/fila/", portada.fila, name="fila"),
     path("<int:procedure_id>/ventana/", portada.ventana, name="ventana"),
     path("<int:procedure_id>/avance/", avance.avance, name="avance"),
     # El cuadro de cumplimiento con el panel de la celda (018, T-352).

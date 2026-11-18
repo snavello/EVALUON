@@ -1,0 +1,11 @@
+{% comment %}Una fila del inicio ya calculada (T-357, T-361): el procedimiento con su vencimiento, la cuenta de acciones, la barra de siete pasos y sus acciones. La devuelve `portada.fila` y reemplaza a `_ini_cargando.html`. La plantilla no calcula nada.{% endcomment %}<details class="ini-proc" open data-procedimiento="{{ a.procedure.pk }}">
+  <summary>
+    <span class="ini-nombre"><a href="{% url 'expedientes:portada' a.procedure.pk %}">{{ a.procedure.subject|truncatechars:90 }}</a>
+      <small>{{ a.procedure.number }} · {% if a.ofertas %}{{ a.ofertas }} oferta{{ a.ofertas|pluralize }}{% else %}sin ofertas todavía{% endif %}</small></span>
+    <span class="ini-cuenta">{{ a.cantidad }}</span>
+    <span class="ini-vence">{% with v=a.vencimiento %}{% if not v %}<span class="ini-sin-fecha">Sin fecha de vencimiento</span>{% elif v.marca == "hoy" %}<span class="pr-hoy">Vence hoy</span>{% elif v.marca == "vencido" %}<span class="pr-vencido">{{ v.texto }}</span>{% else %}<span class="ini-fecha">{{ v.texto }}</span>{% endif %}{% endwith %}</span>
+    <span class="ini-foto">{% include "journey/_foto_pasos.html" with pasos=a.proceso.pasos %}</span>
+    {% if a.en_curso %}<span class="ini-encurso">{{ a.en_curso }}</span>{% endif %}
+  </summary>
+  {% if a.lineas %}<ul class="pr-acciones ini-acciones" aria-label="Acciones de {{ a.procedure.number }}">{% include "journey/_acciones.html" with lineas=a.lineas solo_lineas=True pieza=False sin_paso=False %}</ul>{% else %}<p class="ini-sin-acciones">No hay nada para hacer ahora en este procedimiento.</p>{% endif %}
+</details>

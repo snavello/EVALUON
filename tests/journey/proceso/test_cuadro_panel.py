@@ -225,3 +225,39 @@ def test_una_celda_que_ya_no_existe_muestra_el_cuadro_sin_panel(
     con = next(f for i, f in enumerate(filas) if i % 6 == 0)
     assert 'id="cu-panel"' in client.get(
         url_de(procedure, f"?celda={ofertas[0].pk}-{con.pk}")).content.decode()
+
+
+def test_T361_H4_el_panel_ofrece_ir_a_decidir_junto_a_siguiente(client, caso_varios_en_curso):
+    """REQ-154 (T-361, H-4): con botones de decidir el panel trae «Ir a decidir» arriba, junto a
+    «Siguiente a decidir», y el ancla existe en los botones; sin botones (fila técnica, lectura) no
+    hay enlace. La página del par no lleva el ancla (su HTML no cambia)."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    _, html, offer, req = abrir(client, caso, 0, "declaración jurada")
+    assert 'href="#cu-decidir"' in html and 'id="cu-decidir"' in html
+    assert html.index('href="#cu-decidir"') < html.index("Siguiente a decidir") or \
+        "Siguiente a decidir" not in html
+    assert html.index('href="#cu-decidir"') < html.index('id="cu-decidir"')
+    par = client.get(acciones.pair_url(caso.procedure, offer.pk, req.pk)).content.decode()
+    assert "cu-decidir" not in par
+    tecnico = caso.procedure.matrix_versions.get(number=1).requirements.get(
+        category="tecnico", items=[1])
+    html = client.get(url_de(caso.procedure, f"?celda={offer.pk}-{tecnico.pk}")).content.decode()
+    assert "cu-decidir" not in html
+
+
+def test_T361_el_panel_de_una_celda_tecnica_en_espera_dice_lo_que_pasa(client, caso_varios_en_curso):
+    """REQ-154 (T-361): desde el cuadro, la celda técnica «Espera informe» dice que espera el informe
+    del área, con el enlace a donde se carga; la página del par conserva su texto de siempre."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    tecnico = caso.procedure.matrix_versions.get(number=1).requirements.get(
+        category="tecnico", items=[1])
+    html = client.get(url_de(caso.procedure, f"?celda={caso.offers[0].pk}-{tecnico.pk}")
+                      ).content.decode()
+    assert "Espera el informe técnico del área: esta fila se resuelve con el ok de ese informe." in html
+    assert f'href="{reverse("expedientes:evaluacion", args=[caso.procedure.pk])}#s4-informe"' in html
+    assert "Falta su decisión: confirmar, corregir o rechazar" not in html
+    par = client.get(acciones.pair_url(caso.procedure, caso.offers[0].pk, tecnico.pk)).content.decode()
+    assert "Falta su decisión: confirmar, corregir o rechazar la propuesta." in par
+    assert "Espera el informe técnico del área" not in par

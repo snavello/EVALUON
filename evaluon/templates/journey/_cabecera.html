@@ -8,7 +8,7 @@
     <a href="{% url 'expedientes:index' %}">Procedimientos</a>
     {% if user.commission_role %}<span class="sep" aria-hidden="true">›</span>
     <details class="sel-proc">
-      <summary aria-label="Cambiar de procedimiento"><span class="b-txt">{% if procedure %}{{ procedure.number }} · {{ procedure.subject|truncatechars:60 }}{% elif header_label %}{{ header_label }}{% elif tabs %}Nuevo procedimiento (sin crear){% else %}Elegir procedimiento{% endif %}</span><span aria-hidden="true">▾</span></summary>
+      <summary aria-label="Cambiar de procedimiento"><span class="b-txt">{% if procedure %}{{ procedure.number }} · {{ procedure.subject|truncatechars:60 }}{% elif header_label %}{{ header_label }}{% elif tabs %}Nuevo procedimiento (sin crear){% else %}Ir a un procedimiento{% endif %}</span><span aria-hidden="true">▾</span></summary>
       <div class="menu" role="menu">
         <p class="menu-tit">Cambiar de procedimiento</p>
         {% for p in procedures %}

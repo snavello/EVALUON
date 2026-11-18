@@ -10,7 +10,8 @@
 {% block head %}<link rel="stylesheet" href="{% static 'journey/procedimientos.css' %}">
 <link rel="stylesheet" href="{% static 'journey/proceso.css' %}">
 <link rel="stylesheet" href="{% static 'journey/portada.css' %}">
-<link rel="stylesheet" href="{% static 'journey/inicio.css' %}">{% endblock %}
+<link rel="stylesheet" href="{% static 'journey/inicio.css' %}">
+<script src="{% static 'journey/recorrido.js' %}" defer></script>{% endblock %}
 
 {% block content %}
 {% if terminados is not None %}
@@ -35,20 +36,10 @@
     <span class="barra-cargas">{% if cantidad_terminados %}<a class="btn secundario" href="{% url 'expedientes:index' %}?ver=terminados">Terminados ({{ cantidad_terminados }})</a> {% endif %}<a class="btn primario" href="{% url 'expedientes:nuevo' %}">+ Nuevo procedimiento</a></span>
   </div>
   {% if abiertos %}
-  <p class="resumen-linea" id="seccion-resumen"><b>{{ abiertos|length }} abierto{{ abiertos|length|pluralize }}</b> · {% if total_acciones == 1 %}1 acción{% else %}{{ total_acciones }} acciones{% endif %} para hacer · primero lo que vence antes</p>
+  <p class="resumen-linea" id="seccion-resumen"><b>{{ abiertos|length }} abierto{{ abiertos|length|pluralize }}</b> · primero lo que vence antes</p>
   <div class="ini-lista" id="lista-abiertos">
     {% for a in abiertos %}
-    <details class="ini-proc" open data-procedimiento="{{ a.procedure.pk }}">
-      <summary>
-        <span class="ini-nombre"><a href="{% url 'expedientes:portada' a.procedure.pk %}">{{ a.procedure.subject|truncatechars:90 }}</a>
-          <small>{{ a.procedure.number }} · {% if a.ofertas %}{{ a.ofertas }} oferta{{ a.ofertas|pluralize }}{% else %}sin ofertas todavía{% endif %}</small></span>
-        <span class="ini-cuenta">{{ a.cantidad }}</span>
-        <span class="ini-vence">{% with v=a.vencimiento %}{% if not v %}<span class="ini-sin-fecha">Sin fecha de vencimiento</span>{% elif v.marca == "hoy" %}<span class="pr-hoy">Vence hoy</span>{% elif v.marca == "vencido" %}<span class="pr-vencido">{{ v.texto }}</span>{% else %}<span class="ini-fecha">{{ v.texto }}</span>{% endif %}{% endwith %}</span>
-        <span class="ini-foto">{% include "journey/_foto_pasos.html" with pasos=a.proceso.pasos %}</span>
-        {% if a.en_curso %}<span class="ini-encurso">{{ a.en_curso }}</span>{% endif %}
-      </summary>
-      {% if a.lineas %}<ul class="pr-acciones ini-acciones" aria-label="Acciones de {{ a.procedure.number }}">{% include "journey/_acciones.html" with lineas=a.lineas solo_lineas=True pieza=False sin_paso=False %}</ul>{% else %}<p class="ini-sin-acciones">No hay nada para hacer ahora en este procedimiento.</p>{% endif %}
-    </details>
+    {% include "journey/_ini_cargando.html" %}
     {% endfor %}
   </div>
   {% elif hay_procedimientos %}

@@ -4,6 +4,7 @@ el mosaico «Resultado por oferta». Material inventado (P4)."""
 
 import re
 import time
+from collections import Counter
 from types import SimpleNamespace
 
 import pytest
@@ -119,28 +120,108 @@ def test_el_cuadro_del_caso_en_curso(client, caso_varios_en_curso):
     assert "sin confirmar" in html
 
 
-def test_los_totales_del_pie_son_los_del_mosaico(client, caso_varios_en_curso):
-    """REQ-152: «N de M» de cada oferta es lo que cuenta `figures_of`, el mosaico «Resultado por
-    oferta»; el «No cumple» y el «A decidir» también; «Espera informe» + «Sin resultado» es su `pe`."""
-    caso = caso_varios_en_curso
+def _figuras(user, procedure):
+    with memo.scope():
+        return s4_propuesta.figures_of(memo.matrix_page(user, procedure.pk))
+
+
+def test_sin_filas_tecnicas_en_espera_el_pie_es_igual_a_figures_of(client, caso_todo_hecho):
+    """REQ-152: con las filas técnicas ya aprobadas (nada espera el informe) el pie de cada oferta es
+    IGUAL a `figures_of`, el mosaico «Resultado por oferta»: ok, no, a decidir y el resto."""
+    caso = caso_todo_hecho
     entrar(client, caso.user)
     response = client.get(url_de(caso.procedure))
-    with memo.scope():
-        mosaico = next(t for t in s4_propuesta.tiles(caso.user, caso.procedure, None)
-                       if t.key == "resultado")
-        figuras = s4_propuesta.figures_of(memo.matrix_page(caso.user, caso.procedure.pk))
-    donas = {d.label: d for d in mosaico.chart.items}
-    assert len(response.context["columns"]) == len(donas) == 2
-    for columna in response.context["columns"]:
-        dona = donas[f"Of. {columna['number']}"]
-        assert columna["figures"].ok == dona.ok
-        assert (columna["figures"].no, columna["figures"].nd) == (dona.no, dona.nd)
-        assert columna["count"] == dona.ok + dona.no + dona.nd + dona.pe
-        assert columna["waiting"] + columna["without"] == dona.pe
-    assert [c["figures"].ok for c in response.context["columns"]] == [3, 2]
-    assert [o.ok for o in figuras.offers] == [3, 2]
+    figuras = _figuras(caso.user, caso.procedure)
+    columnas = response.context["columns"]
+    assert len(columnas) == len(figuras.offers) == 2
+    for columna, oferta in zip(columnas, figuras.offers):
+        assert (columna["ok"], columna["no"], columna["nd"]) == (oferta.ok, oferta.no, oferta.nd)
+        assert columna["waiting"] + columna["without"] == oferta.pe
+        assert columna["count"] == oferta.ok + oferta.no + oferta.nd + oferta.pe
+    assert columnas[0]["ok"] == 9 and columnas[0]["waiting"] == 0  # 9 requisitos, todos cumplen
+
+
+# La matriz de `sintetico`: cada oferta ve las seis filas técnicas con una de cada resultado del
+# ciclo (cumple, cumple, no cumple, duda, espera informe, sin resultado). Contadas a mano: 2 cumple,
+# 1 no cumple y 1 duda (4 propuestas del sistema) pasan a «Espera informe» en el pie; la que ya
+# esperaba el informe sigue esperando y la que no tiene resultado sigue sin resultado.
+TECNICAS_PROPUESTAS = {"ok": 2, "no": 1, "nd": 1}
+
+
+@pytest.mark.parametrize("requisitos", [30, 27])
+def test_con_filas_tecnicas_en_espera_el_pie_es_figures_of_menos_esas_celdas(
+        client, procedure, evaluator_user, fake_ai, requisitos):
+    """REQ-152 (T-361, H-6): con 6 filas técnicas evaluadas y sin ok del informe, el pie de cada oferta
+    es `figures_of` MENOS las celdas técnicas con propuesta (2 «cumple», 1 «no cumple» y 1 «a decidir»
+    por oferta, contadas a mano arriba), que pasan a «Espera informe»; el total no cambia."""
+    sintetico(procedure, evaluator_user, requisitos, 3)
+    entrar(client, evaluator_user)
+    response = client.get(url_de(procedure))
+    figuras = _figuras(evaluator_user, procedure)
     html = response.content.decode()
-    assert "<b>3 de 9</b>" in html and "<b>2 de 9</b>" in html
+    for columna, oferta in zip(response.context["columns"], figuras.offers):
+        assert columna["ok"] == oferta.ok - TECNICAS_PROPUESTAS["ok"]
+        assert columna["no"] == oferta.no - TECNICAS_PROPUESTAS["no"]
+        assert columna["nd"] == oferta.nd - TECNICAS_PROPUESTAS["nd"]
+        assert columna["waiting"] + columna["without"] == oferta.pe + sum(TECNICAS_PROPUESTAS.values())
+        assert columna["count"] == oferta.ok + oferta.no + oferta.nd + oferta.pe
+        assert f"<b>{columna['ok']} de {columna['count']}</b>" in html
+    grupos = response.context["groups"]
+    tecnicas = [c for g in grupos if g["kind"] == "tecnico" for r in g["rows"] for c in r["cells"]]
+    assert len(tecnicas) == 18 and Counter(c["key"] for c in tecnicas) == {"esp": 15, "pe": 3}
+    for estado, clave in (("Cumple", "ok"), ("No cumple", "no"), ("A decidir", "nd")):
+        por_oferta = [sum(1 for g in grupos if g["kind"] != "tecnico" for r in g["rows"]
+                          if r["cells"][i]["key"] == clave) for i in range(3)]
+        assert por_oferta == [c[clave] for c in response.context["columns"]], estado
+    if requisitos == 27:
+        assert [len(g["rows"]) for g in grupos] == [16, 5, 6]
+        celdas = [c for g in grupos for r in g["rows"] for c in r["cells"]]
+        assert len(celdas) == 81 and all(bool(c["url"]) == (c["key"] != "pe") for c in celdas)
+
+
+def test_filas_tecnicas_sin_ok_esperan_informe_en_todas_las_cuentas(
+        client, procedure, evaluator_user, fake_ai):
+    r"""REQ-152, REQ-156 (T-361, H-6): 6 filas técnicas × 3 ofertas ya evaluadas por el sistema y sin ok
+    del informe técnico se ven «Espera informe» (aunque tengan propuesta), entran en el filtro
+    «Esperan informe técnico» y en el pie, y no en «A decidir» ni en «sin confirmar»; el dato del paso 4,
+    su nota de cruces y el pie cuentan lo mismo."""
+    from evaluon.journey.proceso import calculo
+    sintetico(procedure, evaluator_user, 30, 3)
+    entrar(client, evaluator_user)
+    response = client.get(url_de(procedure))
+    grupos = response.context["groups"]
+    tecnicas = [r for g in grupos if g["kind"] == "tecnico" for r in g["rows"]]
+    assert len(tecnicas) == 6
+    con_resultado = [c for r in tecnicas for c in r["cells"] if c["text"] != "Sin resultado"]
+    assert con_resultado and all(c["key"] == "esp" and not c["unconfirmed"] for c in con_resultado)
+    filtros = {f["clave"]: f["n"] for f in response.context["filtros"]}
+    a_decidir = client.get(url_de(procedure, "?filtro=a-decidir")).context["groups"]
+    assert not [g for g in a_decidir if g["kind"] == "tecnico"]
+    espera = client.get(url_de(procedure, "?filtro=espera-informe")).context["groups"]
+    assert filtros["espera-informe"] == sum(len(g["rows"]) for g in espera)
+    assert {r["number"] for r in tecnicas} <= {r["number"] for g in espera for r in g["rows"]}
+    columnas = response.context["columns"]
+    with memo.scope():
+        vistos = s4_propuesta.visible_counts(memo.matrix_page(evaluator_user, procedure.pk))
+        proceso = calculo.proceso_de(evaluator_user, procedure)
+    for c in columnas:
+        assert (c["ok"], c["no"], c["nd"], c["waiting"], c["without"]) == tuple(
+            vistos[c["number"]][k] for k in ("ok", "no", "nd", "esp", "pe"))
+    total = sum(vistos.values(), Counter())
+    paso4 = next(p for p in proceso.pasos if p.numero == 4)
+    assert paso4.dato == (f"{total['ok']} cumplen · {total['no']} no · {total['nd']} a decidir · "
+                          f"{total['esp']} esperan informe")
+    portada = client.get(reverse("expedientes:portada", args=[procedure.pk])).content.decode()
+    nota = re.search(r'<p class="pr-nota">(De \d+ cruces[^<]*)</p>', portada).group(1)
+    pie = Counter()
+    for c in columnas:
+        pie.update({"ok": c["ok"], "no": c["no"], "nd": c["nd"], "esp": c["waiting"] + c["without"]})
+    assert nota == (f"De {sum(pie.values())} cruces requisito–oferta: {pie['ok']} cumplen, "
+                    f"{pie['no']} no cumplen, {pie['nd']} a decidir y {pie['esp']} esperan el "
+                    "resultado o el informe técnico.")
+    assert sum(pie.values()) == 30 * 3
+    assert (pie["ok"], pie["no"], pie["nd"], pie["esp"]) == (
+        total["ok"], total["no"], total["nd"], total["esp"] + total["pe"])
 
 
 def test_los_seis_textos_y_su_clave():
@@ -157,33 +238,6 @@ def test_los_seis_textos_y_su_clave():
                              effective_key=am.Outcome.NO_DETERMINADO,
                              reason=am.Doubt.PENDIENTE_INFORME_TECNICO)
     assert vista.estado_de(espera) == "esp"
-
-
-def test_27_requisitos_y_3_ofertas(client, procedure, evaluator_user, fake_ai):
-    """REQ-152: 27 requisitos y 3 ofertas dan 27 filas en 3 grupos y 3 columnas; cada celda dice su
-    estado con texto; el pie coincide con `figures_of` y con el mosaico; «Sin resultado» no es un
-    enlace y los demás sí."""
-    sintetico(procedure, evaluator_user, 27, 3)
-    entrar(client, evaluator_user)
-    response = client.get(url_de(procedure))
-    html = response.content.decode()
-    grupos = response.context["groups"]
-    assert [len(g["rows"]) for g in grupos] == [16, 5, 6]
-    assert sum(len(g["rows"]) for g in grupos) == 27 and len(response.context["columns"]) == 3
-    celdas = [c for g in grupos for r in g["rows"] for c in r["cells"]]
-    assert len(celdas) == 81
-    assert {c["text"] for c in celdas} == {"Cumple", "No cumple", "A decidir", "Espera informe",
-                                          "Sin resultado"}
-    assert all(bool(c["url"]) == (c["key"] != "pe") for c in celdas)
-    with memo.scope():
-        figuras = s4_propuesta.figures_of(memo.matrix_page(evaluator_user, procedure.pk))
-    for columna, ofertas in zip(response.context["columns"], figuras.offers):
-        assert columna["figures"] == ofertas
-        assert f"<b>{ofertas.ok} de {ofertas.ok + ofertas.no + ofertas.nd + ofertas.pe}</b>" in html
-    for estado, clave in (("Cumple", "ok"), ("No cumple", "no"), ("A decidir", "nd")):
-        por_oferta = [sum(1 for g in grupos for r in g["rows"] if r["cells"][i]["key"] == clave)
-                      for i in range(3)]
-        assert por_oferta == [getattr(o, clave) for o in figuras.offers], estado
 
 
 def test_cada_estado_lleva_el_texto_y_el_nombre_de_los_siete_pasos(client, caso_varios_en_curso):

@@ -61,6 +61,16 @@ def detalles(html):
                       html, re.S)
 
 
+def completo(client, url=RAIZ):
+    """El inicio como lo deja `recorrido.js`: la lista y, en lugar de cada fila sin calcular, la
+    fila que devuelve `expedientes/<id>/fila/` (T-361)."""
+    html = client.get(url).content.decode()
+    for bloque, pk in detalles(html):
+        html = html.replace(bloque, client.get(reverse("expedientes:fila", args=[pk])
+                                               ).content.decode().strip(), 1)
+    return html
+
+
 def orden_de(html):
     return [int(pk) for _, pk in detalles(html)]
 
@@ -80,13 +90,31 @@ def test_req150_entrar_muestra_la_lista_y_no_el_ultimo_procedimiento(
     assert "Expedientes" not in html_a and 'id="lista-abiertos"' in html_a
 
 
+def test_req150_la_lista_sale_sin_calcular_y_cada_fila_se_pide_aparte(client, caso_varios_en_curso):
+    """REQ-150 (T-361, ADR-0079): la respuesta inicial trae nombre, número, vencimiento y el enlace al
+    procedimiento, y la dirección de la fila; no calcula la barra de pasos ni las acciones, y sin
+    JavaScript sigue siendo usable. La fila pedida aparte es la de siempre."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    html = client.get(RAIZ).content.decode()
+    (bloque, pk), = detalles(html)
+    fila = reverse("expedientes:fila", args=[caso.procedure.pk])
+    assert f'data-carga-url="{fila}"' in bloque
+    assert caso.procedure.number in bloque and "Sin fecha de vencimiento" in bloque
+    assert f'href="{reverse("expedientes:portada", args=[caso.procedure.pk])}"' in bloque
+    assert "pr-foto" not in bloque and "data-accion" not in bloque and "Abrir el procedimiento" in bloque and "ini-cargando-t" in bloque
+    assert "journey/recorrido.js" in html and " style=" not in html
+    assert client.get(fila).status_code == 200
+    assert client.get(reverse("expedientes:fila", args=[caso.procedure.pk + 999])).status_code == 404
+
+
 def test_req150_cada_procedimiento_trae_su_barra_sus_acciones_y_su_cuenta(
         client, caso_varios_en_curso):
     """REQ-150, REQ-151: nombre y número, ofertas, los siete pasos con su estado escrito, «N
     acciones» y cada acción con el enlace de la portada del procedimiento."""
     caso = caso_varios_en_curso
     entrar(client, caso.user)
-    html = client.get(RAIZ).content.decode()
+    html = completo(client)
     (bloque, _), = detalles(html)
     assert re.match(r'<details class="ini-proc" open ', bloque)
     assert caso.procedure.subject[:30] in bloque and caso.procedure.number in bloque
@@ -111,7 +139,7 @@ def test_req151_cuatro_abiertos_agrupan_todas_sus_acciones(client, evaluator_use
     procs = copias(evaluator_user, expected, 4)
     mantenimientos(monkeypatch, {procs[0].pk: HOY, procs[1].pk: HOY - timedelta(days=3)})
     entrar(client, evaluator_user)
-    html = client.get(RAIZ).content.decode()
+    html = completo(client)
     total = 0
     for bloque, pk in detalles(html):
         procedure = Procedure.objects.get(pk=pk)
@@ -122,7 +150,6 @@ def test_req151_cuatro_abiertos_agrupan_todas_sus_acciones(client, evaluator_use
         assert procedure.number in resumen and "pr-foto" in resumen
         assert re.search(r">(\d+ acciones|1 acción|Sin acciones)<", resumen)
     assert len(detalles(html)) == 4 and total >= 4
-    assert f"{total} acciones para hacer" in html
 
 
 def test_req157_vencidos_primero_luego_hoy_luego_futuros_y_sin_fecha(
@@ -134,7 +161,7 @@ def test_req157_vencidos_primero_luego_hoy_luego_futuros_y_sin_fecha(
         p[0].pk: HOY + timedelta(days=9), p[1].pk: HOY, p[2].pk: HOY - timedelta(days=2),
         p[4].pk: HOY - timedelta(days=5), p[5].pk: HOY + timedelta(days=1)})
     entrar(client, evaluator_user)
-    html = client.get(LISTA).content.decode()
+    html = completo(client, LISTA)
     assert orden_de(html) == [p[4].pk, p[2].pk, p[1].pk, p[5].pk, p[0].pk, p[3].pk]
     por_pk = {int(pk): bloque for bloque, pk in detalles(html)}
     assert '<span class="pr-vencido">Vencido hace 5 días</span>' in por_pk[p[4].pk]
@@ -181,7 +208,7 @@ def test_req150_cargar_el_dictamen_pasa_a_terminados_y_quitarlo_lo_devuelve(
 def test_req143_el_lector_ve_el_inicio_sin_botones(client, caso_varios_en_curso, read_user):
     """REQ-143: el usuario de lectura ve la lista y no los formularios de acción."""
     entrar(client, read_user)
-    html = client.get(LISTA).content.decode()
+    html = completo(client, LISTA)
     assert len(detalles(html)) == 1 and "<form" not in html.split("</header>")[1]
     assert "data-accion" in html
 
@@ -196,3 +223,15 @@ def test_req156_el_inicio_no_trae_estilos_en_linea_ni_colores_sueltos(client, ca
     assert not re.search(r"#[0-9A-Fa-f]{3,8}\b", css)
     assert "--hoy" not in css and "--vencido" not in css
     assert not [t for t in re.findall(r"font-size:\s*([\d.]+)rem", css) if float(t) < .75]
+
+
+def test_T361_V1_V2_V3_el_encabezado_del_inicio_y_su_alineacion(client, caso_varios_en_curso):
+    """REQ-143 (T-361): el camino del inicio dice «Procedimientos» (sin el selector «Elegir
+    procedimiento»), el contenido toma el margen lateral del encabezado y la barra de pasos deja
+    aire entre rótulos."""
+    entrar(client, caso_varios_en_curso.user)
+    html = client.get(RAIZ).content.decode()
+    assert "Elegir procedimiento" not in html and "Ir a un procedimiento" in html
+    css = CSS.read_text(encoding="utf-8")
+    assert "body.pag-inicio .wrap { padding: 0 clamp(14px, 3vw, 36px); }" in css
+    assert ".ini-foto .pr-foto { gap: .5rem 1.25rem; }" in css

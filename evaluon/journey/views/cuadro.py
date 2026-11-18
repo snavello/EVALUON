@@ -28,7 +28,6 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_GET
 
-from evaluon.assessment.models import Doubt
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.assessment.services import review
 from evaluon.journey import memo, points
@@ -55,14 +54,12 @@ TIPO_TEXTO = {RequirementClass.FORMAL: "Formales", RequirementClass.ECONOMICO: "
               RequirementClass.TECNICO: "Técnicos"}
 
 
-def estado_de(cell):
-    """La clave de `TEXTO_CELDA` de una celda: `_bucket` (la única definición) y, dentro de «pe»,
-    el que espera el informe técnico aparte del que no tiene resultado."""
-    bucket = s4_propuesta._bucket(cell)
-    if (bucket == "pe" and cell.result is not None
-            and cell.reason == Doubt.PENDIENTE_INFORME_TECNICO):
-        return "esp"
-    return bucket
+def estado_de(cell, waiting=False):
+    """La clave de `TEXTO_CELDA` de una celda: `_bucket` (la única definición) y «esp» para lo que
+    espera el informe técnico. `waiting`: el par es de una fila técnica de una oferta sin el ok del
+    informe; la decisión de esas filas es ese ok, así que se ven «Espera informe» aunque el sistema
+    ya tenga una propuesta (que se sigue viendo en el panel). Ver `s4_propuesta.visible_state`."""
+    return s4_propuesta.visible_state(cell, waiting)
 
 
 FILTROS = (("todos", "Todos"), ("pendiente", "Con algo pendiente"), ("a-decidir", "A decidir"),
@@ -110,21 +107,24 @@ def _celda_pedida(request, procedure, page):
 
 
 def _columnas(page, figures):
-    """Las ofertas en columnas: número, oferente, total del acta y lo cumplido hasta ahora (las
-    cifras de `figures_of`, las del mosaico)."""
+    """Las ofertas en columnas: número, oferente, total del acta y lo cumplido hasta ahora, contado
+    de las mismas celdas que se dibujan (las mismas cuentas del paso 4). Difiere del mosaico
+    «Resultado por oferta» solo en las filas técnicas sin el ok del informe: ahí el mosaico cuenta
+    la propuesta del sistema y el cuadro «Espera informe»."""
     data = {d.offer_id: d for d in PortalOfferData.objects.filter(offer__in=page.offers)}
     by_number = {o.number: o for o in figures.offers} if figures else {}
+    waiting = s4_propuesta.waiting_cells(page)
     columns = []
     for offer in page.offers:
         info = data.get(offer.pk)
         mine = by_number.get(offer.number)
-        # Lo que no cumple, falta decidir o espera, contado de las mismas celdas que se dibujan;
-        # «Espera informe» y «Sin resultado» suman el `pe` de `figures_of`.
-        seen = Counter(estado_de(page.cells[(offer.pk, r.pk)]) for r in page.requirements)
+        seen = Counter(estado_de(page.cells[(offer.pk, r.pk)], (offer.pk, r.pk) in waiting)
+                       for r in page.requirements)
         columns.append({
             "number": offer.number, "bidder": offer.bidder, "figures": mine,
             "total": _money(info.total, info.currency) if info and info.total is not None else "",
-            "count": (mine.ok + mine.no + mine.nd + mine.pe) if mine else 0,
+            "count": (seen["ok"] + seen["no"] + seen["nd"] + seen["esp"] + seen["pe"]),
+            "ok": seen["ok"], "no": seen["no"], "nd": seen["nd"],
             "waiting": seen["esp"], "without": seen["pe"]})
     return columns
 
@@ -132,6 +132,7 @@ def _columnas(page, figures):
 def _grupos(page, base_url, selected, filtro):
     """Las filas por tipo de requisito, cada celda con su texto, su clase y su enlace."""
     texts = points.texts_of_page(page)
+    waiting = s4_propuesta.waiting_cells(page)
     groups = []
     for kind in TIPOS:
         rows = []
@@ -147,7 +148,7 @@ def _grupos(page, base_url, selected, filtro):
             cells = []
             for offer in page.offers:
                 cell = page.cells[(offer.pk, requirement.pk)]
-                key = estado_de(cell)
+                key = estado_de(cell, (offer.pk, requirement.pk) in waiting)
                 text, css = TEXTO_CELDA[key]
                 anchor = f"c-{offer.pk}-{requirement.pk}"
                 query = f"celda={offer.pk}-{requirement.pk}" + (f"&filtro={filtro}" if filtro else "")
@@ -191,29 +192,33 @@ def _siguiente(groups, filtro, selected, base_url):
         return ""
     orden = [c for g in groups for r in g["rows"] for c in r["cells"]]
     posicion = next((i for i, c in enumerate(orden) if c["selected"]), -1)
-    for clave in ((filtro,) if filtro in ("pendiente", "no-cumple", "espera-informe")
-                  else ("a-decidir",)) + ("pendiente",):
+    # Con un filtro puesto solo se sigue dentro de ese filtro: la tabla no muestra otras celdas. Sin
+    # filtro (todas las filas a la vista) se prefieren las de decidir y después las pendientes.
+    claves = (filtro,) if filtro in ("pendiente", "a-decidir", "no-cumple", "espera-informe")         else ("a-decidir", "pendiente")
+    for clave in claves:
         for c in orden[posicion + 1:]:
-            if c["url"] and _coincide(clave, c):
+            if c["url"] and _coincide(clave, c) and (clave != "pendiente" or filtro == "pendiente" or c["key"] != "esp"):
                 return c["url"]
     return ""
 
 
 def _panel(request, procedure, selected, filtro):
-    """El HTML del panel de la celda elegida, o `""` si no hay celda o su par ya no existe (por
-    ejemplo tras una evaluación nueva): entonces se muestra el cuadro sin panel."""
+    """`(HTML, con_acciones)` del panel de la celda elegida: `("", False)` si no hay celda o su par ya
+    no existe (por ejemplo tras una evaluación nueva), y entonces se muestra el cuadro sin panel.
+    `con_acciones`: el panel trae los botones de decidir (para ofrecer «Ir a decidir», T-361)."""
     if selected is None:
-        return ""
+        return "", False
     try:
         context = s4_propuesta.par_context(request, procedure, *selected, desde="cuadro",
                                            filtro=filtro or None)
     except Http404:
-        return ""
+        return "", False
     # Quien no tiene rol de la Comisión no puede abrir el archivo original (403): la plantilla no le
     # ofrece el enlace y dibuja solo el nombre. El HTML sale entero de la plantilla (nada se reemplaza
     # a mano sobre el texto ya dibujado); `_par.html` no cambia sin `sin_original`.
     context["sin_original"] = not request.user.commission_role
-    return render_to_string("journey/_par.html", context, request=request)
+    con_acciones = bool(context.get("can_decide")) and not context.get("technical")
+    return render_to_string("journey/_par.html", context, request=request), con_acciones
 
 
 @require_GET
@@ -228,7 +233,7 @@ def cuadro(request, procedure_id):
     filtro = filtro if filtro in acciones.FILTROS_CUADRO else ""
     figures = s4_propuesta.figures_of(page)
     groups = _grupos(page, reverse("expedientes:cuadro", args=[procedure.pk]), selected, filtro)
-    panel = _panel(request, procedure, selected, filtro)
+    panel, con_acciones = _panel(request, procedure, selected, filtro)
     base = reverse("expedientes:cuadro", args=[procedure.pk])
     siguiente = _siguiente(groups, filtro, selected, base)
     groups, counts = _filtrar(groups, filtro)
@@ -236,7 +241,7 @@ def cuadro(request, procedure_id):
     context.update({
         "section": overview.get(SECTION), "columns": _columnas(page, figures), "groups": groups,
         "total_rows": len(page.requirements), "evaluated": figures is not None,
-        "filtro": filtro, "panel": panel, "siguiente": siguiente,
+        "filtro": filtro, "panel": panel, "con_acciones": con_acciones, "siguiente": siguiente,
         "filtros": [{"clave": c, "texto": t, "n": counts[c], "url": f"{base}?filtro={c}"}
                     for c, t in FILTROS], "pasos": pasos.PASOS, "pasos_aqui": (4, 6),
         "tab_url": acciones.tab_url(procedure),

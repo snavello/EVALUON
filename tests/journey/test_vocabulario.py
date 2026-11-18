@@ -76,7 +76,8 @@ def test_req155_los_siete_pasos_se_llaman_igual_en_inicio_portada_y_cuadro(
     caso = caso_varios_en_curso
     entrar(client, caso.user)
     pk = caso.procedure.pk
-    for url in ("/", reverse("expedientes:portada", args=[pk]),
+    # En el inicio los pasos llegan en la fila que pide `recorrido.js` (T-361).
+    for url in (reverse("expedientes:fila", args=[pk]), reverse("expedientes:portada", args=[pk]),
                 reverse("expedientes:cuadro", args=[pk])):
         texto = _texto(client.get(url).content.decode())
         faltan = [p.nombre for p in pasos.PASOS if p.nombre not in texto]

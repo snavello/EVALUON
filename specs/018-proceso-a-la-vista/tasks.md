@@ -94,7 +94,7 @@ Los del plan, «Criterio numérico y umbrales». T-354, T-360 y T-361 se miden c
 | T-358 | Unificar el vocabulario en pantalla | REQ-155 | T-355, T-357 | terminada |
 | T-359 | Cierre técnico: guía visual y glosario | REQ-156, REQ-157, REQ-158 | T-358 | terminada |
 | T-360 | Medición final con el procedimiento del piloto y revisión visual | REQ-143 a REQ-158 | T-359 | terminada |
-| T-361 | Corregir los hallazgos de la medición final (condicional) | los que correspondan | T-360 | pendiente |
+| T-361 | Corregir los hallazgos de la medición final (condicional) | los que correspondan | T-360 | terminada |
 | T-362 | Corregir los hallazgos del corte vertical en el cuadro y en Indicadores | REQ-149, REQ-152, REQ-154, REQ-156 | T-354 | terminada |
 | T-363 | Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido | REQ-146, REQ-158 | T-354 | terminada |
 
