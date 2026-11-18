@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B · Riel del proceso</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Maquetas de exposición del proceso (17/11/2026). Mismos colores y tipografía que la 017. Datos inventados. */
+:root{
+  --f:'Hanken Grotesk',system-ui,sans-serif;--r:18px;--r-sm:10px;--maxw:78rem;
+  --bg:#FFFFFF;--tile:#F4F4F4;--tile-h:#ECECEC;--line:#E2E2E2;--ink:#171A20;--ink-2:#5C5E62;--ink-3:#8E8E8E;
+  --lime:#C6F432;--btn:#171A20;--focus:#8DB80A;
+  --ok:#5E9479;--no:#BE6A64;--nd:#C29A4F;--pe:#7A8DA8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f);color:var(--ink);background:var(--bg);font-size:15px;line-height:1.45}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+/* cabecera */
+.top{border-bottom:1px solid var(--line);padding:.8rem 0 .7rem}
+.top .fila{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.logo{display:inline-flex;font-weight:800;letter-spacing:.02em;font-size:1.05rem;text-decoration:none}
+.logo b{background:var(--ink);color:#fff;padding:.25rem .45rem;border-radius:4px 0 0 4px}
+.logo i{background:var(--lime);color:var(--ink);padding:.25rem .4rem;border-radius:0 4px 4px 0;font-style:normal}
+.tabs{display:flex;gap:.15rem;background:var(--tile);border-radius:999px;padding:.25rem;margin:0 auto;flex-wrap:wrap}
+.tabs a{padding:.45rem 1rem;border-radius:999px;text-decoration:none;color:var(--ink-2);font-size:.9rem}
+.tabs a.on{background:var(--ink);color:#fff;font-weight:600}
+.tabs a small{background:#fff;color:var(--ink);border-radius:999px;padding:0 .4rem;margin-left:.35rem;font-weight:700}
+.yo{width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700;margin-left:auto}
+.tabs + .yo{margin-left:0}
+.miga{font-size:.85rem;color:var(--ink-2);margin-top:.6rem}
+.miga b{color:var(--ink);font-weight:600}
+/* títulos */
+h1{font-size:1.9rem;font-weight:500;margin:2rem 0 .3rem;letter-spacing:-.01em}
+h2{font-size:1.15rem;font-weight:600;margin:0 0 .6rem}
+.sub{color:var(--ink-2);margin:0 0 1.5rem}
+/* piezas */
+.tile{background:var(--tile);border-radius:var(--r);padding:1.25rem 1.4rem}
+.oscuro{background:var(--ink);color:#fff}
+.oscuro .tenue{color:#B9BBBF}
+.tenue{color:var(--ink-2)}
+.chico{font-size:.85rem}
+.btn{display:inline-block;background:var(--btn);color:#fff;border:0;border-radius:6px;padding:.7rem 1.2rem;font:600 .95rem var(--f);text-decoration:none;cursor:pointer}
+.btn.lima{background:var(--lime);color:var(--ink)}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.grid{display:grid;gap:1rem}
+.g-2-1{grid-template-columns:2fr 1fr}
+.g-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g-2-1,.g-3{grid-template-columns:1fr}}
+/* estados: siempre texto, nunca solo color */
+.est{display:inline-block;font-size:.78rem;font-weight:600;border-radius:999px;padding:.15rem .65rem;white-space:nowrap}
+.est.ok{background:#E3EEE8;color:#2F5E48}
+.est.cur{background:var(--lime);color:var(--ink)}
+.est.falta{background:#F3E9D6;color:#7A5A1A}
+.est.na{background:#fff;color:var(--ink-3);border:1px dashed var(--ink-3)}
+.dev{display:inline-block;font-size:.72rem;font-weight:600;border:1px dashed var(--ink);border-radius:4px;padding:.05rem .4rem;margin-left:.4rem;vertical-align:middle;background:#fff;color:var(--ink)}
+.pie{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.82rem;color:var(--ink-2)}
+table{border-collapse:collapse;width:100%}
+th{font-weight:600;text-align:left;font-size:.82rem;color:var(--ink-2)}
+td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+</style>
+<style>
+.riel{display:grid;grid-template-columns:repeat(7,1fr);margin:1.2rem 0 0;padding:0;list-style:none;position:relative}
+.riel::before{content:"";position:absolute;left:7%;right:7%;top:1.05rem;height:2px;background:var(--line)}
+.riel li{text-align:center;position:relative}
+.riel button{all:unset;cursor:pointer;display:block;width:100%;padding-bottom:.6rem;border-bottom:3px solid transparent}
+.riel .n{width:2.1rem;height:2.1rem;border-radius:50%;display:grid;place-items:center;margin:0 auto .35rem;font-weight:700;background:#fff;border:2px solid var(--line);color:var(--ink-3);position:relative}
+.riel .hecho .n{background:var(--ink);border-color:var(--ink);color:#fff}
+.riel .actual .n{background:var(--lime);border-color:var(--ink);color:var(--ink)}
+.riel .nom{display:block;font-size:.85rem;font-weight:600}
+.riel .res{display:block;font-size:.75rem;color:var(--ink-2)}
+.riel .futuro .nom{color:var(--ink-3)}
+.riel button[aria-current="true"]{border-bottom-color:var(--ink)}
+.cifra{font-size:2.4rem;font-weight:500;line-height:1;margin:.6rem 0 .3rem}
+.cifra small{font-size:1rem;color:var(--ink-2)}
+.tareas{list-style:none;margin:0;padding:0}
+.tareas li{display:flex;justify-content:space-between;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--line)}
+.tareas a{font-weight:600}
+.firme li{padding:.45rem 0;border-bottom:1px solid var(--line);font-size:.9rem;list-style:none}.firme{margin:0;padding:0}
+</style></head><body>
+<header class="top"><div class="wrap">
+  <div class="fila"><a class="logo" href="#"><b>EVALU</b><i>ON</i></a>
+    <div class="miga" style="margin:0">Procedimientos › <b>0A1PC000000-0031-LPU26 · Adquisición de sillas ergonómicas para oficinas</b></div>
+    <span class="yo">MC</span></div>
+  <ol class="riel" id="riel"></ol>
+</div></header>
+
+<main class="wrap" id="panel"></main>
+
+<div class="wrap"><p class="pie">Opción B · El riel es una foto: cada paso tiene su propio estado y varios pueden estar en curso a la vez (acá 3, 4, 5 y 6). Reemplaza a las 5 pestañas y está en todas las pantallas; cada paso muestra solo sus mosaicos (hoy repartidos y repetidos). Normativas pasa a un enlace de consulta. Solo exposición: los mosaicos y los datos son los que ya existen. Tocá los pasos del riel. Datos inventados.</p></div>
+
+<script>
+const P=[
+ {nom:"Pliego",res:"publicado 02/03",tit:"Pliego publicado",bajada:"Lo que se publicó y con qué reglas se evalúa.",
+  mos:[["Documentos del pliego","3","pliego y 2 anexos, del Portal"],["Circulares","1","aclaratoria, del 10/03"],["Régimen que rige","247/2022","autorizada el 12/02/2026"]],
+  tareas:[],firme:[]},
+ {nom:"Matriz de requisitos",res:"27 requisitos",tit:"Matriz de requisitos",bajada:"Lo que el pliego le pide a cada oferta, punto por punto.",
+  mos:[["Requisitos","27","18 formales · 3 económicos · 6 técnicos"],["Versión vigente","1","validada el 05/03 por M. Castro"],["Sugerencias del sistema","0","todas resueltas"]],tareas:[],firme:[]},
+ {nom:"Ofertas",res:"3 recibidas",tit:"Ofertas recibidas",bajada:"Quién se presentó y qué documentación trajo.",
+  mos:[["Ofertas del acta","3","apertura del 20/03"],["Documentación","41","documentos cargados"],["Hojas de compliance","3 de 3","una por oferta"]],tareas:[],firme:[]},
+ {nom:"Cumplimiento",res:"revisado",tit:"Cumplimiento de cada oferta",bajada:"Lo que el sistema encontró al leer cada oferta contra cada requisito.",
+  mos:[["Cumplen","50","de 81 cruces requisito–oferta"],["No cumple","1","Oferta 2 · garantía de oferta"],["A decidir por la Comisión","12","el sistema no pudo concluir"]],tareas:[],firme:[]},
+ {nom:"Comparación",res:"orden económico",tit:"Comparación de ofertas",bajada:"Las ofertas una al lado de la otra.",
+  mos:[["La más baja","$ 48.210.000","Oferta 2"],["La más alta","$ 61.900.000","Oferta 3"],["Cumplimiento por tipo","17 · 16 · 17","requisitos cumplidos de 27, por oferta"]],tareas:[],firme:[]},
+ {nom:"Evaluación",res:"0 de 4 tareas",tit:"Evaluación de la Comisión",bajada:"Lo que tiene que decidir la Comisión para poder cerrar.",
+  mos:[["A decidir","12","puntos no determinados, en 4 grupos"],["Preguntas y subsanaciones","4","sin contestar · 7 ya resueltas"],["Informe técnico del área","Falta","en las 3 ofertas"]],
+  tareas:[["Decidir 12 puntos no determinados","Falta · 0 de 12"],["Revisar 1 «no cumple» (Oferta 2)","Falta"],["Contestar 4 preguntas y pedidos de subsanación","Falta"],["Cargar el informe técnico del área","Falta en 3 ofertas"]],
+  firme:["Pliego y 2 anexos · 1 circular","27 requisitos validados el 05/03","3 ofertas · 41 documentos","50 cumplen · 1 no cumple","La más baja: Oferta 2"]},
+ {nom:"Dictamen",res:"todavía no",tit:"Dictamen",bajada:"Se habilita cuando la evaluación esté cerrada.",
+  mos:[["Dictamen","Todavía no","se toma del Portal o se sube"],["Exportar","2","planilla por oferta y cuadro comparativo"],["Mantenimiento de oferta","23 días","vence el 19/05/2026"]],tareas:[],firme:[]}
+];
+/* Cada paso tiene su propio estado: h = hecho, c = en curso, n = todavía no. Varios pueden estar en curso a la vez. */
+const E=['h','h','c','c','c','c','n'];const ACTUAL=5;let sel=ACTUAL;
+P[2].res='1 documento nuevo';P[2].tareas=[["Revisar 1 documento nuevo de la Oferta 3 (subsanación)","Falta"]];P[2].firme=["3 ofertas del acta del 20/03","41 documentos cargados","3 hojas de compliance"];
+P[3].res='falta informe técnico';P[3].tareas=[["Cargar el informe técnico del área","Falta en 3 ofertas"]];P[3].firme=["50 cruces cumplen","1 no cumple (Oferta 2)","12 pasaron a decisión de la Comisión"];
+P[4].res='falta el cumplimiento';P[5].res='0 de 3 tareas';P[5].tareas=P[5].tareas.slice(0,3);
+function pinta(){
+  document.getElementById('riel').innerHTML=P.map((p,i)=>{
+    const c=E[i]==='h'?'hecho':E[i]==='c'?'actual':'futuro';
+    return `<li class="${c}"><button onclick="sel=${i};pinta()" aria-current="${i===sel}"><span class="n">${E[i]==='h'?'✓':i+1}</span><span class="nom">${p.nom}</span><span class="res">${p.res}</span></button></li>`}).join('');
+  const p=P[sel];const est=E[sel]==='h'?'<span class="est ok">Hecho</span>':E[sel]==='c'?'<span class="est cur">En curso</span>':'<span class="est na">Todavía no</span>';
+  let h=`<h1>${sel+1}. ${p.tit} ${est}</h1><p class="sub">${p.bajada}</p>`;
+  if(p.tareas.length){h+=`<div class="grid g-2-1" style="margin-bottom:1rem"><section class="tile"><h2>Qué falta en este paso</h2><ul class="tareas">${p.tareas.map(t=>`<li><a href="#">${t[0]}</a><span class="est falta">${t[1]}</span></li>`).join('')}</ul></section><aside class="tile"><h2>Ya quedó firme</h2><ul class="firme">${p.firme.map((f,i)=>`<li>${i+1}. ${f}</li>`).join('')}</ul></aside></div>`}
+  h+=`<div class="grid g-3">${p.mos.map(m=>`<section class="tile"><span class="tenue">${m[0]}</span><p class="cifra">${m[1]}</p><span class="tenue chico">${m[2]}</span></section>`).join('')}</div>`;
+  document.getElementById('panel').innerHTML=h;
+}
+pinta();
+</script></body></html>

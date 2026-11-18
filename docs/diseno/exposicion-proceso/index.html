@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exposición del proceso · propuestas</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Maquetas de exposición del proceso (17/11/2026). Mismos colores y tipografía que la 017. Datos inventados. */
+:root{
+  --f:'Hanken Grotesk',system-ui,sans-serif;--r:18px;--r-sm:10px;--maxw:78rem;
+  --bg:#FFFFFF;--tile:#F4F4F4;--tile-h:#ECECEC;--line:#E2E2E2;--ink:#171A20;--ink-2:#5C5E62;--ink-3:#8E8E8E;
+  --lime:#C6F432;--btn:#171A20;--focus:#8DB80A;
+  --ok:#5E9479;--no:#BE6A64;--nd:#C29A4F;--pe:#7A8DA8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f);color:var(--ink);background:var(--bg);font-size:15px;line-height:1.45}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+/* cabecera */
+.top{border-bottom:1px solid var(--line);padding:.8rem 0 .7rem}
+.top .fila{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.logo{display:inline-flex;font-weight:800;letter-spacing:.02em;font-size:1.05rem;text-decoration:none}
+.logo b{background:var(--ink);color:#fff;padding:.25rem .45rem;border-radius:4px 0 0 4px}
+.logo i{background:var(--lime);color:var(--ink);padding:.25rem .4rem;border-radius:0 4px 4px 0;font-style:normal}
+.tabs{display:flex;gap:.15rem;background:var(--tile);border-radius:999px;padding:.25rem;margin:0 auto;flex-wrap:wrap}
+.tabs a{padding:.45rem 1rem;border-radius:999px;text-decoration:none;color:var(--ink-2);font-size:.9rem}
+.tabs a.on{background:var(--ink);color:#fff;font-weight:600}
+.tabs a small{background:#fff;color:var(--ink);border-radius:999px;padding:0 .4rem;margin-left:.35rem;font-weight:700}
+.yo{width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700;margin-left:auto}
+.tabs + .yo{margin-left:0}
+.miga{font-size:.85rem;color:var(--ink-2);margin-top:.6rem}
+.miga b{color:var(--ink);font-weight:600}
+/* títulos */
+h1{font-size:1.9rem;font-weight:500;margin:2rem 0 .3rem;letter-spacing:-.01em}
+h2{font-size:1.15rem;font-weight:600;margin:0 0 .6rem}
+.sub{color:var(--ink-2);margin:0 0 1.5rem}
+/* piezas */
+.tile{background:var(--tile);border-radius:var(--r);padding:1.25rem 1.4rem}
+.oscuro{background:var(--ink);color:#fff}
+.oscuro .tenue{color:#B9BBBF}
+.tenue{color:var(--ink-2)}
+.chico{font-size:.85rem}
+.btn{display:inline-block;background:var(--btn);color:#fff;border:0;border-radius:6px;padding:.7rem 1.2rem;font:600 .95rem var(--f);text-decoration:none;cursor:pointer}
+.btn.lima{background:var(--lime);color:var(--ink)}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.grid{display:grid;gap:1rem}
+.g-2-1{grid-template-columns:2fr 1fr}
+.g-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g-2-1,.g-3{grid-template-columns:1fr}}
+/* estados: siempre texto, nunca solo color */
+.est{display:inline-block;font-size:.78rem;font-weight:600;border-radius:999px;padding:.15rem .65rem;white-space:nowrap}
+.est.ok{background:#E3EEE8;color:#2F5E48}
+.est.cur{background:var(--lime);color:var(--ink)}
+.est.falta{background:#F3E9D6;color:#7A5A1A}
+.est.na{background:#fff;color:var(--ink-3);border:1px dashed var(--ink-3)}
+.dev{display:inline-block;font-size:.72rem;font-weight:600;border:1px dashed var(--ink);border-radius:4px;padding:.05rem .4rem;margin-left:.4rem;vertical-align:middle;background:#fff;color:var(--ink)}
+.pie{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.82rem;color:var(--ink-2)}
+table{border-collapse:collapse;width:100%}
+th{font-weight:600;text-align:left;font-size:.82rem;color:var(--ink-2)}
+td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+</style>
+<style>
+main{max-width:62rem}
+.op{display:grid;grid-template-columns:3rem 1fr auto;gap:1rem;align-items:center;margin-bottom:.8rem;text-decoration:none}
+.op:hover{background:var(--tile-h)}
+.op .l{font-size:1.8rem;font-weight:700}
+.op h2{margin:0}.op p{margin:.2rem 0 0;color:var(--ink-2);font-size:.92rem}
+ul.d li{margin:.4rem 0}
+td,th{font-size:.9rem}
+</style></head><body>
+<header class="top"><div class="wrap"><div class="fila"><a class="logo" href="#"><b>EVALU</b><i>ON</i></a><span class="tenue">Exposición del proceso · propuestas del 17/11/2026</span></div></div></header>
+<main class="wrap">
+  <h1>Cómo mostrar el procedimiento de punta a punta</h1>
+  <p class="sub">Cinco maquetas sobre un mismo caso inventado (sillas ergonómicas, 3 ofertas, 27 requisitos, con tres pasos en curso a la vez). Ninguna cambia la matriz, la evaluación ni los datos.</p>
+
+  <h2>Qué pasa hoy</h2>
+  <ul class="d">
+    <li><b>La portada cuenta cosas, no cuenta el proceso.</b> La pestaña Procedimiento tiene 12 mosaicos del mismo peso y unas 35 a 40 piezas en la primera pantalla. Dice cuánto hay de cada cosa, no en qué paso está el procedimiento ni qué sigue.</li>
+    <li><b>Las 5 pestañas ordenan por tipo de documento.</b> La Comisión piensa en pasos: pliego, requisitos, ofertas, cumplimiento, comparación, decisión, dictamen. El avance se mide en «secciones listas» y una de ellas es Normativas.</li>
+    <li><b>El cumplimiento por oferta tiene cuatro nombres en tres pestañas</b> (Fichas, Hojas de compliance, Cumplimiento por tipo y oferta, Propuesta por oferta y requisito), y «matriz de cumplimiento» nombra en realidad la lista de requisitos del pliego.</li>
+    <li><b>Lo mismo aparece varias veces:</b> orden económico en 3 lugares; resultado, descartes y preguntas en 2; «qué hay, pendientes y sugerencias» en las 5 pestañas.</li>
+    <li><b>No hay un «qué sigue».</b> «Pendientes de decidir · 15» pesa igual que «Descartes · 0».</li>
+  </ul>
+
+  <h2 style="margin-top:2rem">Criterio común</h2>
+  <p>Un procedimiento no está «en un paso»: hay precedencias, pero varias operaciones corren a la vez. Por eso todas las opciones muestran una <b>foto del estado de cada uno de los 7 pasos</b> (hecho, en curso, todavía no), con lo que falta en cada uno, y una lista de lo que se puede hacer ahora en cualquier orden. Un paso hecho puede reabrirse (una circular nueva, un documento por subsanación).</p>
+
+  <h2 style="margin-top:2rem">Las opciones</h2>
+  <a class="tile op" href="a.html"><span class="l">A</span><div><h2>Hoja de ruta</h2><p>La portada es la foto de los 7 pasos, cada uno con su estado y lo que le falta, y la lista de lo que se puede hacer ahora. El tablero actual queda como «Indicadores».</p></div><span class="est ok">Solo exposición</span></a>
+  <a class="tile op" href="b.html"><span class="l">B</span><div><h2>Riel del proceso</h2><p>Los 7 pasos reemplazan a las 5 pestañas y están en todas las pantallas. Cada paso muestra solo lo suyo.</p></div><span class="est ok">Solo exposición</span></a>
+  <a class="tile op" href="c.html"><span class="l">C</span><div><h2>Cuadro de cumplimiento</h2><p>La portada es el cuadro requisitos × ofertas, con el pliego y la oferta lado a lado al tocar una celda.</p></div><span class="est falta">Desarrollo medio</span></a>
+  <a class="tile op" href="d.html"><span class="l">D</span><div><h2>El informe que se va armando</h2><p>El informe final es el índice: cada capítulo es un paso y cada hueco una tarea.</p></div><span class="est falta">Desarrollo de fondo</span></a>
+  <a class="tile op" href="e.html"><span class="l">E</span><div><h2>Mesa de la Comisión</h2><p>Portada de la aplicación: todos los procedimientos con su paso y lo que hay para hoy. Se suma a cualquiera de las otras.</p></div><span class="est ok">Casi solo exposición</span></a>
+
+  <h2 style="margin-top:2rem">Comparación</h2>
+  <table>
+    <thead><tr><th></th><th>Se entiende el proceso entero</th><th>Baja la cantidad de información</th><th>Qué cambia de lo decidido</th><th>Esfuerzo</th></tr></thead>
+    <tbody>
+      <tr><th>A</th><td>Sí, en la portada</td><td>En la portada; las pestañas quedan igual</td><td>Nada</td><td>Bajo</td></tr>
+      <tr><th>B</th><td>Sí, en todas las pantallas</td><td>Sí: 3 a 5 mosaicos por paso, sin repetidos</td><td>Las 5 secciones «sin orden» pasan a 7 pasos (se sigue pudiendo entrar a cualquiera)</td><td>Medio</td></tr>
+      <tr><th>C</th><td>A medias: muestra el corazón, no los plazos ni el dictamen</td><td>Sí en la evaluación</td><td>La portada deja de ser un tablero</td><td>Medio</td></tr>
+      <tr><th>D</th><td>Sí, y muestra para qué sirve cada carga</td><td>Sí</td><td>Reabre «el sistema no redacta el dictamen»</td><td>Alto</td></tr>
+      <tr><th>E</th><td>Entre procedimientos, no dentro de uno</td><td>No aplica</td><td>El inicio deja de abrir el último procedimiento</td><td>Bajo</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:2rem">Recomendación</h2>
+  <p><b>E como inicio de la aplicación + A como portada de cada procedimiento, con el cuadro de C dentro del paso 4–6.</b> Es lo que más aclara con menos riesgo y no toca ninguna decisión tomada. B es el paso siguiente si después de probar A la Comisión sigue perdiéndose dentro de las pestañas. D conviene mostrársela a la Comisión como pregunta: si les sirve, es una feature nueva con su spec.</p>
+  <p class="pie">Los nombres de los 7 pasos son una propuesta de vocabulario único: Pliego publicado · Matriz de requisitos · Ofertas recibidas · Cumplimiento de cada oferta · Comparación de ofertas · Evaluación de la Comisión · Dictamen.</p>
+</main></body></html>

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>E · Mesa de la Comisión</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Maquetas de exposición del proceso (17/11/2026). Mismos colores y tipografía que la 017. Datos inventados. */
+:root{
+  --f:'Hanken Grotesk',system-ui,sans-serif;--r:18px;--r-sm:10px;--maxw:78rem;
+  --bg:#FFFFFF;--tile:#F4F4F4;--tile-h:#ECECEC;--line:#E2E2E2;--ink:#171A20;--ink-2:#5C5E62;--ink-3:#8E8E8E;
+  --lime:#C6F432;--btn:#171A20;--focus:#8DB80A;
+  --ok:#5E9479;--no:#BE6A64;--nd:#C29A4F;--pe:#7A8DA8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f);color:var(--ink);background:var(--bg);font-size:15px;line-height:1.45}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+/* cabecera */
+.top{border-bottom:1px solid var(--line);padding:.8rem 0 .7rem}
+.top .fila{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.logo{display:inline-flex;font-weight:800;letter-spacing:.02em;font-size:1.05rem;text-decoration:none}
+.logo b{background:var(--ink);color:#fff;padding:.25rem .45rem;border-radius:4px 0 0 4px}
+.logo i{background:var(--lime);color:var(--ink);padding:.25rem .4rem;border-radius:0 4px 4px 0;font-style:normal}
+.tabs{display:flex;gap:.15rem;background:var(--tile);border-radius:999px;padding:.25rem;margin:0 auto;flex-wrap:wrap}
+.tabs a{padding:.45rem 1rem;border-radius:999px;text-decoration:none;color:var(--ink-2);font-size:.9rem}
+.tabs a.on{background:var(--ink);color:#fff;font-weight:600}
+.tabs a small{background:#fff;color:var(--ink);border-radius:999px;padding:0 .4rem;margin-left:.35rem;font-weight:700}
+.yo{width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700;margin-left:auto}
+.tabs + .yo{margin-left:0}
+.miga{font-size:.85rem;color:var(--ink-2);margin-top:.6rem}
+.miga b{color:var(--ink);font-weight:600}
+/* títulos */
+h1{font-size:1.9rem;font-weight:500;margin:2rem 0 .3rem;letter-spacing:-.01em}
+h2{font-size:1.15rem;font-weight:600;margin:0 0 .6rem}
+.sub{color:var(--ink-2);margin:0 0 1.5rem}
+/* piezas */
+.tile{background:var(--tile);border-radius:var(--r);padding:1.25rem 1.4rem}
+.oscuro{background:var(--ink);color:#fff}
+.oscuro .tenue{color:#B9BBBF}
+.tenue{color:var(--ink-2)}
+.chico{font-size:.85rem}
+.btn{display:inline-block;background:var(--btn);color:#fff;border:0;border-radius:6px;padding:.7rem 1.2rem;font:600 .95rem var(--f);text-decoration:none;cursor:pointer}
+.btn.lima{background:var(--lime);color:var(--ink)}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.grid{display:grid;gap:1rem}
+.g-2-1{grid-template-columns:2fr 1fr}
+.g-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g-2-1,.g-3{grid-template-columns:1fr}}
+/* estados: siempre texto, nunca solo color */
+.est{display:inline-block;font-size:.78rem;font-weight:600;border-radius:999px;padding:.15rem .65rem;white-space:nowrap}
+.est.ok{background:#E3EEE8;color:#2F5E48}
+.est.cur{background:var(--lime);color:var(--ink)}
+.est.falta{background:#F3E9D6;color:#7A5A1A}
+.est.na{background:#fff;color:var(--ink-3);border:1px dashed var(--ink-3)}
+.dev{display:inline-block;font-size:.72rem;font-weight:600;border:1px dashed var(--ink);border-radius:4px;padding:.05rem .4rem;margin-left:.4rem;vertical-align:middle;background:#fff;color:var(--ink)}
+.pie{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.82rem;color:var(--ink-2)}
+table{border-collapse:collapse;width:100%}
+th{font-weight:600;text-align:left;font-size:.82rem;color:var(--ink-2)}
+td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+</style>
+<style>
+.pts{display:inline-flex;gap:3px;vertical-align:middle;margin-right:.5rem}
+.pts i{width:14px;height:6px;border-radius:3px;background:var(--line)}
+.pts i.h{background:var(--ink)}.pts i.a{background:var(--lime);outline:1px solid var(--ink)}
+.barra{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:.5rem;flex-wrap:wrap}
+details.proc{border-top:1px solid var(--line)}
+details.proc:last-of-type{border-bottom:1px solid var(--line)}
+details.proc summary{display:grid;grid-template-columns:1.6rem 1.5fr 1.4fr 7rem 9rem;gap:1rem;align-items:center;padding:1rem .4rem;cursor:pointer;list-style:none}
+details.proc summary::-webkit-details-marker{display:none}
+details.proc summary::before{content:"▸";font-size:1.1rem;color:var(--ink-2)}
+details.proc[open] summary::before{content:"▾"}
+details.proc summary:hover{background:var(--tile)}
+.nom{font-weight:600}.nom small,.est-p small{display:block;font-weight:400;color:var(--ink-2)}
+.est-p{font-size:.9rem}
+.cuenta{font-size:.85rem;font-weight:600;background:var(--tile);border-radius:999px;padding:.2rem .7rem;justify-self:start;white-space:nowrap}
+.vence{font-weight:600;white-space:nowrap;text-align:right}.vence.pronto{color:#8A3A34}
+.hoy-m{display:inline-block;background:#E6DFF3;color:#4B3A78;border-radius:999px;padding:.15rem .7rem;font-size:.82rem;font-weight:700}
+.pts i.v{background:#8C7AB0;outline:1px solid #4B3A78}
+.acc li.vh{background:#E6DFF3;border-left:4px solid #8C7AB0;border-radius:var(--r-sm)}
+.acc{list-style:none;margin:0 0 1rem 2.6rem;padding:0;background:var(--tile);border-radius:var(--r-sm)}
+.acc li{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 1rem;border-top:1px solid var(--line)}
+.acc li:first-child{border-top:0}
+.acc small{color:var(--ink-2);display:block}
+.acc .btn{padding:.45rem .9rem;font-size:.88rem}
+@media(max-width:900px){details.proc summary{grid-template-columns:1.6rem 1fr}.acc{margin-left:0}}
+</style></head><body>
+<header class="top"><div class="wrap">
+  <div class="fila"><a class="logo" href="#"><b>EVALU</b><i>ON</i></a>
+    <nav class="tabs"><a class="on" href="#">Procedimientos</a><a href="#">Normativa</a></nav>
+    <span class="yo">MC</span></div>
+</div></header>
+
+<main class="wrap">
+  <h1>Procedimientos en evaluación</h1>
+  <div class="barra"><p class="sub" style="margin:0">4 abiertos · 9 acciones disponibles · primero lo que vence antes</p>
+    <span><a class="btn sec" href="#">Colapsar todos</a> <a class="btn sec" href="#">Terminados (9)</a> <a class="btn" href="#">Nuevo desde el Portal</a></span></div>
+
+  <details class="proc" open>
+    <summary><span class="nom">Provisión de tóner y cartuchos<small>0A1PC000000-0019-CDI26 · 2 ofertas</small></span>
+      <span class="est-p"><span class="pts"><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="v"></i></span><small>En curso: Dictamen · vence hoy</small></span>
+      <span class="cuenta">1 acción</span><span class="vence"><span class="hoy-m">Vence hoy</span></span></summary>
+    <ul class="acc"><li class="vh"><span>Cargar el dictamen <span class="hoy-m">Vence hoy</span><small>Paso 7 · hoy vence el mantenimiento de las ofertas</small></span><a class="btn" href="#">Cargar</a></li></ul>
+  </details>
+
+  <details class="proc">
+    <summary><span class="nom">Servicio de limpieza, sede Rosario<small>0A1PC000000-0044-LPR26 · sin ofertas todavía</small></span>
+      <span class="est-p"><span class="pts"><i class="h"></i><i class="a"></i><i></i><i></i><i></i><i></i><i></i></span><small>En curso: Matriz de requisitos</small></span>
+      <span class="cuenta">1 acción</span><span class="vence">apertura 02/05</span></summary>
+    <ul class="acc"><li><span>Validar la matriz de requisitos (3 sugerencias sin resolver)<small>Paso 2</small></span><a class="btn" href="#">Validar</a></li></ul>
+  </details>
+
+  <details class="proc" open>
+    <summary><span class="nom">Mantenimiento de ascensores, edificio central<small>0A1PC000000-0052-LPU26 · sin ofertas todavía</small></span>
+      <span class="est-p"><span class="pts"><i class="a"></i><i class="a"></i><i></i><i></i><i></i><i></i><i></i></span><small>En curso: Pliego (circular nueva), Matriz</small></span>
+      <span class="cuenta">2 acciones</span><span class="vence">apertura 12/05</span></summary>
+    <ul class="acc">
+      <li><span>Revisar la circular modificatoria del 24/04<small>Paso 1 · Pliego publicado</small></span><a class="btn" href="#">Revisar</a></li>
+      <li><span>Armar una versión nueva de la matriz con la circular<small>Paso 2 · la matriz vigente es anterior a la circular</small></span><a class="btn" href="#">Armar</a></li>
+    </ul>
+  </details>
+
+  <details class="proc" open>
+    <summary><span class="nom">Adquisición de sillas ergonómicas para oficinas<small>0A1PC000000-0031-LPU26 · 3 ofertas</small></span>
+      <span class="est-p"><span class="pts"><i class="h"></i><i class="h"></i><i class="a"></i><i class="a"></i><i class="a"></i><i class="a"></i><i></i></span><small>En curso: Ofertas, Cumplimiento, Comparación, Evaluación</small></span>
+      <span class="cuenta">5 acciones</span><span class="vence">19/05 · 23 días</span></summary>
+    <ul class="acc">
+      <li><span>Decidir 12 puntos que el sistema no pudo concluir<small>Paso 6 · Evaluación de la Comisión</small></span><a class="btn" href="a.html">Decidir</a></li>
+      <li><span>Cargar el informe técnico del área (falta en las 3 ofertas)<small>Paso 4 · destraba 18 resultados técnicos y la comparación</small></span><a class="btn" href="#">Subir</a></li>
+      <li><span>Revisar 1 documento que llegó por subsanación a la Oferta 3<small>Paso 3 · Ofertas recibidas</small></span><a class="btn" href="#">Revisar</a></li>
+      <li><span>Revisar 1 «no cumple» (Oferta 2, garantía de oferta)<small>Paso 6 · Evaluación de la Comisión</small></span><a class="btn" href="#">Revisar</a></li>
+      <li><span>Contestar 4 preguntas y pedidos de subsanación<small>Paso 6 · Evaluación de la Comisión</small></span><a class="btn" href="#">Contestar</a></li>
+    </ul>
+  </details>
+
+  <p class="pie">Inicio de la aplicación (spec 018, REQ-150 y REQ-151): todas las acciones de todos los procedimientos abiertos, agrupadas por procedimiento; cada uno se colapsa y se expande (el de limpieza está colapsado). La barra muestra el estado de cada uno de los 7 pasos: negro hecho, lima en curso, gris sin empezar. Lo que vence hoy va en lila con el texto «Vence hoy» (REQ-157). Un procedimiento pasa a «Terminados» cuando se carga su dictamen. Las mismas acciones para todos: mostrarlas por persona necesita registrar quiénes integran la Comisión de cada procedimiento (fuera de alcance). Datos inventados.</p>
+</main></body></html>
