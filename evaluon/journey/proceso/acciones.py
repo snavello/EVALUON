@@ -280,17 +280,21 @@ def _hay_que_evaluar(procedure, version, ofertas):
     return False
 
 
-def _cierres(procedure, overview, matriz_pendiente, plazos, hoy, dictamen_cargado, hechos_4_y_6):
+def _cierres(procedure, overview, pendientes, plazos, hoy, dictamen_cargado, hechos_4_y_6):
     etapas = _etapas(overview)
     acciones = []
     pliego_url = reverse("expedientes:pliego", args=[procedure.pk])
+    # «Validar la matriz» no se repite si ya hay un pendiente que lleva al mismo lugar: los
+    # renglones de la matriz por resolver o la validación de la versión con una circular.
+    cubre_validar = any(a.paso == 2 and a.kind in (K_MATRIZ, K_CIRCULAR_VALIDAR)
+                        for a in pendientes)
 
     matriz = etapas.get("matriz")
     if (matriz is not None and matriz.state == stage_base.PENDIENTE
             and etapas["pliego"].state == stage_base.LISTA):
         acciones.append(pasos.Accion(2, pasos.CIERRE, K_PROPONER, "Proponer la matriz", 0,
                                      "Proponer", pliego_url))
-    if matriz is not None and matriz.state == stage_base.A_DECIDIR and not matriz_pendiente:
+    if matriz is not None and matriz.state == stage_base.A_DECIDIR and not cubre_validar:
         acciones.append(pasos.Accion(2, pasos.CIERRE, K_VALIDAR, "Validar la matriz", 0,
                                      "Validar", pliego_url))
 
@@ -309,7 +313,8 @@ def _cierres(procedure, overview, matriz_pendiente, plazos, hoy, dictamen_cargad
             f"{s3_ofertas.tab_url(procedure.pk, 'alta=portal')}#s3-alta-portal"))
 
     version = latest_validated(procedure)
-    if version is not None and _hay_que_evaluar(procedure, version, memo.offers(procedure)):
+    if (version is not None and etapas["evaluacion"].state != stage_base.EN_CURSO
+            and _hay_que_evaluar(procedure, version, memo.offers(procedure))):
         acciones.append(pasos.Accion(4, pasos.CIERRE, K_EVALUAR, "Evaluar las ofertas", 0,
                                      "Evaluar", _url_evaluacion(procedure)))
 
@@ -421,9 +426,8 @@ def armar(user, procedure, overview, *, pasos_4_y_6_hechos=False, plazos=None, h
     if dictamen_cargado is None:
         dictamen_cargado = s4_dictamen.dictamen_cargado(procedure)
     pendientes = _pendientes(user, procedure, overview)
-    matriz_pendiente = any(a.paso == 2 and a.kind == K_MATRIZ for a in pendientes)
     todas = (pendientes
-             + _cierres(procedure, overview, matriz_pendiente, plazos, hoy, dictamen_cargado,
+             + _cierres(procedure, overview, pendientes, plazos, hoy, dictamen_cargado,
                         pasos_4_y_6_hechos)
              + _faltantes(overview))
     if latest_validated(procedure) is None:

@@ -388,3 +388,190 @@ def test_req157_sin_vencimientos_no_hay_nada_marcado(caso_varios_en_curso, monke
     _mantenimiento(monkeypatch, HOY + timedelta(days=5))
     _, lista = _armar(caso_varios_en_curso)
     assert all(a.marca == "" for a in lista)
+
+
+# --- Correcciones de la verificación (H1, H2, duplicado, vigilancia de kinds y orígenes) -----------
+
+
+def _inyectar(overview, **por_seccion):
+    """El mismo `Overview` con renglones armados a mano: `por_seccion` es
+    `{clave de la sección: {"items": [...], "faltantes": [...]}}`; los suma a los reales."""
+    secciones = []
+    for s in overview.sections:
+        extra = por_seccion.get(s.key)
+        if extra:
+            s = dataclasses.replace(
+                s, pending_items=(*s.pending_items, *extra.get("items", ())),
+                tema_missing=(*s.tema_missing, *extra.get("faltantes", ())))
+        secciones.append(s)
+    return dataclasses.replace(overview, sections=tuple(secciones))
+
+
+def _con_renglones(caso, **por_seccion):
+    overview = _inyectar(sections_for(caso.user, caso.procedure), **por_seccion)
+    return acciones.armar(caso.user, caso.procedure, overview)
+
+
+def _faltante(texto, origen):
+    from evaluon.journey.sections.base import Missing
+
+    return Missing(texto, "/x", "Ir", origen=origen)
+
+
+def _linea(lista, id_):
+    return next(a for a in lista if a.id == id_)
+
+
+def test_h2_textos_y_paso_de_las_lineas_de_pendientes(caso_varios_en_curso):
+    """REQ-147: portal (origen `s1_portal`, paso 1), circular «Validar» y «Abrir» por separado
+    (paso 2), borradores y ficha (paso 3) e `informe_ok` (paso 4): texto, paso y cuenta."""
+    lista = _con_renglones(
+        caso_varios_en_curso,
+        procedimiento={"items": [Item("Propuesta del Portal: 3 sin aprobar", "/p#s1-propuesta",
+                                      3, "Aprobar", origen="s1_portal")]},
+        pliego={"items": [
+            Item("C1: la versión 2 falta validarla", "/m", 2, "Validar", origen="s3_circulares"),
+            Item("C2: falta abrir la versión nueva", "/c", 1, "Abrir", origen="s3_circulares")]},
+        ofertas={"items": [
+            Item("Oferta subida (X)", "/b", 1, "Revisar", kind="oferta_borrador",
+                 origen="s3_ofertas"),
+            Item("Oferta subida: no se pudo leer", "/b2", 1, "Revisar",
+                 kind="oferta_borrador_fallida", origen="s3_ofertas"),
+            Item("Oferta 1: 4 filas", "/f", 4, "Resolver", kind="ficha", origen="s3_ficha")]},
+        evaluacion={"items": [Item("Oferta 1: falta el ok", "/o", 1, "Resolver",
+                                   kind="informe_ok", origen="s4_informe")]})
+    visto = {a.id: (a.paso, a.texto, a.cuenta) for a in lista}
+    assert visto["1-pendiente-portal"] == (
+        1, "Aprobar lo que leyó el sistema del Portal (3)", 3)
+    assert visto["2-pendiente-circular_validar"] == (
+        2, "Validar la versión con la circular (2)", 2)
+    assert visto["2-pendiente-circular_abrir"] == (2, "Abrir la versión nueva de la matriz", 1)
+    assert _linea(lista, "2-pendiente-circular_validar").url == "/m"
+    assert _linea(lista, "2-pendiente-circular_abrir").url == "/c"
+    assert visto["3-pendiente-borradores"] == (3, "Revisar 2 ofertas subidas por archivos", 2)
+    assert visto["3-pendiente-ficha"] == (3, "Confirmar 4 filas de la ficha", 4)
+    assert visto["4-pendiente-informe_ok"] == (4, "Dar el ok al informe técnico (1 oferta)", 1)
+
+
+def _corrida_registrada(caso, oferta, documentos):
+    """Una evaluación nueva de la oferta con `Run.documents` en el formato de `evaluate.py`
+    (`OfferText.record()`: una entrada por documento, con la clave `"document"`)."""
+    from evaluon.assessment import models as am
+
+    version = caso.procedure.matrix_versions.get(number=1)
+    pedido = am.Request.objects.create(
+        procedure=caso.procedure, matrix_version=version, offers=[oferta.pk], requirements=None,
+        cause=am.Cause.MATRIZ, requested_by=caso.user)
+    registro = [{"document": d.pk, "title": d.title, "file": d.file_name, "reading": None,
+                 "sha256": d.file_sha256, "pages": 1, "unread_pages": [], "tokens": 10,
+                 "page_tokens": [10], "copy_of": None, "windows": [], "vision_pages": []}
+                for d in documentos]
+    return am.Run.objects.create(
+        request=pedido, offer=oferta, matrix_version=version,
+        number=am.Run.objects.filter(offer=oferta).count() + 1, channel=am.Channel.SCREEN,
+        documents=registro, norms={}, models_used={}, parameters={}, prompt_versions={})
+
+
+def test_h2_run_registrado_de_verdad_y_el_informe_tecnico_no_cuenta(caso_todo_hecho):
+    """REQ-147: la evaluación registra los documentos sin el informe técnico (clave `document`,
+    como `evaluate.py`); aunque la oferta tenga un informe técnico vigente no se pide evaluar de
+    nuevo. Si la evaluación dejó afuera los otros documentos, sí."""
+    caso = caso_todo_hecho
+    assert any(d.kind == "informe_tecnico" for o in caso.offers for d in o.documents.all())
+    for oferta in caso.offers:
+        propios = [d for d in oferta.documents.order_by("pk") if d.kind != "informe_tecnico"]
+        _corrida_registrada(caso, oferta, propios)
+    _, lista = _armar(caso)
+    assert acciones.K_EVALUAR not in _cierres(lista)
+    # Una evaluación nueva que registró un documento ajeno y dejó afuera los de la oferta.
+    ajeno = [d for d in caso.offers[1].documents.all() if d.kind != "informe_tecnico"]
+    _corrida_registrada(caso, caso.offers[0], ajeno)
+    _, lista = _armar(caso)
+    assert acciones.K_EVALUAR in _cierres(lista)
+
+
+def test_h1_no_se_ofrece_evaluar_con_una_evaluacion_corriendo(caso_varios_en_curso):
+    """REQ-147: con un pedido de evaluación corriendo no se ofrece «Evaluar las ofertas»."""
+    caso = caso_varios_en_curso
+    assert acciones.K_EVALUAR in _cierres(_armar(caso)[1])
+    Job.objects.create(kind=JobKind.EVALUATE_OFFERS, procedure=caso.procedure,
+                       requested_by=caso.user, status=JobStatus.RUNNING,
+                       started_at=timezone.now())
+    assert acciones.K_EVALUAR not in _cierres(_armar(caso)[1])
+
+
+def test_h2_un_faltante_de_etapa_no_genera_linea_ni_advertencia(caso_varios_en_curso):
+    """REQ-147: un `Missing` con origen `etapa:*` en `tema_missing` lo cubre un cierre o la
+    dependencia entre pasos: no es faltante. El mismo texto con origen de tema, sí."""
+    caso = caso_varios_en_curso
+    texto = "Todavía no hay ofertas cargadas."
+    base = sections_for(caso.user, caso.procedure)
+    de_etapa = _inyectar(base, ofertas={"faltantes": [_faltante(texto, "etapa:ofertas")]})
+    assert texto not in sum(acciones.advertencias(de_etapa).values(), [])
+    lista = acciones.armar(caso.user, caso.procedure, de_etapa)
+    assert not [a for a in lista if a.tipo == pasos.FALTANTE and "etapa" in a.kind]
+    de_tema = _inyectar(base, ofertas={"faltantes": [_faltante(texto, "s3_anexos")]})
+    assert texto in acciones.advertencias(de_tema)[3]
+
+
+def test_h3_con_la_circular_por_validar_no_se_repite_validar_la_matriz(caso_varios_en_curso):
+    """REQ-147: un borrador sin nada por resolver y una circular que espera su validación dan una
+    sola línea para validar (el pendiente de la circular), no dos que llevan al mismo lugar."""
+    caso = caso_varios_en_curso
+    _abrir_borrador(caso)
+    overview = sections_for(caso.user, caso.procedure)
+    base = dataclasses.replace(overview, sections=tuple(
+        dataclasses.replace(s, pending_items=tuple(
+            i for i in s.pending_items if i.origen != "s2_matriz")) if s.key == "pliego" else s
+        for s in overview.sections))
+    circular = Item("C1: la versión 2 falta validarla", "/m", 1, "Validar",
+                    origen="s3_circulares")
+    sola = acciones.armar(caso.user, caso.procedure, base)
+    assert "2-cierre-validar_matriz" in _ids(sola)  # control: sin circular, el cierre está
+    con = acciones.armar(caso.user, caso.procedure,
+                         _inyectar(base, pliego={"items": [circular]}))
+    assert "2-pendiente-circular_validar" in _ids(con)
+    assert "2-cierre-validar_matriz" not in _ids(con)
+
+
+# --- Vigilancia: un tipo u origen nuevo no pasa en silencio ----------------------------------------
+
+
+def test_todo_kind_agrupable_de_los_temas_esta_en_nombres_de_tipo():
+    """REQ-147: cada `Item(kind=…, noun=…)` escrito en los temas tiene su sustantivo en
+    `NOMBRES_DE_TIPO` (si no, agrupado caería a una línea genérica sin aviso). Los de la matriz
+    se reconocen por origen y la sugerencia `ficha_arma` no es un pendiente."""
+    import ast
+
+    reconocidos_por_origen = {"req", "tramo", "consec", "sug", "ficha_arma"}
+    visto = 0
+    for ruta in sorted(TEMAS.glob("s[1-4]_*.py")):  # Normativas (s5) no es de un paso
+        for nodo in ast.walk(ast.parse(ruta.read_text(encoding="utf-8"))):
+            if not (isinstance(nodo, ast.Call) and getattr(nodo.func, "id", "") in
+                    ("Item", "_with_why")):
+                continue  # los `Missing` agrupados no son pendientes
+            claves = {k.arg: k.value for k in nodo.keywords}
+            if "kind" in claves and "noun" in claves:
+                kind, noun = claves["kind"], claves["noun"]
+                if not (isinstance(kind, ast.Constant) and isinstance(noun, ast.Constant)):
+                    continue  # lo arma `s2_matriz._item` con variables: va por origen
+                visto += 1
+                if kind.value in reconocidos_por_origen:
+                    continue
+                assert acciones.NOMBRES_DE_TIPO.get(noun.value) == kind.value, (
+                    ruta.name, kind.value)
+    assert visto >= 8
+
+
+def test_todo_origen_de_los_temas_y_etapas_tiene_paso():
+    """REQ-147: cada tema de las secciones 1 a 4 que produce renglones y cada etapa de la 013
+    están en `PASO_DE_ORIGEN`; un tema nuevo hace fallar este test hasta que se le dé un paso."""
+    from evaluon.journey.sections import s1, s2, s3, s4
+
+    sin_renglones = {"s1_pliego", "s4_exportar"}  # su `status()` no aporta pendientes ni faltantes
+    for modulo in (s1, s2, s3, s4):
+        for tema in modulo.TEMA_KEYS:
+            if tema not in sin_renglones:
+                assert tema in acciones.PASO_DE_ORIGEN, tema
+        for etapa in modulo.STAGE_KEYS:
+            assert f"etapa:{etapa}" in acciones.PASO_DE_ORIGEN, etapa
