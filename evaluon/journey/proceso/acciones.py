@@ -7,7 +7,7 @@ escriben y no deciden estados (P3). Tres familias, todas con un `Accion` (`pasos
 - **Pendientes** (`tipo = pendiente`): los renglones de `pending_items`, repartidos en un paso por
   su `origen` (`PASO_DE_ORIGEN`) y agrupados por `(paso, kind)` con la cuenta sumada. La suma de
   sus cuentas es `Overview.pending` menos las de Normativas. El `par` de la evaluación (paso 6)
-  se parte con `s4_propuesta._bucket`, la definición única del estado de una celda, en «Decidir N
+  se parte con `s4_propuesta.bucket`, la definición única del estado de una celda, en «Decidir N
   puntos no determinados», «Revisar N «no cumple»» y «Confirmar N propuestas «cumple»»; cada
   una lleva al cuadro de cumplimiento con su filtro y la primera celda abierta (T-353).
 - **Cierres** (`tipo = cierre`, cuenta 0): siete acciones, cada una con su disparador.
@@ -151,7 +151,7 @@ def _url_celda(procedure, oferta, requisito, filtro):
 
 def _pares_por_estado(user, procedure):
     """`{decidir, no_cumple, cumple}`: `(cuenta, url)` de los pares `propuesto` de las filas no
-    técnicas, partidos por `s4_propuesta._bucket`. Los de las filas técnicas se deciden con el ok
+    técnicas, partidos por `s4_propuesta.bucket`. Los de las filas técnicas se deciden con el ok
     del informe. La `url` lleva al cuadro, con el filtro de la línea y la PRIMERA celda de su
     grupo, en el orden del cuadro (tipo de requisito, fila, oferta): el panel abre solo (REQ-154).
     En «Decidir» se prefiere la primera celda «no determinada» (filtro `a-decidir`); si lo único
@@ -168,7 +168,7 @@ def _pares_por_estado(user, procedure):
                 celda = page.cells[clave]
                 if celda.state != matrix_service.PENDING or clave in tecnicas:
                     continue
-                balde = s4_propuesta._bucket(celda)
+                balde = s4_propuesta.bucket(celda)
                 kind = {"ok": K_CUMPLE, "no": K_NO_CUMPLE}.get(balde, K_DECIDIR)
                 cuentas[kind] += 1
                 if celda.result is not None:

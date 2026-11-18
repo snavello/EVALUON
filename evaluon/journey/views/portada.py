@@ -4,6 +4,7 @@ proceso). Solo traducen y llaman a `sections_for`: no tienen formularios de deci
 
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from functools import wraps
 
 from django.db.models import Exists, OuterRef
@@ -17,7 +18,7 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role, viewing
 from evaluon.audit.models import Channel
 from evaluon.journey import memo
-from evaluon.journey.proceso import acciones, calculo, mapa, pasos
+from evaluon.journey.proceso import acciones, calculo, lote, mapa, pasos
 from evaluon.journey.sections import sections_for
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import is_viewer
@@ -92,14 +93,86 @@ def reading(view):
     return wrapper
 
 
+@dataclass
+class _Abierto:
+    """Un procedimiento abierto del inicio: su `Proceso` (el mismo de la portada) y lo que la
+    plantilla dibuja sin calcular nada (REQ-150, REQ-151)."""
+
+    proceso: object
+    ofertas: int
+    lineas: list
+    en_curso: str
+
+    @property
+    def procedure(self):
+        return self.proceso.procedure
+
+    @property
+    def vencimiento(self):
+        return self.proceso.vencimiento
+
+    @property
+    def cantidad(self):
+        n = len(self.lineas)
+        return "Sin acciones" if n == 0 else "1 acción" if n == 1 else f"{n} acciones"
+
+    @property
+    def orden(self):
+        """Vencidos (el más viejo primero), vencen hoy, futuros por fecha y sin fecha; a igual
+        fecha, por número de procedimiento."""
+        v = self.vencimiento
+        return (v.orden[0], v.orden[1], self.procedure.number) if v else (3, date.max,
+                                                                         self.procedure.number)
+
+
+def _en_curso(proceso):
+    """«En curso: Pliego, Matriz» (y «Con error: …» si algún paso falló)."""
+    partes = []
+    for estado, rotulo in ((pasos.Estado.EN_CURSO, "En curso"), (pasos.Estado.CON_ERROR, "Con error")):
+        nombres = [p.nombre for p in proceso.pasos if p.estado is estado]
+        if nombres:
+            partes.append(f"{rotulo}: {', '.join(nombres)}")
+    return ". ".join(partes)
+
+
+def _abierto(user, procedure):
+    """El `Proceso` de ese procedimiento, calculado una vez con su propia memoria por pedido."""
+    with memo.scope():
+        overview = sections_for(user, procedure, channel=Channel.SCREEN)
+        proceso = calculo.proceso_de(user, procedure, overview)
+        nombres = {p.numero: p.nombre for p in proceso.pasos}
+        lineas = [_Linea(a, nombres[a.paso]) for a in proceso.acciones]
+        return _Abierto(proceso, len(memo.offers(procedure)), lineas, _en_curso(proceso))
+
+
+def _terminado(procedure):
+    return procedure, ingreso.dictamen_day(procedure)
+
+
 @require_GET
+@reading
 def lista(request):
+    """El inicio de la aplicación (REQ-150, REQ-151; T-357): los procedimientos abiertos con sus
+    acciones, o con `?ver=terminados` los que ya tienen el dictamen cargado (sin calcular sus
+    pasos). Es la misma vista de `/` y de `expedientes/`."""
     if not is_viewer(request.user):
         require_commission_role(request.user, CommissionRole.OPERATOR, operation=OPERATION,
                                 channel=Channel.SCREEN)
-    rows = [sections_for(request.user, p, channel=Channel.SCREEN)
-            for p in Procedure.objects.order_by("-created_at", "-pk")]
-    return render(request, "journey/expedientes.html", {"rows": rows})
+    procedimientos = list(Procedure.objects.order_by("-created_at", "-pk"))
+    ids_abiertos, ids_terminados = lote.abiertos_y_terminados(procedimientos)
+    por_id = {p.pk: p for p in procedimientos}
+    context = {"cantidad_terminados": len(ids_terminados), "next_url": request.path,
+               "puede_actuar": bool(request.user.commission_role)}
+    if request.GET.get("ver") == "terminados":
+        context.update({"terminados": [_terminado(por_id[i]) for i in ids_terminados]})
+        return render(request, "journey/inicio.html", context)
+    abiertos = sorted((_abierto(request.user, por_id[i]) for i in ids_abiertos),
+                      key=lambda a: a.orden)
+    acciones_en_total = sum(len(a.lineas) for a in abiertos)
+    context.update({
+        "abiertos": abiertos, "total_acciones": acciones_en_total,
+        "hay_procedimientos": bool(procedimientos)})
+    return render(request, "journey/inicio.html", context)
 
 
 @dataclass
@@ -231,7 +304,8 @@ def _resumen(proceso, cantidad_ofertas):
     """«N ofertas · X pasos hechos, Y en curso, Z sin empezar» (y los que tienen error)."""
     cuentas = {estado: sum(1 for p in proceso.pasos if p.estado is estado)
                for estado in pasos.Estado}
-    partes = [f"{cuentas[pasos.Estado.HECHO]} hechos", f"{cuentas[pasos.Estado.EN_CURSO]} en curso",
+    hechos = cuentas[pasos.Estado.HECHO]
+    partes = [f"{hechos} hecho" + ("" if hechos == 1 else "s"), f"{cuentas[pasos.Estado.EN_CURSO]} en curso",
               f"{cuentas[pasos.Estado.TODAVIA_NO]} sin empezar"]
     if cuentas[pasos.Estado.CON_ERROR]:
         partes.append(f"{cuentas[pasos.Estado.CON_ERROR]} con error")
@@ -250,13 +324,25 @@ class _Tarjeta:
     `mapa.CONECTORES`."""
 
     fila: object
-    tareas: list
+    tareas: list  # [_TareaMapa]
     mas: int
     depende: list
+    dato: str = ""  # el dato del paso, acortado si es larguísimo (el completo está en la lista)
+    espera: str = ""  # la fila «espera», ídem
+    excede: bool = False  # el alto estimado pasa del último escalón: la tarjeta se corta y manda a la lista
 
     @property
     def paso(self):
         return self.fila.paso
+
+
+@dataclass
+class _TareaMapa:
+    """Una tarea en la tarjeta: la misma acción que la lista y su texto, acortado con «…» solo si es larguísimo
+    (`mapa.LIMITE_TAREA`); el texto completo va en el `title` y en la lista."""
+
+    accion: object
+    corto: str
 
 
 @dataclass
@@ -267,9 +353,7 @@ class _Mapa:
     vista: str
     tarjetas: list
     conectores: list  # [(Conector, lleno)]
-    columnas: tuple
-    ancho_lienzo: int
-    alto_lienzo: int
+    geometria: object  # `mapa.Geometria`: posiciones, lienzo y conectores para el contenido de ESTA portada
     eje: object
     sin_fecha: list  # los hitos sin fecha, con su motivo (el dictamen sin fecha no se lista)
     niveles: int  # el nivel más bajo de la línea de plazos (0, 1 o 2)
@@ -277,6 +361,25 @@ class _Mapa:
     leyenda_marcas: list
     url_mapa: str
     url_lista: str
+
+
+def _alto_de(tarjeta):
+    """El alto estimado (siempre por encima del real) de una tarjeta: lo mismo que dibuja `_mapa.html`."""
+    paso, fila = tarjeta.paso, tarjeta.fila
+    tareas = [(t.corto, bool(t.accion.marca)) for t in tarjeta.tareas]
+    if not tareas and tarjeta.espera:
+        tareas = [(tarjeta.espera, False)]
+    return mapa.alto_estimado(paso.nombre, tarjeta.dato, tareas,
+                              bool(tarjeta.mas or fila.advertencias or tarjeta.excede))
+
+
+def _geometria_de(tarjetas):
+    """Los escalones de la fila de arriba y de la de abajo, según el alto estimado de sus tarjetas."""
+    for t in tarjetas:  # lo que pasa del último escalón se corta: la tarjeta lleva «Ver todo en la lista»
+        t.excede = _alto_de(t) > mapa.ESCALONES[-1]
+    altos = {t.paso.numero: _alto_de(t) for t in tarjetas}
+    return mapa.geometria(mapa.escalon(max(altos[n] for n in mapa.FILA_ARRIBA)),
+                          mapa.escalon(max(altos[n] for n in mapa.FILA_ABAJO)))
 
 
 def _vista(request):
@@ -288,18 +391,21 @@ def _vista(request):
 def _mapa_de(request, proceso, filas, nombres):
     """Las tarjetas, los conectores y la línea de plazos de la portada, de ESE `Proceso` y de las
     mismas filas que dibuja la lista."""
-    tarjetas = [_Tarjeta(f, f.faltan[:TARJETA_TAREAS], max(0, len(f.faltan) - TARJETA_TAREAS),
-                         [f"{o}. {nombres[o]}" for o, d in mapa.CONECTORES if d == f.paso.numero])
+    tarjetas = [_Tarjeta(f, [_TareaMapa(l.accion, mapa.acortar(l.accion.texto, mapa.LIMITE_TAREA))
+                             for l in f.faltan[:TARJETA_TAREAS]],
+                         max(0, len(f.faltan) - TARJETA_TAREAS),
+                         [f"{o}. {nombres[o]}" for o, d in mapa.CONECTORES if d == f.paso.numero],
+                         mapa.acortar(f.paso.dato, mapa.LIMITE_DATO), mapa.acortar(f.paso.espera, mapa.LIMITE_DATO))
                 for f in filas]
+    geometria = _geometria_de(tarjetas)
     conectores = [(c, proceso.pasos[c.origen - 1].estado is pasos.Estado.HECHO)
-                  for c in mapa.TRAZOS]
+                  for c in geometria.trazos]
     marcas = {p.marca for p in proceso.pasos} | {t.marca for t in proceso.acciones}
     hay = [(clave, texto) for clave, texto in pasos.TEXTOS_MARCA.items() if clave in marcas]
     base = request.path
     eje = mapa.hitos_en_eje(ingreso.plazos(proceso.procedure).events)
     return _Mapa(
-        vista=_vista(request), tarjetas=tarjetas, conectores=conectores, columnas=mapa.COLUMNAS,
-        ancho_lienzo=mapa.LIENZO[0], alto_lienzo=mapa.LIENZO[1],
+        vista=_vista(request), tarjetas=tarjetas, conectores=conectores, geometria=geometria,
         eje=eje, sin_fecha=[s for s in eje.sin_fecha if s.key != "dictamen"],
         niveles=max((h.nivel for h in eje.hitos), default=0),
         marca_mantenimiento=proceso.pasos[6].marca, leyenda_marcas=hay,

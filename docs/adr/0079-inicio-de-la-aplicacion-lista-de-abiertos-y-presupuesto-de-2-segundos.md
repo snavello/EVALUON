@@ -28,3 +28,7 @@ Se propone **A**, con la medición como compuerta: en el corte vertical se mide 
 - Más fácil: un solo cálculo por procedimiento, el mismo de la portada; lo que se ve en el inicio coincide siempre con la portada.
 - Más difícil: el tiempo del inicio crece con la cantidad de abiertos; las costosas lecturas del Portal guardado se hacen por procedimiento y se memoizan por pedido.
 - Para revertir o cambiar: pasar de A a B es partir `inicio.html` en fila y fragmento y sumar una ruta (`expedientes/<id>/fila/`); ninguna migración.
+
+## Enmienda (2026-11-18)
+
+El responsable subió el presupuesto de 2 a 3 segundos («podemos a levantar el limite a 3 segundos,  no es algo que entren todo el tiempo y son pantallas muy completa»). Con 20 copias del caso chico el inicio midió entre 1,5 y 1,85 s (unas 1.450 consultas); con procedimientos reales se estima en más de 2,4 s. La salida prevista (traer cada procedimiento por separado) queda como reserva si la medición con el piloto pasa de 3 s.

@@ -20,6 +20,11 @@
   {% else %}
   <div class="cu-dos{% if panel %} con-panel{% endif %}">
     <section class="cu-tabla" aria-label="Requisitos por oferta">
+      <nav class="cu-filtros" aria-label="Filtrar el cuadro">
+        {% for f in filtros %}<a href="{{ f.url }}"{% if f.clave == filtro or not filtro and f.clave == 'todos' %} class="act" aria-current="true"{% endif %}>{{ f.texto }} <b>{{ f.n }}</b></a>{% endfor %}
+      </nav>
+      {% if columns|length > 3 %}<p class="cu-pista">Con tantas ofertas la tabla se desplaza hacia los costados; la columna del requisito queda fija.</p>{% endif %}
+      {% if not groups %}<p class="cu-vacio">Ninguna fila cumple este filtro. <a href="?">Ver todos los requisitos</a>.</p>{% endif %}
       <div class="cu-scroll" role="region" aria-label="Cuadro de cumplimiento, requisitos por oferta" tabindex="0">
         <table class="cu-cuadro">
           <caption class="cu-sr">Estado de cada requisito del pliego en cada oferta</caption>
@@ -29,7 +34,10 @@
           </tr></thead>
           {% for group in groups %}
           <tbody>
-            <tr class="cu-grupo"><th scope="colgroup" colspan="{{ columns|length|add:1 }}">{{ group.label }} · {{ group.rows|length }} requisito{{ group.rows|length|pluralize }}</th></tr>
+            {% if group.resumido %}
+            <tr class="cu-resumen"><td colspan="{{ columns|length|add:1 }}"><details><summary class="cu-gl">{{ group.label }} · {{ group.rows|length }} requisito{{ group.rows|length|pluralize }} · todas las ofertas cumplen todo</summary><ol class="cu-lista">{% for row in group.rows %}<li value="{{ row.number }}">{{ row.title }}</li>{% endfor %}</ol></details></td></tr>
+            {% else %}
+            <tr class="cu-grupo"><th scope="colgroup" colspan="{{ columns|length|add:1 }}"><span class="cu-gl">{{ group.label }} · {{ group.rows|length }} requisito{{ group.rows|length|pluralize }}</span></th></tr>
             {% for row in group.rows %}
             <tr>
               <th scope="row" class="cu-req"><span class="cu-num">{{ row.number }}.</span> {{ row.title }}</th>
@@ -38,6 +46,7 @@
               {% endfor %}
             </tr>
             {% endfor %}
+            {% endif %}
           </tbody>
           {% endfor %}
           <tfoot><tr>
@@ -50,7 +59,7 @@
     </section>
 
     {% if panel %}
-    <aside class="cu-panel s4-prop" id="cu-panel" aria-label="Detalle de la celda elegida">{{ panel }}</aside>
+    <aside class="cu-panel s4-prop" id="cu-panel" aria-label="Detalle de la celda elegida">{% if siguiente %}<p class="cu-sig"><a class="btn" href="{{ siguiente }}">Siguiente a decidir ›</a></p>{% else %}<p class="cu-sig cu-sig-fin">No hay otro punto para decidir.</p>{% endif %}{{ panel }}</aside>
     {% endif %}
   </div>
   {% endif %}

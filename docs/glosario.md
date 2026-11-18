@@ -423,15 +423,15 @@ Qué significa cada prefijo:
 | **T-352** | 018 | Dibujar el cuadro de cumplimiento con el panel lado a lado | terminada |
 | **T-353** | 018 | Llevar pasos y acciones al lugar donde se resuelven (cuadro incluido) | terminada |
 | **T-354** | 018 | Medir el corte vertical con el caso chico y revisar con el Coordinador | terminada |
-| **T-355** | 018 | Agregar filtros, grupos resumidos y «Siguiente a decidir» al cuadro | pendiente |
-| **T-356** | 018 | Separar abiertos y terminados con dos consultas | pendiente |
-| **T-357** | 018 | Reemplazar la entrada y la lista «Expedientes» por el inicio | pendiente |
-| **T-358** | 018 | Unificar el vocabulario en pantalla | pendiente |
-| **T-359** | 018 | Cierre técnico: guía visual y glosario | pendiente |
+| **T-355** | 018 | Agregar filtros, grupos resumidos y «Siguiente a decidir» al cuadro | terminada |
+| **T-356** | 018 | Separar abiertos y terminados con dos consultas | terminada |
+| **T-357** | 018 | Reemplazar la entrada y la lista «Expedientes» por el inicio | terminada |
+| **T-358** | 018 | Unificar el vocabulario en pantalla | terminada |
+| **T-359** | 018 | Cierre técnico: guía visual y glosario | terminada |
 | **T-360** | 018 | Medición final con el procedimiento del piloto y revisión visual | pendiente |
 | **T-361** | 018 | Corregir los hallazgos de la medición final (condicional) | pendiente |
 | **T-362** | 018 | Corregir los hallazgos del corte vertical en el cuadro y en Indicadores | terminada |
-| **T-363** | 018 | Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido | pendiente |
+| **T-363** | 018 | Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido | terminada |
 
 ## Requisitos (149)
 

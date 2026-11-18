@@ -7,7 +7,6 @@ import pytest
 from django.urls import reverse
 
 from evaluon.accounts.models import CommissionRole
-from evaluon.journey.views.inicio import COOKIE
 from evaluon.offers.models import Offer
 from evaluon.portal.models import PortalLink
 from evaluon.tenders.models import Procedure
@@ -77,30 +76,30 @@ def test_entering_without_procedures_opens_the_new_procedure_screen(client, oper
     assert response.status_code == 302 and response["Location"] == reverse("expedientes:nuevo")
 
 
-def test_entering_opens_the_last_procedure_the_user_opened(client, procedure, operator_user):
-    """REQ-075: sin historia, el más reciente; después, el último que abrió el usuario."""
+def test_entering_shows_the_list_and_not_the_last_procedure_opened(client, procedure,
+                                                                   operator_user):
+    """REQ-150: la entrada muestra la lista de procedimientos abiertos (T-357); abrir uno no
+    cambia lo que muestra ni deja cookie del último visto."""
     older = procedure
     newer = Procedure.objects.create(number="PRUEBA-9/2026", subject="Otro objeto inventado",
                                      authorization_date=older.authorization_date,
                                      created_by=operator_user)
     log_in(client, operator_user)
-    assert client.get("/")["Location"] == tab("procedimiento", newer)
+    first = client.get("/")
+    assert first.status_code == 200 and 'id="lista-abiertos"' in first.content.decode()
     assert client.get(tab("pliego", older)).status_code == 200
-    # T-348: abrir una sección ya no recuerda el procedimiento (la cookie la retira T-357).
-    assert COOKIE.format(operator_user.pk) not in client.cookies
-    assert client.get("/")["Location"] == tab("procedimiento", newer)
-    client.cookies[COOKIE.format(operator_user.pk)] = str(older.pk)
-    assert client.get("/")["Location"] == tab("procedimiento", older)
-    client.cookies[COOKIE.format(operator_user.pk)] = "999999"
-    assert client.get("/")["Location"] == tab("procedimiento", newer)
+    assert not [name for name in client.cookies if name.startswith("evaluon_ultimo")]
+    again = client.get("/").content.decode()
+    for p in (older, newer):
+        assert f'data-procedimiento="{p.pk}"' in again
 
 
-def test_login_lands_on_the_procedure_and_honours_next(client, procedure, operator_user):
+def test_login_lands_on_the_start_list_and_honours_next(client, procedure, operator_user):
     """REQ-075: al ingresar se llega al procedimiento; el `next` válido se respeta."""
     data = {"username": operator_user.username, "password": TEST_PASSWORD}
     response = client.post(reverse("accounts:login"), data)
     assert response["Location"] == "/"
-    assert client.get("/")["Location"] == tab("procedimiento", procedure)
+    assert f'data-procedimiento="{procedure.pk}"' in client.get("/").content.decode()
     client.logout()
     response = client.post(reverse("accounts:login"), {**data, "next": tab("ofertas", procedure)})
     assert response["Location"] == tab("ofertas", procedure)

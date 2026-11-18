@@ -17,7 +17,7 @@
           </form></details>
         <details class="acc"><summary class="btn acento chico">Retirar</summary>
           <form method="post" action="{% url 'expedientes:s2_documentos_retirar' t.pid t.history_document.pk %}">{% csrf_token %}
-            <p class="ayuda">No se borra: sale del expediente y queda en «Retirados» con el motivo. Se puede restituir.</p>
+            <p class="ayuda">No se borra: sale del procedimiento y queda en «Retirados» con el motivo. Se puede restituir.</p>
             <label for="retirar-{{ t.history_document.pk }}-motivo">Motivo (obligatorio)</label>
             <textarea name="note" id="retirar-{{ t.history_document.pk }}-motivo" rows="2" required></textarea>
             <button class="btn acento chico" type="submit">Retirar</button>
@@ -47,7 +47,7 @@
           <td class="acciones-doc"><a href="{% url 'tenders:document_original' row.document.pk %}">Ver el archivo</a>{% if t.can_load %}
             <details class="acc"><summary class="btn secundario chico">Restituir</summary>
               <form method="post" action="{% url 'expedientes:s2_documentos_restituir' t.pid row.document.pk %}">{% csrf_token %}
-                <p class="ayuda">Vuelve al expediente; queda registrado.</p>
+                <p class="ayuda">Vuelve al procedimiento; queda registrado.</p>
                 <label for="restituir-{{ row.document.pk }}">Motivo (obligatorio)</label>
                 <textarea name="note" id="restituir-{{ row.document.pk }}" rows="2" required></textarea>
                 <button class="btn primario chico" type="submit">Restituir</button>
@@ -87,7 +87,7 @@
   {% if t.empty and not t.absent and not t.failed %}
   <div class="estado-vacio">
     <h3>Todavía no hay pliego ni matriz</h3>
-    <p>Falta el pliego, sus anexos y las especificaciones técnicas; sin ellos no hay matriz de cumplimiento. Súbalos como archivos o tómelos del Portal.</p>
+    <p>Falta el pliego, sus anexos y las especificaciones técnicas; sin ellos no hay matriz de requisitos. Súbalos como archivos o tómelos del Portal.</p>
     {% if t.can_load %}<a class="btn primario" href="#s2-subir">Subir archivo</a>{% endif %}
     <a class="btn secundario" href="{{ t.portal_url }}">Tomar del Portal</a>
   </div>
@@ -116,7 +116,7 @@
           </form></details>
         <details class="acc"><summary class="btn acento chico">Retirar</summary>
           <form method="post" action="{% url 'expedientes:s2_documentos_retirar' t.pid row.document.pk %}">{% csrf_token %}
-            <p class="ayuda">No se borra: sale del expediente y queda en «Retirados» con el motivo. Se puede restituir.</p>
+            <p class="ayuda">No se borra: sale del procedimiento y queda en «Retirados» con el motivo. Se puede restituir.</p>
             <label for="retirar-{{ row.document.pk }}-motivo">Motivo (obligatorio)</label>
             <textarea name="note" id="retirar-{{ row.document.pk }}-motivo" rows="2" required></textarea>
             <button class="btn acento chico" type="submit">Retirar</button>

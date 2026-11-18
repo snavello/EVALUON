@@ -95,7 +95,7 @@ def test_the_tab_has_the_texts_of_the_approved_mockup_and_none_of_its_samples(
     """REQ-089/REQ-100: los títulos de la maqueta aprobada y ningún texto de ejemplo."""
     log_in(client, operator_user)
     html = page(client, procedure)
-    assert "Propuesta por oferta y requisito" in html
+    assert "Propuesta del sistema, requisito por requisito" in html
     assert "Haga clic en una fila para ver el fundamento de cada oferta" in html
     assert "Evaluar todas las ofertas" in html
     assert "Solo lo abierto" in html and "Técnicos por renglón" in html
@@ -147,7 +147,7 @@ def test_without_a_validated_matrix_the_button_is_off_and_says_why(client, opera
     log_in(client, operator_user)
     html = page(client, bare)
     assert 'id="evaluar-todas" type="submit" disabled' in html
-    assert "Falta una matriz de cumplimiento validada." in html
+    assert "Falta una matriz de requisitos validada." in html
     assert "Todavía no se evaluó ninguna oferta" in html
 
 

@@ -11,8 +11,12 @@ página del par (`journey/_par.html`, `desde="cuadro"`), con el texto del pliego
 motivo y los mismos formularios. Esos formularios envían a la ruta de siempre (`review.decide`);
 esta vista no decide ni escribe nada (P3, P6). El rol de lectura ve el panel sin botones.
 
-El filtro (`?filtro=`) solo se conserva para el regreso de una decisión; filtrar las filas es de
-T-355. Sin JavaScript (ADR-0076).
+El filtro (`?filtro=`, T-355) deja las filas que tienen al menos una celda de ese tipo y se conserva
+para el regreso de una decisión. «A decidir» deja las filas con una celda que el sistema no pudo
+concluir y las que siguen sin resultado o sin aplicar a la espera de decisión: son las mismas
+celdas que cuenta «Decidir N puntos no determinados» del paso 6. Un grupo donde todas las ofertas
+cumplen todo (y está confirmado) sale resumido en una línea. «Siguiente a decidir» sigue el orden del
+cuadro (tipo, fila, oferta). Sin JavaScript (ADR-0076).
 """
 
 import re
@@ -25,6 +29,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from evaluon.assessment.models import Doubt
+from evaluon.assessment.services import matrix as matrix_service
 from evaluon.assessment.services import review
 from evaluon.journey import memo, points
 from evaluon.journey.proceso import pasos
@@ -58,6 +63,24 @@ def estado_de(cell):
             and cell.reason == Doubt.PENDIENTE_INFORME_TECNICO):
         return "esp"
     return bucket
+
+
+FILTROS = (("todos", "Todos"), ("pendiente", "Con algo pendiente"), ("a-decidir", "A decidir"),
+           ("no-cumple", "No cumple"), ("espera-informe", "Esperan informe técnico"))
+
+
+def _coincide(filtro, celda):
+    """Si una celda (`key`, `pendiente`) cuenta para ese filtro. «A decidir» suma lo no determinado
+    y lo que sigue sin resultado o sin aplicar a la espera de decisión (como la cuenta del paso 6)."""
+    if filtro == "pendiente":
+        return celda["pendiente"]
+    if filtro == "a-decidir":
+        return celda["key"] == "nd" or (celda["key"] in ("pe", "na") and celda["pendiente"])
+    if filtro == "no-cumple":
+        return celda["key"] == "no"
+    if filtro == "espera-informe":
+        return celda["key"] == "esp"
+    return True
 
 
 def _resumen(text):
@@ -133,11 +156,47 @@ def _grupos(page, base_url, selected, filtro):
                     "unconfirmed": key in ("ok", "no") and cell.state == review.PROPOSED,
                     "label": f"Oferta {offer.number}, requisito {requirement.number}",
                     "url": f"{base_url}?{query}#{anchor}" if cell.result is not None else "",
-                    "selected": selected == (offer.pk, requirement.pk)})
+                    "selected": selected == (offer.pk, requirement.pk),
+                    "pendiente": cell.state == matrix_service.PENDING})
             rows.append({"number": requirement.number, "title": title, "cells": cells})
         if rows:
             groups.append({"kind": kind, "label": TIPO_TEXTO[kind], "rows": rows})
     return groups
+
+
+def _filtrar(groups, filtro):
+    """`(grupos, cantidades)`: las filas que dejan los filtros y cuántas deja cada uno. Con filtro,
+    los grupos sin filas desaparecen; sin filtro, el que cumple todo se marca `resumido`."""
+    counts = {clave: sum(1 for g in groups for r in g["rows"]
+                         if any(_coincide(clave, c) for c in r["cells"])) for clave, _ in FILTROS}
+    shown = []
+    for group in groups:
+        rows = group["rows"]
+        if filtro not in ("", "todos"):
+            rows = [r for r in rows if any(_coincide(filtro, c) for c in r["cells"])]
+        if not rows:
+            continue
+        cells = [c for r in rows for c in r["cells"]]
+        resumido = (filtro in ("", "todos") and all(c["key"] == "ok" and not c["unconfirmed"]
+                                                    and not c["selected"] for c in cells))
+        shown.append({**group, "rows": rows, "resumido": resumido})
+    return shown, counts
+
+
+def _siguiente(groups, filtro, selected, base_url):
+    """El enlace a la próxima celda a decidir después de la abierta, en el orden del cuadro y con el
+    mismo filtro; si ya no queda ninguna de ese filtro, la próxima con algo pendiente. `""` si no
+    hay panel abierto o no queda ninguna con resultado para abrir."""
+    if selected is None:
+        return ""
+    orden = [c for g in groups for r in g["rows"] for c in r["cells"]]
+    posicion = next((i for i, c in enumerate(orden) if c["selected"]), -1)
+    for clave in ((filtro,) if filtro in ("pendiente", "no-cumple", "espera-informe")
+                  else ("a-decidir",)) + ("pendiente",):
+        for c in orden[posicion + 1:]:
+            if c["url"] and _coincide(clave, c):
+                return c["url"]
+    return ""
 
 
 def _panel(request, procedure, selected, filtro):
@@ -170,11 +229,16 @@ def cuadro(request, procedure_id):
     figures = s4_propuesta.figures_of(page)
     groups = _grupos(page, reverse("expedientes:cuadro", args=[procedure.pk]), selected, filtro)
     panel = _panel(request, procedure, selected, filtro)
+    base = reverse("expedientes:cuadro", args=[procedure.pk])
+    siguiente = _siguiente(groups, filtro, selected, base)
+    groups, counts = _filtrar(groups, filtro)
     context = portada.shell(request, overview, active=SECTION)
     context.update({
         "section": overview.get(SECTION), "columns": _columnas(page, figures), "groups": groups,
         "total_rows": len(page.requirements), "evaluated": figures is not None,
-        "filtro": filtro, "panel": panel, "pasos": pasos.PASOS, "pasos_aqui": (4, 6),
+        "filtro": filtro, "panel": panel, "siguiente": siguiente,
+        "filtros": [{"clave": c, "texto": t, "n": counts[c], "url": f"{base}?filtro={c}"}
+                    for c, t in FILTROS], "pasos": pasos.PASOS, "pasos_aqui": (4, 6),
         "tab_url": acciones.tab_url(procedure),
     })
     return render(request, "journey/cuadro.html", context)

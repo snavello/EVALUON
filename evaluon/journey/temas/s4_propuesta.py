@@ -506,7 +506,7 @@ def _why_not(page):
         return "Todavía no hay ofertas cargadas."
     if len(page.without_documents) == len(page.offers):
         return "Ninguna oferta tiene documentos cargados."
-    return "Falta una matriz de cumplimiento validada."
+    return "Falta una matriz de requisitos validada."
 
 
 def _externals(page):
@@ -622,6 +622,9 @@ def _bucket(cell):
         return "no"
     return "nd"
 
+# Nombre público: lo usan otros módulos (T-359).
+bucket = _bucket
+
 
 def _offer_figures(status, requirements):
     """La cuenta de una oferta desde `by_outcome` y `by_reason` de la matriz (ADR-0039): lo que no
@@ -677,7 +680,7 @@ def tiles(user, procedure, ctx):
                 for key, title, width in (
                     ("resultado", "Resultado por oferta", 2), ("nocumple", "No cumple", 1),
                     ("nodeterminado", "No determinado", 1),
-                    ("tipo", "Cumplimiento por tipo y oferta", 2))]
+                    ("tipo", "Cuadro de cumplimiento (resumen por tipo)", 2))]
     evaluated = len(fig.offers)
     sub = ("Requisitos que cumple cada una, según el resultado vigente. «Sin resultado»: "
            "requisitos sin resultado vigente o a la espera del informe técnico.")
@@ -692,7 +695,7 @@ def tiles(user, procedure, ctx):
         uid="s4-resultado", title="Resultado por oferta",
         items=[charts.DonutItem(o.label, ok=o.ok, no=o.no, nd=o.nd, pe=o.pe) for o in fig.offers])
     heat = charts.Heat(
-        uid="s4-tipo", title="Cumplimiento por tipo y oferta",
+        uid="s4-tipo", title="Cuadro de cumplimiento (resumen por tipo)",
         columns=[o.label for o in fig.offers],
         rows=[charts.HeatRow(CLASS_LABELS[category], [
             None if cell is None else charts.HeatCell(cell[0], cell[1]) for cell in cells])
@@ -709,7 +712,7 @@ def tiles(user, procedure, ctx):
              unit=requirements_word(fig.nd),
              sub=f"Pares que el sistema no pudo concluir {scope}; los resuelve la Comisión",
              missing=MISSING),
-        Tile(key="tipo", title="Cumplimiento por tipo y oferta", detail=DETAIL, width=2,
+        Tile(key="tipo", title="Cuadro de cumplimiento (resumen por tipo)", detail=DETAIL, width=2,
              big=fig.requirements, unit=requirements_word(fig.requirements),
              sub=f"Cumplen / total, por tipo y oferta · matriz versión {fig.version}",
              chart=heat, missing=MISSING),

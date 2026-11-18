@@ -68,27 +68,51 @@ def test_req158_mapa_css_tiene_la_regla_de_900_px_que_oculta_mapa_y_selector():
 
 
 def test_req158_mapa_css_declara_las_mismas_posiciones_que_mapa_py():
-    """REQ-158: `pos-N`, `col-N`, lienzo y tarjeta de la hoja = las constantes de `mapa.py`."""
+    """REQ-158: `pos-N`, `fila-b-N`, `alto-b-N`, el ancho del lienzo y el de la tarjeta de la hoja = los de
+    `mapa.py`; la tarjeta NO fija su alto (mide lo que ocupa su contenido) y no hay encabezados de columna."""
     texto = css()
-    pos = {int(n): (int(x), int(y)) for n, x, y in re.findall(
-        r"\.pos-(\d)\s*\{\s*left:\s*(\d+)px;\s*top:\s*(\d+)px;?\s*\}", texto)}
-    assert pos == mapa.POSICIONES
-    col = [int(x) for x in re.findall(r"\.col-\d\s*\{\s*left:\s*(\d+)px", texto)]
-    assert col == [x for _, x in mapa.COLUMNAS]
-    lienzo = re.search(r"\.mp-lienzo\s*\{[^}]*width:\s*(\d+)px;\s*height:\s*(\d+)px", texto)
-    assert (int(lienzo.group(1)), int(lienzo.group(2))) == mapa.LIENZO
-    nodo = re.search(r"\.mp-nodo\s*\{[^}]*width:\s*(\d+)px;\s*height:\s*(\d+)px", texto)
-    assert (int(nodo.group(1)), int(nodo.group(2))) == (mapa.ANCHO, mapa.ALTO)
+    pos = {int(n): (int(x), y) for n, x, y in re.findall(
+        r"\.pos-(\d)\s*\{\s*left:\s*(\d+)px;\s*top:\s*([^;]+);\s*\}", texto)}
+    esperado = {n: (mapa.X_COLUMNA[c], f"{mapa.Y_ARRIBA}px" if fila == 0 else "var(--fila-b)")
+                for n, (c, fila) in mapa.CASILLAS.items()}
+    assert pos == esperado
+    filas = [int(v) for v in re.findall(r"\.fila-b-\d+\s*\{\s*--fila-b:\s*(\d+)px", texto)]
+    assert filas == [mapa.y_fila_b(i) for i in range(len(mapa.ESCALONES))]
+    altos = [int(v) for v in re.findall(r"\.alto-b-\d+\s*\{\s*--alto-b:\s*(\d+)px", texto)]
+    assert altos == list(mapa.ESCALONES)
+    assert [int(n) for n in re.findall(r"\.fila-b-(\d+)\s*\{", texto)] == list(range(len(mapa.ESCALONES)))
+    assert [int(n) for n in re.findall(r"\.alto-b-(\d+)\s*\{", texto)] == list(range(len(mapa.ESCALONES)))
+    calc = rf"calc\(var\(--fila-b\) \+ var\(--alto-b\) \+ {mapa.MARGEN}px\)"
+    lienzo = re.search(rf"\.mp-lienzo\s*\{{[^}}]*width:\s*(\d+)px;\s*height:\s*{calc}", texto)
+    assert int(lienzo.group(1)) == mapa.ANCHO_LIENZO
+    hilos = re.search(rf"\.mp-hilos\s*\{{[^}}]*width:\s*(\d+)px;\s*height:\s*{calc}", texto)
+    assert int(hilos.group(1)) == mapa.ANCHO_LIENZO
+    assert "mp-columnas" not in texto and not re.search(r"\.col-\d", texto)
+    nodo = re.search(r"\.mp-nodo\s*\{([^}]*)\}", texto).group(1)
+    assert int(re.search(r"(?<![-\w])width:\s*(\d+)px", nodo).group(1)) == mapa.ANCHO
+    assert not re.search(r"(?<![-\w])(?:height|max-height|min-height):", nodo)  # el alto es el del contenido...
+    # ...con una red de seguridad: ninguna tarjeta pasa del alto de su fila (`--alto-a` arriba, `--alto-b` abajo) y lo que sobra se corta
+    # dentro de la tarjeta, entre tarea y tarea; «+ N más» y las advertencias no se cortan.
+    assert "overflow: hidden" in nodo and "display: flex" in nodo and "flex-direction: column" in nodo
+    assert "overflow-wrap: anywhere" in nodo  # una palabra larguísima se parte dentro de la tarjeta
+    assert ".pos-1, .pos-2, .pos-4, .pos-6 { max-height: var(--alto-a); }" in texto
+    assert re.search(r"\.pos-3, \.pos-5, \.pos-7 \{ max-height: var\(--alto-b\); \}", texto)
+    assert [int(v) for v in re.findall(r"\.fila-b-\d+\s*\{[^}]*--alto-a:\s*(\d+)px", texto)] == list(mapa.ESCALONES)
+    tareas = re.search(r"\.mp-nodo > \.mp-tareas\s*\{([^}]*)\}", texto).group(1)
+    assert "flex-flow: column wrap" in tareas and "overflow: hidden" in tareas and "min-height: 0" in tareas
+    assert re.search(r"\.mp-nodo > \* \{ flex: none; \}", texto)  # nombre, dato, estado y «+ N más» no se achican
 
 
-def test_req158_mapa_css_recorta_las_tareas_y_declara_las_clases_de_los_hitos():
-    """REQ-158: tareas de una línea con puntos suspensivos; `x-0` … `x-100` para los hitos; sin colores
-    fijos; ningún texto bajo 12 px."""
+def test_req158_mapa_css_no_recorta_las_tareas_y_declara_las_clases_de_los_hitos():
+    """REQ-158 (T-363): ningún texto del mapa se recorta con puntos suspensivos ni con `overflow: hidden`
+    ni con `line-clamp`; `x-0` … `x-100` para los hitos; sin colores fijos; ningún texto bajo 12 px."""
     texto = css()
-    assert re.search(r"\.mp-txt\s*\{[^}]*overflow:\s*hidden;\s*text-overflow:\s*ellipsis;"
-                     r"\s*white-space:\s*nowrap", texto)
+    assert "text-overflow" not in texto and "line-clamp" not in texto
+    for selector in (".mp-txt", ".mp-dato", ".mp .mp-nom", ".mp-cuerpo", ".mp-tarea a"):
+        regla = re.search(rf"(?:^|\n){re.escape(selector)}\s*\{{([^}}]*)\}}", texto).group(1)
+        assert "overflow: hidden" not in regla and "white-space: nowrap" not in regla, selector
     assert [int(n) for n in re.findall(r"\.mp-hito\.x-(\d+)\s*\{", texto)] == list(range(101))
-    assert re.findall(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(", texto) == []
+    assert re.findall(r"#[0-9a-fA-F]{3,8}|(?:rgba?|hsla?)\(", texto) == []
     assert not re.search(r"font-size:\s*(?:[0-9]|1[01])(?:\.\d+)?px", texto)
 
 
@@ -115,9 +139,9 @@ def test_req158_el_mapa_cuenta_como_una_pieza(client, caso_varios_en_curso):
     assert re.findall(r'data-pieza="([^"]+)"', mp) == ["mapa"]
 
 
-def test_req158_entre_900_y_1241_px_el_mapa_se_desplaza_en_su_caja_y_la_pagina_no(
+def test_req158_entre_900_y_1261_px_el_mapa_se_desplaza_en_su_caja_y_la_pagina_no(
         client, caso_varios_en_curso):
-    """REQ-158 (H1): lo que garantiza que la página no tenga desplazamiento horizontal propio. `.mp`
+    """REQ-158 (H1, T-363): lo que garantiza que la página no tenga desplazamiento horizontal propio. `.mp`
     puede encogerse dentro de la grilla de `.portada` (`min-width: 0`), la caja del lienzo se desplaza
     (`overflow-x: auto`, `max-width: 100%`), tiene el foco del teclado (`tabindex="0"`, región con
     nombre) y una pista escrita visible solo en ese rango. La medición real (`scrollWidth` contra el
@@ -126,10 +150,11 @@ def test_req158_entre_900_y_1241_px_el_mapa_se_desplaza_en_su_caja_y_la_pagina_n
     assert re.search(r"\.mp\s*\{[^}]*min-width:\s*0", texto)
     assert re.search(r"\.mp-lienzo-w\s*\{[^}]*overflow-x:\s*auto[^}]*max-width:\s*100%", texto)
     assert re.search(r"\.mp-lienzo-w:focus-visible\s*\{[^}]*outline:\s*3px", texto)
-    assert re.search(r"@media \(min-width: 900px\) and \(max-width: 1241px\)\s*\{\s*\.mp-pista\s*\{\s*display:\s*block", texto)
+    assert re.search(r"@media \(min-width: 900px\) and \(max-width: 1261px\)\s*\{\s*\.mp-pista\s*\{\s*display:\s*block", texto)
     assert re.search(r"\.mp-pista\s*\{\s*display:\s*none", texto)
     html = html_de(client, caso_varios_en_curso)
     assert re.search(r'<div class="mp-lienzo-w" role="region" aria-label="[^"]+" aria-describedby="mp-pista" tabindex="0">', html)
     assert 'id="mp-pista"' in html and "desplazalo de costado" in html
-    # El ancho del mapa (lienzo + márgenes de la caja) más el de la página es lo que fija el umbral.
-    assert mapa.LIENZO[0] + 2 * 20 + 2 * 36 <= 1241 + 1
+    # El ancho del mapa (lienzo, relleno de la caja de 2 × 16, márgenes de la página de 2 × 36 y una barra de
+    # desplazamiento de 15 px) es lo que fija el umbral: la pista se ve hasta justo antes de que entre entero.
+    assert mapa.VENTANA_MINIMA == 1261 + 1

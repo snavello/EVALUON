@@ -9,9 +9,11 @@ import pytest
 
 from evaluon.assessment import models as am
 from evaluon.assessment.services import technical
+from evaluon.audit.models import Channel
 from evaluon.journey import memo
 from evaluon.journey.proceso import calculo, pasos
 from evaluon.journey.tablero import ingreso
+from evaluon.journey.temas import s4_propuesta
 from evaluon.portal import models as pm
 from evaluon.tenders import models as tm
 from evaluon.tenders.models import VersionStatus
@@ -267,3 +269,25 @@ def test_r1_dictamen_del_portal_fallido_es_con_error(caso_varios_en_curso):
     siete = _paso(_proceso(caso), 7)
     assert siete.estado is CON_ERROR
     assert siete.resumen.startswith("No se pudo tomar el dictamen del Portal.")
+
+
+def test_req144_las_filas_tecnicas_no_entran_en_los_puntos_decididos(caso_todo_hecho):
+    """REQ-144: los pares de las filas técnicas se deciden con el ok del informe (paso 4) y no
+    cuentan en «D de T puntos decididos»: T = celdas no técnicas con resultado, no todas."""
+    caso = caso_todo_hecho
+    pagina = memo.matrix_page(caso.user, caso.procedure.pk, channel=Channel.SCREEN)
+    tecnicas = s4_propuesta._technical_cells(pagina)
+    assert tecnicas, "el caso debe tener filas técnicas para que la prueba diga algo"
+    esperado = len(pagina.cells) - len(tecnicas)
+    assert 0 < esperado < len(pagina.cells)
+    assert _paso(_proceso(caso), 6).dato == f"{esperado} de {esperado} puntos decididos"
+
+
+def test_req144_dictamen_subido_con_el_del_portal_sin_aprobar_es_en_curso_y_terminado(
+        caso_todo_hecho):
+    """REQ-144, REQ-150: con el dictamen cargado (el procedimiento está terminado) y un dictamen
+    del Portal sin aprobar, el paso 7 es «En curso» y `terminado` sigue verdadero."""
+    caso = caso_todo_hecho
+    portal_dictamen(caso.procedure, caso.user, pm.ItemState.PROPUESTO)
+    proceso = _proceso(caso)
+    assert proceso.terminado is True and _paso(proceso, 7).estado is EN_CURSO

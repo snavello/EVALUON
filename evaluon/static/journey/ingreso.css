@@ -76,3 +76,6 @@
 .plazos-lista li.now .num { font-weight: 600; }
 .plazos-lista li.pending .num { color: var(--ink-2); }
 .plazos-detalle .sub { font-size: .8125rem; color: var(--ink-2); margin: 0 0 .25rem; }
+
+/* «Indicadores» ya no es un h2: iría antes del h1 de la página (T-359). Se ve igual que el h2 de antes. */
+.encab-parte .encab-titulo { margin: 0; font-size: 1.5em; font-weight: 700; line-height: 1.2; }

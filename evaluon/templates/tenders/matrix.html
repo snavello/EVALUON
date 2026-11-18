@@ -11,7 +11,7 @@
 
 {% block content %}
 <p><a href="{% url 'tenders:procedure' page.procedure.pk %}">Procedimiento {{ page.procedure.number }}</a></p>
-<h1>Matriz de cumplimiento · versión {{ page.version.number }}</h1>
+<h1>Matriz de requisitos · versión {{ page.version.number }}</h1>
 {% if page.version.status == "validated" %}<p class="validated-mark">Matriz validada · versión {{ page.version.number }} · validada el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</p>{% endif %}
 {% if page.can_validate %}
 <div class="validation-actions">

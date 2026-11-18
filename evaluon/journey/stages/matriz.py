@@ -1,4 +1,4 @@
-"""Etapa 3, Matriz de cumplimiento (REQ-066, REQ-068, REQ-069, REQ-072; plan 013).
+"""Etapa 3, Matriz de requisitos (REQ-066, REQ-068, REQ-069, REQ-072; plan 013).
 
 La versión que cuenta es la última no descartada.
 
@@ -29,7 +29,7 @@ from evaluon.tenders.models import (
 
 KINDS = (JobKind.PROPOSE_MATRIX,)
 KEY = "matriz"
-LABEL = "Matriz de cumplimiento"
+LABEL = "Matriz de requisitos"
 
 
 def _plural(n, one, many):

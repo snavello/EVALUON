@@ -212,13 +212,13 @@ def test_the_header_lists_procedures_and_links_to_the_new_procedure_screen(
 
 
 def test_the_index_lists_procedures_with_their_counts(client, procedure, operator_user):
-    """El listado de expedientes lleva a la portada de cada uno."""
+    """El listado (el inicio, T-357) lleva a la portada de cada procedimiento, con su cuenta de acciones."""
     log_in(client, operator_user)
     response = client.get(reverse("expedientes:index"))
     assert response.status_code == 200
     html = response.content.decode()
     assert reverse("expedientes:portada", args=[procedure.pk]) in html
-    assert "pend." in html
+    assert "acci" in html
 
 
 def test_an_unknown_procedure_is_404(client, operator_user):

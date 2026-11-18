@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}El inicio de la aplicación (REQ-150, REQ-151; plan 018, «Inicio de la aplicación»; T-357). Es la vista de `/` y de `expedientes/`: los procedimientos abiertos, cada uno en un `<details open>` con su nombre y número, la barra de siete pasos, cuántas acciones tiene y su vencimiento más próximo; expandido, sus acciones (`_acciones.html`, las mismas de la portada del procedimiento). Con `?ver=terminados` lista los que ya tienen el dictamen. La plantilla no calcula nada: lo arma `portada.lista`. Sin estilos ni scripts en línea.{% endcomment %}
+
+{% block title %}{% if terminados is not None %}Terminados{% else %}Procedimientos{% endif %} · EVALUON{% endblock %}
+
+{% block body_class %}procedimientos pag-inicio{% endblock %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'journey/procedimientos.css' %}">
+<link rel="stylesheet" href="{% static 'journey/proceso.css' %}">
+<link rel="stylesheet" href="{% static 'journey/portada.css' %}">
+<link rel="stylesheet" href="{% static 'journey/inicio.css' %}">{% endblock %}
+
+{% block content %}
+{% if terminados is not None %}
+  <div class="encab-parte">
+    <h1 id="seccion-titulo">Terminados</h1>
+    <span class="barra-cargas"><a class="btn secundario" href="{% url 'expedientes:index' %}">Volver a los abiertos</a></span>
+  </div>
+  <p class="resumen-linea" id="seccion-resumen">Procedimientos con el dictamen cargado. Sus pasos no se vuelven a calcular; si el dictamen se quita, el procedimiento vuelve a los abiertos.</p>
+  {% if terminados %}
+  <ul class="ini-terminados" id="lista-terminados">
+    {% for p, dia in terminados %}<li class="ini-terminado" data-procedimiento="{{ p.pk }}">
+      <a class="ini-terminado-nombre" href="{% url 'expedientes:portada' p.pk %}">{{ p.subject|truncatechars:90 }}<small>{{ p.number }}</small></a>
+      <span class="ini-terminado-fecha">{% if dia %}Dictamen del {{ dia|date:"d/m/Y" }}{% else %}Dictamen sin fecha{% endif %}</span>
+    </li>{% endfor %}
+  </ul>
+  {% else %}
+  <div class="bloque estado-vacio"><h3>Todavía no hay procedimientos terminados</h3><p>Un procedimiento termina cuando se carga su dictamen.</p></div>
+  {% endif %}
+{% else %}
+  <div class="encab-parte">
+    <h1 id="seccion-titulo">Procedimientos</h1>
+    <span class="barra-cargas">{% if cantidad_terminados %}<a class="btn secundario" href="{% url 'expedientes:index' %}?ver=terminados">Terminados ({{ cantidad_terminados }})</a> {% endif %}<a class="btn primario" href="{% url 'expedientes:nuevo' %}">+ Nuevo procedimiento</a></span>
+  </div>
+  {% if abiertos %}
+  <p class="resumen-linea" id="seccion-resumen"><b>{{ abiertos|length }} abierto{{ abiertos|length|pluralize }}</b> · {% if total_acciones == 1 %}1 acción{% else %}{{ total_acciones }} acciones{% endif %} para hacer · primero lo que vence antes</p>
+  <div class="ini-lista" id="lista-abiertos">
+    {% for a in abiertos %}
+    <details class="ini-proc" open data-procedimiento="{{ a.procedure.pk }}">
+      <summary>
+        <span class="ini-nombre"><a href="{% url 'expedientes:portada' a.procedure.pk %}">{{ a.procedure.subject|truncatechars:90 }}</a>
+          <small>{{ a.procedure.number }} · {% if a.ofertas %}{{ a.ofertas }} oferta{{ a.ofertas|pluralize }}{% else %}sin ofertas todavía{% endif %}</small></span>
+        <span class="ini-cuenta">{{ a.cantidad }}</span>
+        <span class="ini-vence">{% with v=a.vencimiento %}{% if not v %}<span class="ini-sin-fecha">Sin fecha de vencimiento</span>{% elif v.marca == "hoy" %}<span class="pr-hoy">Vence hoy</span>{% elif v.marca == "vencido" %}<span class="pr-vencido">{{ v.texto }}</span>{% else %}<span class="ini-fecha">{{ v.texto }}</span>{% endif %}{% endwith %}</span>
+        <span class="ini-foto">{% include "journey/_foto_pasos.html" with pasos=a.proceso.pasos %}</span>
+        {% if a.en_curso %}<span class="ini-encurso">{{ a.en_curso }}</span>{% endif %}
+      </summary>
+      {% if a.lineas %}<ul class="pr-acciones ini-acciones" aria-label="Acciones de {{ a.procedure.number }}">{% include "journey/_acciones.html" with lineas=a.lineas solo_lineas=True pieza=False sin_paso=False %}</ul>{% else %}<p class="ini-sin-acciones">No hay nada para hacer ahora en este procedimiento.</p>{% endif %}
+    </details>
+    {% endfor %}
+  </div>
+  {% elif hay_procedimientos %}
+  <div class="bloque estado-vacio"><h3>No hay procedimientos abiertos</h3><p>Todos los procedimientos tienen su dictamen cargado: están en «Terminados».</p></div>
+  {% else %}
+  <div class="bloque estado-vacio"><h3>Todavía no hay procedimientos</h3><p>El alta empieza por el Portal o por el pliego.</p><a class="btn primario" href="{% url 'expedientes:nuevo' %}">+ Nuevo procedimiento</a></div>
+  {% endif %}
+{% endif %}
+{% endblock %}
