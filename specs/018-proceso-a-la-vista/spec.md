@@ -1,6 +1,6 @@
 # Spec 018 · El proceso a la vista
 
-Estado: aprobada · Fecha: 2026-11-17 · Aprobó: responsable del proyecto (2026-11-17, «Si ok.  Los que vencen hoy marcamos el paso o  tarea  en lila 🟪 color  de alerta»)
+Estado: aprobada · Fecha: 2026-11-17 · Aprobó: responsable del proyecto (2026-11-17, «Si ok.  Los que vencen hoy marcamos el paso o  tarea  en lila 🟪 color  de alerta») · Enmienda: 2026-11-17, respuestas del responsable a las preguntas del plan (REQ-147, REQ-152, REQ-157 y reglas de estado)
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
@@ -35,6 +35,12 @@ Sin esto, quien entra no sabe cómo está el procedimiento ni qué le toca, y el
 | 2026-11-17 | Acciones en el inicio | Ante la pregunta «¿cuántas acciones muestra "Para hoy" y en qué orden?», respondió: «Todas, que sea posible colapsar  y expandir un procedimiento». Lectura del Coordinador, a confirmar al aprobar: no hay un bloque «Para hoy» aparte; la lista de procedimientos es una sola y cada procedimiento se expande para mostrar sus acciones. Los procedimientos se ordenan por el vencimiento más próximo y abren expandidos. |
 | 2026-11-17 | Procedimientos terminados | Ante las opciones «1. cuando se carga el dictamen» y «2. lo archiva una persona a mano», respondió: «Opción 1». |
 | 2026-11-17 | Aprobación y vence hoy | Ante el pedido de aprobación con la lectura del Coordinador sobre el inicio, respondió: «Si ok.  Los que vencen hoy marcamos el paso o  tarea  en lila 🟪 color  de alerta». Lectura del Coordinador: el lila marca solo lo que vence hoy; lo que vence en los próximos días y lo ya vencido se muestran con su fecha y su texto, sin lila. Los vencimientos que el sistema conoce hoy son la apertura, el mantenimiento de las ofertas y el dictamen (REQ-131). El lila ya se usa en el cuadro de cumplimiento para el estado «externo»: el plan resuelve que no se confundan. |
+| 2026-11-17 | Qué es «A decidir» (pregunta del plan) | Entre «1. Solo los no determinados» y «2. Todo lo sin confirmar», eligió: «1». Las acciones del paso 6 se parten en «Decidir N puntos», «Revisar N "no cumple"» y «Confirmar N propuestas "cumple"». |
+| 2026-11-17 | Qué entra en «Qué se puede hacer ahora» (pregunta del plan) | Entre «1. Sí, siete acciones de cierre», «2. Solo los pendientes de hoy» y «3. Todo lo que falta», eligió: «3». |
+| 2026-11-17 | Documentos y circulares sin revisar (pregunta del plan) | Entre «1. Lo deduce solo» (sin lectura, o no tenido en cuenta por la última evaluación; sin datos nuevos) y «2. Marca "revisado por"», eligió: «1». |
+| 2026-11-17 | Paso que no empezó pero se puede empezar (pregunta del plan) | Entre «1. "En curso"» y «2. "Todavía no"», eligió: «1». «Todavía no» queda para lo que depende de otro paso; el dictamen espera a los pasos 4 y 6, salvo que el mantenimiento venza hoy o ya haya vencido. |
+| 2026-11-17 | Requisito que no aplica a una oferta (pregunta del plan) | Entre «1. Mostrar "No aplica"» y «2. Dejar la celda vacía», eligió: «1». |
+| 2026-11-17 | Lo ya vencido | Ante la pregunta «¿y lo que ya venció y sigue sin resolverse?», respondió: «Rojo brillante vencido». Reemplaza la lectura del Coordinador de que lo vencido iba sin color. |
 
 Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el diagnóstico y la comparación; `e.html`, `a.html` y `c.html` son las elegidas; `b.html` y `d.html` quedan como alternativas no elegidas).
 
@@ -58,17 +64,17 @@ Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el 
 | REQ-144 | Cada paso tiene su propio estado, independiente del de los demás: «Hecho», «En curso», «Todavía no» o «Con error». Varios pasos pueden estar en curso a la vez. No existe un «paso actual» del procedimiento. | — |
 | REQ-145 | El estado de cada paso se calcula con los datos que el sistema ya tiene; no se guarda una fase del procedimiento ni se pide a nadie que la marque. Un paso «Hecho» vuelve a «En curso» cuando aparece algo nuevo que le corresponde (por ejemplo, una circular modificatoria o un documento agregado a una oferta). | — |
 | REQ-146 | La portada de un procedimiento muestra, en este orden: la foto de los siete pasos con su estado; la lista «Qué se puede hacer ahora»; y los siete pasos, cada uno con un resumen de una línea de lo que ya hay y, si está en curso, lo que le falta con su acción a mano. | — |
-| REQ-147 | «Qué se puede hacer ahora» lista las acciones disponibles de cualquier paso, sin orden obligatorio entre ellas; cada una dice a qué paso pertenece. Una acción que depende de otra todavía no hecha no aparece en la lista: el paso dice de qué depende. | — |
+| REQ-147 | «Qué se puede hacer ahora» lista todo lo que falta y se puede hacer en cualquier paso: los pendientes que el sistema ya cuenta, las acciones de cierre (proponer y validar la matriz, tomar del Portal lo que falta, agregar las ofertas del acta, evaluar las ofertas, resolver un error, cargar el dictamen) y cada faltante que hoy muestra la línea «Hay / Falta» de las secciones. No hay orden obligatorio entre ellas; cada una dice a qué paso pertenece. Una acción que depende de otra todavía no hecha no aparece en la lista: el paso dice de qué depende. | — |
 | REQ-148 | Los plazos importantes (REQ-131) se ven en la portada del procedimiento. El tablero de mosaicos del primer panel (REQ-128) deja de ser la portada y queda a un clic con el nombre «Indicadores», sin perder ningún dato. | — |
 | REQ-149 | Las cinco secciones y sus tableros (features 014 y 017) se mantienen. Cada paso y cada acción de la portada llevan al lugar de la sección donde se resuelven. | — |
 | REQ-150 | El inicio de la aplicación es la lista de procedimientos abiertos. Por cada uno muestra: nombre y número, el estado de los siete pasos, qué se puede hacer ahora y el vencimiento más próximo. Enmienda a REQ-128 solo en esto: entrar al sistema ya no abre el último procedimiento visto. Un procedimiento pasa solo a «Terminados» cuando su dictamen está cargado, y vuelve solo a la lista de abiertos si el dictamen se quita; no se guarda un estado final ni lo archiva una persona. | — |
 | REQ-151 | El inicio muestra todas las acciones disponibles de todos los procedimientos abiertos, agrupadas por procedimiento. Cada procedimiento se puede colapsar y expandir: colapsado muestra su línea (REQ-150) y cuántas acciones tiene; expandido lista sus acciones, cada una con un botón que lleva a resolverla. | — |
-| REQ-152 | Hay un cuadro de cumplimiento: los requisitos de la matriz vigente en filas, agrupados por tipo, y las ofertas en columnas con su total. Cada celda muestra con texto uno de estos estados: «Cumple», «No cumple», «A decidir», «Espera informe» o «Sin resultado». Al pie, cuántos requisitos cumple cada oferta hasta ahora. Se llega desde los pasos 4 y 6. | — |
+| REQ-152 | Hay un cuadro de cumplimiento: los requisitos de la matriz vigente en filas, agrupados por tipo, y las ofertas en columnas con su total. Cada celda muestra con texto uno de estos estados: «Cumple», «No cumple», «A decidir», «Espera informe», «Sin resultado» o «No aplica» (no cuenta en los totales). «A decidir» es solo lo que el sistema no pudo concluir (no determinado); un «Cumple» o «No cumple» propuesto que ninguna persona confirmó conserva su texto con la leyenda «sin confirmar». Al pie, cuántos requisitos cumple cada oferta hasta ahora. Se llega desde los pasos 4 y 6. | — |
 | REQ-153 | El cuadro se puede filtrar por: todos, con algo pendiente, a decidir, no cumple y los que esperan informe técnico. Un grupo donde todas las ofertas cumplen todo se muestra resumido en una línea. | — |
 | REQ-154 | Al tocar una celda se ve, sin salir del cuadro: qué pide el pliego (texto y dónde está), qué trajo esa oferta (texto y dónde está), por qué el sistema propone lo que propone, y las mismas acciones de decisión que existen hoy. Desde ahí se pasa al siguiente punto a decidir. | P3 (constitución) |
 | REQ-155 | Vocabulario único en pantalla: «Procedimientos» (no «Expedientes») para la lista; «Matriz de requisitos» para la lista de lo que pide el pliego; «Cuadro de cumplimiento» para requisitos por ofertas. Los nombres de los siete pasos no cambian de una pantalla a otra. | — |
 | REQ-156 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). | — |
-| REQ-157 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece el vencimiento, en el inicio y en la portada del procedimiento. En esas pantallas el lila no se usa para ninguna otra cosa. | — |
+| REQ-157 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece el vencimiento, en el inicio y en la portada del procedimiento. En esas pantallas el lila no se usa para ninguna otra cosa. Lo que ya venció y sigue sin resolverse se marca en rojo brillante con el texto «Vencido», hasta que se resuelva. | — |
 
 Se mantienen sin cambios las funciones de las features 004, 008, 012, 014 y 016 y los requisitos de la 017 no enmendados arriba. Qué entra en cada paso:
 
@@ -87,8 +93,8 @@ Se mantienen sin cambios las funciones de las features 004, 008, 012, 014 y 016 
 Criterio numérico de la feature (ADR-0025), escrito antes de construir:
 
 - Para tres procedimientos de prueba en situaciones distintas (recién cargado, con varios pasos en curso, con todo hecho), el estado de cada uno de los siete pasos coincide en el 100 % de los casos (21 de 21) con una tabla escrita a mano antes de programar.
-- La lista «Qué se puede hacer ahora» coincide en el 100 % con los pendientes que el sistema ya calcula para ese procedimiento: ninguno de más y ninguno de menos.
-- La primera pantalla de la portada de un procedimiento tiene 15 piezas o menos en un monitor de 1440 × 900 (hoy tiene entre 35 y 40).
+- La lista «Qué se puede hacer ahora» coincide en el 100 % con lo que el sistema ya calcula para ese procedimiento: la suma de las líneas que vienen de pendientes es igual al contador de pendientes de hoy, y cada acción de cierre y cada faltante aparece si y solo si su condición se cumple. Ninguno de más y ninguno de menos.
+- La primera pantalla de la portada de un procedimiento tiene 15 piezas o menos en un monitor de 1440 × 900 (hoy tiene entre 35 y 40). Si «Qué se puede hacer ahora» tiene más de 6 líneas, muestra las primeras 6 y un «ver las N restantes».
 - De la portada a ver pliego y oferta lado a lado de un punto a decidir: 2 clics o menos (hoy 3 o más).
 
 Por requisito:
@@ -107,7 +113,7 @@ Por requisito:
 - **REQ-154.** Dada una celda «A decidir», cuando la toco, entonces veo en la misma pantalla el texto del pliego con su ubicación, el texto de la oferta con su ubicación y el motivo de la duda; cuando decido, queda registrado quién y cuándo como hoy, la celda cambia y puedo pasar al siguiente.
 - **REQ-155.** Dadas todas las pantallas, cuando busco «Expedientes» o «Matriz de cumplimiento» como nombre de la lista de requisitos, entonces no aparecen.
 - **REQ-156.** Dada cualquier marca de estado, cuando la miro en los dos temas, entonces tiene su nombre escrito y contraste de 4,5:1 o más.
-- **REQ-157.** Dado un procedimiento cuyo mantenimiento de oferta vence hoy y al que le falta el dictamen, cuando miro el inicio y su portada, entonces el paso 7 y la acción «Cargar el dictamen» están en lila y dicen «Vence hoy»; al día siguiente ya no están en lila. Dado un procedimiento sin vencimientos hoy, cuando lo miro, entonces no hay nada en lila.
+- **REQ-157.** Dado un procedimiento cuyo mantenimiento de oferta vence hoy y al que le falta el dictamen, cuando miro el inicio y su portada, entonces el paso 7 y la acción «Cargar el dictamen» están en lila y dicen «Vence hoy»; al día siguiente, si sigue faltando, están en rojo brillante y dicen «Vencido». Dado un procedimiento sin vencimientos hoy, cuando lo miro, entonces no hay nada en lila.
 
 ## Requisitos no funcionales
 
