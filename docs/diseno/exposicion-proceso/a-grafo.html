@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A con grafo · Portada del procedimiento</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Maquetas de exposición del proceso (17/11/2026). Mismos colores y tipografía que la 017. Datos inventados. */
+:root{
+  --f:'Hanken Grotesk',system-ui,sans-serif;--r:18px;--r-sm:10px;--maxw:78rem;
+  --bg:#FFFFFF;--tile:#F4F4F4;--tile-h:#ECECEC;--line:#E2E2E2;--ink:#171A20;--ink-2:#5C5E62;--ink-3:#8E8E8E;
+  --lime:#C6F432;--btn:#171A20;--focus:#8DB80A;
+  --ok:#5E9479;--no:#BE6A64;--nd:#C29A4F;--pe:#7A8DA8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f);color:var(--ink);background:var(--bg);font-size:15px;line-height:1.45}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+/* cabecera */
+.top{border-bottom:1px solid var(--line);padding:.8rem 0 .7rem}
+.top .fila{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.logo{display:inline-flex;font-weight:800;letter-spacing:.02em;font-size:1.05rem;text-decoration:none}
+.logo b{background:var(--ink);color:#fff;padding:.25rem .45rem;border-radius:4px 0 0 4px}
+.logo i{background:var(--lime);color:var(--ink);padding:.25rem .4rem;border-radius:0 4px 4px 0;font-style:normal}
+.tabs{display:flex;gap:.15rem;background:var(--tile);border-radius:999px;padding:.25rem;margin:0 auto;flex-wrap:wrap}
+.tabs a{padding:.45rem 1rem;border-radius:999px;text-decoration:none;color:var(--ink-2);font-size:.9rem}
+.tabs a.on{background:var(--ink);color:#fff;font-weight:600}
+.tabs a small{background:#fff;color:var(--ink);border-radius:999px;padding:0 .4rem;margin-left:.35rem;font-weight:700}
+.yo{width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700;margin-left:auto}
+.tabs + .yo{margin-left:0}
+.miga{font-size:.85rem;color:var(--ink-2);margin-top:.6rem}
+.miga b{color:var(--ink);font-weight:600}
+/* títulos */
+h1{font-size:1.9rem;font-weight:500;margin:2rem 0 .3rem;letter-spacing:-.01em}
+h2{font-size:1.15rem;font-weight:600;margin:0 0 .6rem}
+.sub{color:var(--ink-2);margin:0 0 1.5rem}
+/* piezas */
+.tile{background:var(--tile);border-radius:var(--r);padding:1.25rem 1.4rem}
+.oscuro{background:var(--ink);color:#fff}
+.oscuro .tenue{color:#B9BBBF}
+.tenue{color:var(--ink-2)}
+.chico{font-size:.85rem}
+.btn{display:inline-block;background:var(--btn);color:#fff;border:0;border-radius:6px;padding:.7rem 1.2rem;font:600 .95rem var(--f);text-decoration:none;cursor:pointer}
+.btn.lima{background:var(--lime);color:var(--ink)}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.grid{display:grid;gap:1rem}
+.g-2-1{grid-template-columns:2fr 1fr}
+.g-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g-2-1,.g-3{grid-template-columns:1fr}}
+/* estados: siempre texto, nunca solo color */
+.est{display:inline-block;font-size:.78rem;font-weight:600;border-radius:999px;padding:.15rem .65rem;white-space:nowrap}
+.est.ok{background:#E3EEE8;color:#2F5E48}
+.est.cur{background:var(--lime);color:var(--ink)}
+.est.falta{background:#F3E9D6;color:#7A5A1A}
+.est.na{background:#fff;color:var(--ink-3);border:1px dashed var(--ink-3)}
+.dev{display:inline-block;font-size:.72rem;font-weight:600;border:1px dashed var(--ink);border-radius:4px;padding:.05rem .4rem;margin-left:.4rem;vertical-align:middle;background:#fff;color:var(--ink)}
+.pie{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.82rem;color:var(--ink-2)}
+table{border-collapse:collapse;width:100%}
+th{font-weight:600;text-align:left;font-size:.82rem;color:var(--ink-2)}
+td,th{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+</style>
+<style>
+.foto{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 0 1.5rem;padding:0;list-style:none}
+.foto li{font-size:.78rem;color:var(--ink-2)}
+.foto li::before{content:"";display:block;height:8px;border-radius:4px;background:var(--line);margin-bottom:.3rem}
+.foto li.h::before{background:var(--ink)}
+.foto li.c::before{background:var(--lime);outline:1px solid var(--ink);outline-offset:-1px}
+.foto li b{display:block;color:var(--ink);font-weight:600}
+.grafo{margin:0 0 1.5rem;background:var(--tile);border-radius:var(--r);padding:1rem 1rem .8rem}
+.grafo svg{width:100%;height:auto;display:block}
+.grafo .tn{font:700 17px var(--f)}.grafo .tp{font:600 14px var(--f);fill:var(--ink)}.grafo .te{font:400 12.5px var(--f);fill:var(--ink-2)}
+.grafo .tt{font:500 13px var(--f);fill:var(--ink)}
+.grafo a:hover circle{stroke-width:4}.grafo a:hover .tt,.grafo a:hover .tp{text-decoration:underline}
+.grafo figcaption{display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;font-size:.8rem;color:var(--ink-2);border-top:1px solid var(--line);padding-top:.6rem}
+.grafo .b{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:.35rem;vertical-align:-1px;border:1.5px solid var(--ink)}
+.b.h{background:var(--ink)}.b.c{background:var(--lime)}.b.n{background:#fff;border-color:#C9C9C9}.b.v{background:#8C7AB0;border-color:#4B3A78}.b.r{background:#D10F2F;border-color:#D10F2F}.b.a{background:#fff;border:3px solid #C29A4F}
+.pasos{list-style:none;margin:0;padding:0}
+.paso{display:grid;grid-template-columns:2.6rem 1fr auto;gap:.2rem 1rem;padding:1rem 0;border-bottom:1px solid var(--line);align-items:start}
+.paso .n{width:2.2rem;height:2.2rem;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--tile);color:var(--ink-2)}
+.paso.hecho .n{background:var(--ink);color:#fff}
+.paso.curso .n{background:var(--lime);color:var(--ink);outline:1px solid var(--ink)}
+.paso h3{margin:0;font-size:1.05rem;font-weight:600}
+.paso h3 a{text-decoration:none}.paso h3 a:hover{text-decoration:underline}
+.paso p{margin:.15rem 0 0;color:var(--ink-2);font-size:.9rem}
+.sub-t{list-style:none;margin:.6rem 0 0;padding:0;grid-column:2 / 4}
+.sub-t li{display:flex;justify-content:space-between;gap:1rem;padding:.5rem 0;border-top:1px solid var(--line);font-size:.93rem}
+.sub-t a{font-weight:600}
+.ahora{list-style:none;margin:.6rem 0 0;padding:0}
+.ahora li{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.65rem 0;border-top:1px solid #33363d}
+.ahora li:first-child{border-top:0}
+.ahora small{color:#B9BBBF;display:block}
+dl{margin:0}dt{font-size:.82rem;color:var(--ink-2)}dd{margin:0 0 .8rem;font-weight:600}
+</style></head><body>
+<header class="top"><div class="wrap">
+  <div class="fila"><a class="logo" href="#"><b>EVALU</b><i>ON</i></a>
+    <nav class="tabs"><a class="on" href="#">Procedimiento</a><a href="#">Pliego y matriz</a><a href="#">Ofertas</a><a href="#">Evaluación y dictamen <small>12</small></a><a href="#">Normativas</a></nav>
+    <span class="yo">MC</span></div>
+  <div class="miga">Procedimientos › <b>0A1PC000000-0031-LPU26 · Adquisición de sillas ergonómicas para oficinas</b></div>
+</div></header>
+
+<main class="wrap">
+  <h1>Adquisición de sillas ergonómicas para oficinas</h1>
+  <p class="sub">Licitación pública · 3 ofertas · 2 pasos completos, 4 en curso, 1 sin empezar</p>
+
+<figure class="grafo"><svg viewBox="0 0 1180 450" role="img" aria-label="Grafo del proceso: siete pasos con sus dependencias y sus tareas. El detalle está en la lista de abajo.">
+<defs><marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8E8E8E"/></marker></defs>
+<line x1="115" y1="242" x2="311" y2="179" stroke="#171A20" stroke-width="2"  marker-end="url(#fl)"/>
+<line x1="365" y1="179" x2="542" y2="240" stroke="#171A20" stroke-width="2"  marker-end="url(#fl)"/>
+<line x1="365" y1="321" x2="542" y2="260" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
+<line x1="366" y1="330" x2="790" y2="330" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
+<line x1="595" y1="258" x2="791" y2="321" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
+<line x1="595" y1="242" x2="791" y2="179" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
+<line x1="596" y1="250" x2="1040" y2="250" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
+<line x1="845" y1="178" x2="1041" y2="241" stroke="#8E8E8E" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#fl)"/>
+<line x1="90" y1="226" x2="90" y2="188" stroke="#8E8E8E" stroke-width="1.5"/>
+<a href="#"><circle cx="90" cy="188" r="7" fill="#fff" stroke="#C29A4F" stroke-width="3"/><text x="104" y="192" class="tt">Falta el n.º de expediente</text></a>
+<line x1="340" y1="396" x2="340" y2="422" stroke="#8E8E8E" stroke-width="1.5"/>
+<a href="#"><circle cx="340" cy="422" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="354" y="426" class="tt">Revisar 1 documento nuevo (Oferta 3)</text></a>
+<line x1="570" y1="316" x2="570" y2="362" stroke="#8E8E8E" stroke-width="1.5"/>
+<a href="#"><circle cx="570" cy="362" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="584" y="366" class="tt">Cargar el informe técnico</text></a>
+<line x1="820" y1="146" x2="820" y2="36" stroke="#8E8E8E" stroke-width="1.5"/>
+<a href="#"><circle cx="820" cy="108" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="834" y="112" class="tt">Confirmar 50 propuestas «cumple»</text></a>
+<a href="#"><circle cx="820" cy="84" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="834" y="88" class="tt">Contestar 4 preguntas</text></a>
+<a href="#"><circle cx="820" cy="60" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="834" y="64" class="tt">Revisar 1 «no cumple»</text></a>
+<a href="#"><circle cx="820" cy="36" r="7" fill="#C6F432" stroke="#171A20" stroke-width="1.5"/><text x="834" y="40" class="tt">Decidir 12 puntos</text></a>
+<a href="#paso1"><circle cx="90" cy="250" r="24" fill="#171A20" stroke="#171A20" stroke-width="2"/><text x="90" y="256" text-anchor="middle" class="tn" fill="#fff">✓</text><text x="90" y="294" text-anchor="middle" class="tp">1 Pliego publicado</text><text x="90" y="310" text-anchor="middle" class="te">Hecho</text></a>
+<a href="#paso2"><circle cx="340" cy="170" r="24" fill="#171A20" stroke="#171A20" stroke-width="2"/><text x="340" y="176" text-anchor="middle" class="tn" fill="#fff">✓</text><text x="340" y="214" text-anchor="middle" class="tp">2 Matriz de requisitos</text><text x="340" y="230" text-anchor="middle" class="te">Hecho</text></a>
+<a href="#paso3"><circle cx="340" cy="330" r="24" fill="#C6F432" stroke="#171A20" stroke-width="2"/><text x="340" y="336" text-anchor="middle" class="tn" fill="#171A20">3</text><text x="340" y="374" text-anchor="middle" class="tp">3 Ofertas recibidas</text><text x="340" y="390" text-anchor="middle" class="te">En curso</text></a>
+<a href="#paso4"><circle cx="570" cy="250" r="24" fill="#C6F432" stroke="#171A20" stroke-width="2"/><text x="570" y="256" text-anchor="middle" class="tn" fill="#171A20">4</text><text x="570" y="294" text-anchor="middle" class="tp">4 Cumplimiento</text><text x="570" y="310" text-anchor="middle" class="te">En curso</text></a>
+<a href="#paso5"><circle cx="820" cy="330" r="24" fill="#C6F432" stroke="#171A20" stroke-width="2"/><text x="820" y="336" text-anchor="middle" class="tn" fill="#171A20">5</text><text x="820" y="374" text-anchor="middle" class="tp">5 Comparación</text><text x="820" y="390" text-anchor="middle" class="te">En curso</text></a>
+<a href="#paso6"><circle cx="820" cy="170" r="24" fill="#C6F432" stroke="#171A20" stroke-width="2"/><text x="820" y="176" text-anchor="middle" class="tn" fill="#171A20">6</text><text x="820" y="214" text-anchor="middle" class="tp">6 Evaluación</text><text x="820" y="230" text-anchor="middle" class="te">En curso</text></a>
+<a href="#paso7"><circle cx="1070" cy="250" r="24" fill="#fff" stroke="#C9C9C9" stroke-width="2"/><text x="1070" y="256" text-anchor="middle" class="tn" fill="#8E8E8E">7</text><text x="1070" y="294" text-anchor="middle" class="tp">7 Dictamen</text><text x="1070" y="310" text-anchor="middle" class="te">Todavía no</text></a>
+</svg><figcaption><span><i class="b h"></i>Paso hecho</span><span><i class="b c"></i>En curso o tarea para hacer</span><span><i class="b n"></i>Todavía no</span><span><i class="b v"></i>Vence hoy</span><span><i class="b r"></i>Vencido</span><span><i class="b a"></i>Advertencia</span><span>— — depende de</span></figcaption></figure>
+
+  <section class="tile oscuro" style="margin-bottom:1.5rem">
+    <span class="tenue chico">Qué se puede hacer ahora · en cualquier orden</span>
+    <ul class="ahora">
+      <li><span>Decidir 12 puntos que el sistema no pudo concluir<small>Paso 6 · Evaluación de la Comisión</small></span><a class="btn lima" href="#">Decidir</a></li>
+      <li><span>Cargar el informe técnico del área (falta en las 3 ofertas)<small>Paso 4 · destraba 18 resultados técnicos</small></span><a class="btn lima" href="#">Subir</a></li>
+      <li><span>Revisar 1 documento que llegó por subsanación a la Oferta 3<small>Paso 3 · Ofertas recibidas</small></span><a class="btn lima" href="#">Revisar</a></li>
+      <li><span>Revisar 1 «no cumple» (Oferta 2, garantía de oferta)<small>Paso 6 · Evaluación de la Comisión</small></span><a class="btn lima" href="#">Revisar</a></li>
+      <li><span>Contestar 4 preguntas y pedidos de subsanación<small>Paso 6 · Evaluación de la Comisión</small></span><a class="btn lima" href="#">Contestar</a></li>
+    </ul>
+  </section>
+
+  <div class="grid g-2-1">
+    <section>
+      <ol class="pasos">
+        <li class="paso hecho"><span class="n">1</span><div><h3><a href="#">Pliego publicado</a></h3><p>Pliego y 2 anexos tomados del Portal el 02/03 · 1 circular aclaratoria</p></div><span class="est ok">Hecho</span> <span class="est falta">1 advertencia</span></li>
+        <li class="paso hecho"><span class="n">2</span><div><h3><a href="#">Matriz de requisitos</a></h3><p>27 requisitos (18 formales, 3 económicos, 6 técnicos) · validada el 05/03</p></div><span class="est ok">Hecho</span></li>
+        <li class="paso curso"><span class="n">3</span><div><h3><a href="#">Ofertas recibidas</a></h3><p>3 ofertas del acta de apertura del 20/03 · 41 documentos cargados</p></div><span class="est cur">En curso</span>
+          <ul class="sub-t"><li><a href="#">Revisar 1 documento nuevo de la Oferta 3 (subsanación)</a><span class="est falta">Falta</span></li></ul></li>
+        <li class="paso curso"><span class="n">4</span><div><h3><a href="#">Cumplimiento de cada oferta</a></h3><p>De 81 cruces requisito–oferta: 50 cumplen, 1 no cumple, 12 a decidir, 18 esperan el informe técnico</p></div><span class="est cur">En curso</span>
+          <ul class="sub-t"><li><a href="#">Cargar el informe técnico del área</a><span class="est falta">Falta en 3 ofertas</span></li></ul></li>
+        <li class="paso curso"><span class="n">5</span><div><h3><a href="#">Comparación de ofertas</a></h3><p>Orden económico listo: la más baja es la Oferta 2, $ 48.210.000, y la más alta la Oferta 3, $ 61.900.000 · se completa cuando termine el cumplimiento (paso 4)</p></div><span class="est cur">En curso</span></li>
+        <li class="paso curso"><span class="n">6</span><div><h3><a href="#">Evaluación de la Comisión</a></h3><p>Lo que decide la Comisión. 0 de 3 tareas terminadas.</p></div><span class="est cur">En curso</span>
+          <ul class="sub-t">
+            <li><a href="#">Decidir 12 puntos no determinados</a><span class="est falta">Falta · 0 de 12</span></li>
+            <li><a href="#">Revisar 1 «no cumple» (Oferta 2, garantía de oferta)</a><span class="est falta">Falta</span></li>
+            <li><a href="#">Contestar 4 preguntas y pedidos de subsanación</a><span class="est falta">Falta · 7 de 11</span></li>
+          </ul></li>
+        <li class="paso"><span class="n">7</span><div><h3>Dictamen</h3><p>Se toma del Portal o se sube. Para cerrarlo tienen que estar completos los pasos 4 y 6; la planilla y el cuadro comparativo ya se pueden exportar.</p></div><span class="est na">Todavía no</span></li>
+      </ol>
+    </section>
+    <aside>
+      <div class="tile" style="margin-bottom:1rem"><h2>Plazos</h2>
+        <dl><dt>Apertura</dt><dd>20/03/2026 · ya ocurrió</dd>
+        <dt>Mantenimiento de oferta</dt><dd>vence el 19/05/2026 · quedan 23 días</dd>
+        <dt>Dictamen</dt><dd>sin fecha cargada</dd></dl></div>
+      <div class="tile"><h2>Indicadores</h2>
+        <p class="tenue chico">El tablero actual (orden económico, resultado por oferta, cumplimiento por tipo) queda a un clic, como una vista más.</p>
+        <a class="btn sec" href="#">Abrir indicadores</a></div>
+    </aside>
+  </div>
+  <p class="pie">Portada con grafo tipo PERT (pedido del responsable del 17/11): cada bolita grande es un paso, con el color de su estado; las flechas dicen de qué depende cada uno; las bolitas chicas son las tareas de ese paso. Todo se puede tocar. La lista de abajo dice lo mismo con texto. Datos inventados.</p>
+</main></body></html>
