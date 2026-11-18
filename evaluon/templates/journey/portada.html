@@ -1,12 +1,13 @@
 {% extends "journey/seccion_base.html" %}
 {% load static %}
 
-{% comment %}La portada del procedimiento (REQ-143 a REQ-148, REQ-157; plan 018, «Portada del procedimiento»; T-348): título con su resumen y «Abrir indicadores», «Qué se puede hacer ahora» y la lista de los siete pasos, cada uno con su estado propio (no hay «paso actual»). Todo lo arma `portada.portada` desde un único `Proceso`; la plantilla solo recorre. Cada `data-pieza` es una pieza de la primera pantalla (el criterio de 15). Sin estilos ni scripts en línea.{% endcomment %}
+{% comment %}La portada del procedimiento (REQ-143 a REQ-148, REQ-157, REQ-158; plan 018, «Portada del procedimiento»; T-348): título con su resumen y «Abrir indicadores», el mapa del proceso con sus plazos (`_mapa.html`), «Qué se puede hacer ahora» y la lista de los siete pasos, cada uno con su estado propio (no hay «paso actual»). Todo lo arma `portada.portada` desde un único `Proceso`; la plantilla solo recorre. Cada `data-pieza` es una pieza de la primera pantalla (el criterio de 15). Sin estilos ni scripts en línea.{% endcomment %}
 
 {% block title %}{{ procedure.number }} · EVALUON{% endblock %}
 
 {% block section_css %}<link rel="stylesheet" href="{% static 'journey/proceso.css' %}">
-<link rel="stylesheet" href="{% static 'journey/portada.css' %}">{% endblock %}
+<link rel="stylesheet" href="{% static 'journey/portada.css' %}">
+<link rel="stylesheet" href="{% static 'journey/mapa.css' %}">{% endblock %}
 
 {% block site_header %}<div data-pieza="encabezado">{% include "journey/_sprite.html" %}{% include "journey/_encabezado.html" %}</div>{% endblock %}
 
@@ -21,18 +22,18 @@
     <a class="btn secundario" href="{{ indicadores_url }}">Abrir indicadores</a>
   </section>
 
-  {# El mapa del proceso va acá, arriba de «Qué se puede hacer ahora» (T-350). #}
+  {% include "journey/_mapa.html" %}
 
   {% include "journey/_acciones.html" %}
 
-  <section class="pr-lista" aria-labelledby="pasos-titulo">
+  <section class="pr-lista" id="pasos" aria-labelledby="pasos-titulo">
     <h2 id="pasos-titulo">Los siete pasos</h2>
     <p class="pr-sub">Cada paso tiene su propio estado: varios pueden estar en curso a la vez, y los números dan el orden de lectura, no un orden obligatorio.</p>
     <ol class="pr-pasos">
       {% for f in filas %}{% with p=f.paso %}<li class="pr-paso {{ f.clase }}" data-pieza="paso" data-paso="{{ p.numero }}">
         <span class="pr-num" aria-hidden="true">{{ p.numero }}</span>
         <div class="pr-paso-cuerpo">
-          <h3><a href="{{ p.destino }}"><span class="sr-only">Paso </span>{{ p.nombre }}</a></h3>
+          <h3 id="paso-{{ p.numero }}"><a href="{{ p.destino }}"><span class="sr-only">Paso </span>{{ p.nombre }}</a></h3>
           {% if p.dato %}<p class="pr-dato">{{ p.dato }}</p>{% endif %}
           {% if f.nota %}<p class="pr-nota">{{ f.nota }}</p>{% endif %}
           <p class="pr-resumen">{{ p.resumen }}</p>

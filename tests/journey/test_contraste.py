@@ -134,6 +134,24 @@ def _pares() -> list[tuple[str, str, str, float]]:
     for s in SUPERFICIES:
         add(f"marca lateral y punto «Vence hoy» / {s}", "--hoy", s, GRAFICO)
         add(f"marca lateral y punto «Vencido» / {s}", "--vencido", s, GRAFICO)
+    # Mapa del proceso (REQ-158, T-350): el texto de la tarjeta y de «Todavía no», las marcas y los
+    # conectores sobre sus fondos. La tarjeta y el lienzo (--tile) se distinguen por texto y borde.
+    for n in ("--mapa-nodo", "--mapa-nodo-n"):
+        for t in ("--ink", "--ink-2", "--nd-ink", "--no-ink"):
+            add(f"mapa: texto {t} / {n}", t, n, TEXTO)
+        for t in ("--ink", "--ink-3", "--nd", "--no"):
+            add(f"mapa: marca {t} / {n}", t, n, GRAFICO)
+    add("mapa: etiqueta «Vence hoy» sobre la tarjeta", "--hoy-ink", "--hoy-bg", TEXTO)
+    add("mapa: punto y marca superior «Vence hoy» / tarjeta", "--hoy", "--mapa-nodo", GRAFICO)
+    add("mapa: punto y marca superior «Vencido» / tarjeta", "--vencido", "--mapa-nodo", GRAFICO)
+    for t in ("--ok-ink", "--pe-ink"):
+        add(f"mapa: estado {t} / su tinta", t, "--ok-bg" if t == "--ok-ink" else "--pe-bg", TEXTO)
+    add("mapa: «Todavía no» --ink-2 / tinta de la tarjeta", "--ink-2", "--mapa-nodo-n", TEXTO)
+    add("mapa: conector lleno --ink / --tile", "--ink", "--tile", GRAFICO)
+    add("mapa: conector punteado --ink-3 / --tile", "--ink-3", "--tile", GRAFICO)
+    add("mapa: número del paso hecho", "--bg", "--ink", TEXTO)
+    add("mapa: número del paso en curso", "--on-lime", "--lime", TEXTO)
+    add("mapa: etiqueta de hoy en el eje", "--bg", "--ink", TEXTO)
     add("botón de acento", "#FFFFFF", "--accent", TEXTO)
     add("botón de acento (hover)", "#FFFFFF", "--accent-h", TEXTO)
 
@@ -251,6 +269,7 @@ PARES_FOTO: dict[str, list[tuple[str, str, str, float]]] = {t: _pares_foto(t) fo
 EXENTOS = {
     "--line": "separadores y bordes de adorno; nada depende de verlos",
     "--trk": "pista detrás de una barra: la barra y la cifra dan el dato",
+    "--mapa-punto": "puntos de la grilla del lienzo del mapa: decorativos, sin información",
 }
 
 

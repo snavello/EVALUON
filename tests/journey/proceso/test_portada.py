@@ -63,7 +63,7 @@ def test_req146_el_orden_de_los_bloques(client, caso_varios_en_curso):
     marcas = ['id="portada-titulo"', "Abrir indicadores", 'id="ahora-titulo"', 'id="pasos-titulo"']
     posiciones = [html.index(m) for m in marcas]
     assert posiciones == sorted(posiciones)
-    assert "<svg" not in html[html.index("Abrir indicadores"):html.index('id="ahora-titulo"')]
+    assert html.index('class="mp mp-mapa"') < html.index('id="ahora-titulo"')  # el mapa va en el medio (T-350)
 
 
 def test_req144_los_pasos_en_curso_traen_su_enlace_y_su_estado_escrito(
