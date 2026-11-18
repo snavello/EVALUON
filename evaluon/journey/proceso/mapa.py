@@ -44,16 +44,16 @@ MARGEN = 8
 X_COLUMNA = tuple(MARGEN + i * (ANCHO + HUECO) for i in range(4))  # 8, 292, 576, 860
 ANCHO_LIENZO = X_COLUMNA[3] + ANCHO + HUECO - 1  # 1143: así a 1262 px de ventana el lienzo entra justo en su caja de 1143
 Y_ARRIBA = MARGEN
-SEPARACION_FILAS = 16  # entre el alto estimado de la fila de arriba y el comienzo de la de abajo
+SEPARACION_FILAS = 12  # entre el alto estimado de la fila de arriba y el comienzo de la de abajo
 # (columna, fila) de cada tarjeta: fila 0 arriba, fila 1 abajo
 CASILLAS = {1: (0, 0), 2: (1, 0), 3: (0, 1), 4: (2, 0), 5: (2, 1), 6: (3, 0), 7: (3, 1)}
 FILA_ARRIBA = (1, 2, 4, 6)
 FILA_ABAJO = (3, 5, 7)
 CONECTORES = ((1, 2), (2, 4), (3, 4), (3, 5), (4, 5), (4, 6), (4, 7), (6, 7))
 
-# Altos de fila que se pueden elegir (px): de una tarjeta casi vacía a una de tres tareas de tres líneas
+# Altos de fila que se pueden elegir (px, de 12 en 12): de una tarjeta casi vacía a una de tres tareas de tres líneas
 # con etiquetas. Un alto estimado mayor que el último se queda en el último.
-ESCALONES = tuple(range(120, 433, 24))
+ESCALONES = tuple(range(120, 433, 12))
 
 SALIDA_Y = 24  # el conector sale y entra a esta altura desde el borde superior de la tarjeta
 RADIO = 8  # radio del codo

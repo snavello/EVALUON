@@ -354,9 +354,9 @@ def test_REQ_158_el_estimador_cuenta_las_lineas_que_sobran_de_cada_tarea():
 
 def test_REQ_158_el_escalon_es_el_menor_que_alcanza():
     """REQ-158 (T-363): `escalon(alto)` es el menor de `ESCALONES` mayor o igual que el alto (el último si
-    el alto los pasa) y los escalones son una lista corta de 24 en 24."""
+    el alto los pasa) y los escalones son una lista corta de 12 en 12."""
     assert mapa.ESCALONES[0] == 120 and mapa.ESCALONES[-1] >= mapa.ALTO_MAXIMO
-    assert all(b - a == 24 for a, b in zip(mapa.ESCALONES, mapa.ESCALONES[1:])) and len(mapa.ESCALONES) <= 16
+    assert all(b - a == 12 for a, b in zip(mapa.ESCALONES, mapa.ESCALONES[1:])) and len(mapa.ESCALONES) <= 30
     for alto in range(0, mapa.ESCALONES[-1] + 50):
         i = mapa.escalon(alto)
         assert i == len(mapa.ESCALONES) - 1 or mapa.ESCALONES[i] >= alto
@@ -390,5 +390,4 @@ def test_REQ_158_constantes_de_la_disposicion():
     assert mapa.X_COLUMNA == (8, 292, 576, 860)
     assert mapa.CASILLAS == {1: (0, 0), 2: (1, 0), 3: (0, 1), 4: (2, 0), 5: (2, 1), 6: (3, 0), 7: (3, 1)}
     assert mapa.FILA_ARRIBA == (1, 2, 4, 6) and mapa.FILA_ABAJO == (3, 5, 7)
-    assert mapa.geometria(5, 5).posiciones == {1: (8, 8), 2: (292, 8), 3: (8, 264), 4: (576, 8),
-                                               5: (576, 264), 6: (860, 8), 7: (860, 264)}
+    assert mapa.geometria(5, 5).posiciones == {1: (8, 8), 2: (292, 8), 3: (8, 200), 4: (576, 8), 5: (576, 200), 6: (860, 8), 7: (860, 200)}
