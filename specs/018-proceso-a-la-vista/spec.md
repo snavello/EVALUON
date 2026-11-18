@@ -41,6 +41,7 @@ Sin esto, quien entra no sabe cómo está el procedimiento ni qué le toca, y el
 | 2026-11-17 | Paso que no empezó pero se puede empezar (pregunta del plan) | Entre «1. "En curso"» y «2. "Todavía no"», eligió: «1». «Todavía no» queda para lo que depende de otro paso; el dictamen espera a los pasos 4 y 6, salvo que el mantenimiento venza hoy o ya haya vencido. |
 | 2026-11-17 | Requisito que no aplica a una oferta (pregunta del plan) | Entre «1. Mostrar "No aplica"» y «2. Dejar la celda vacía», eligió: «1». |
 | 2026-11-17 | Lo ya vencido | Ante la pregunta «¿y lo que ya venció y sigue sin resolverse?», respondió: «Rojo brillante vencido». Reemplaza la lectura del Coordinador de que lo vencido iba sin color. |
+| 2026-11-17 | Lista larga de acciones | Ante la propuesta del Coordinador (con más de 6 líneas, mostrar las primeras 6 y un «ver las N restantes», con lo vencido y lo que vence hoy primero), respondió: «Ok al ver la N restantes». |
 
 Referencias: maquetas en `docs/diseno/exposicion-proceso/` (`index.html` con el diagnóstico y la comparación; `e.html`, `a.html` y `c.html` son las elegidas; `b.html` y `d.html` quedan como alternativas no elegidas).
 
