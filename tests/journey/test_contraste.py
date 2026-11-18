@@ -126,6 +126,14 @@ def _pares() -> list[tuple[str, str, str, float]]:
     for e in ESTADOS:
         for s in ("--bg", "--tile"):
             add(f"texto de estado {e} / {s}", f"--{e}-ink", s, TEXTO)
+    # «Vence hoy» (lila, --hoy*) y «Vencido» (rojo brillante relleno, --vencido*): REQ-156, REQ-157.
+    add("etiqueta «Vence hoy»", "--hoy-ink", "--hoy-bg", TEXTO)
+    add("etiqueta «Vencido» (texto sobre relleno)", "--vencido-ink", "--vencido", TEXTO)
+    for s in ("--bg", "--tile"):
+        add(f"texto de «Vence hoy» / {s}", "--hoy-ink", s, TEXTO)
+    for s in SUPERFICIES:
+        add(f"marca lateral y punto «Vence hoy» / {s}", "--hoy", s, GRAFICO)
+        add(f"marca lateral y punto «Vencido» / {s}", "--vencido", s, GRAFICO)
     add("botón de acento", "#FFFFFF", "--accent", TEXTO)
     add("botón de acento (hover)", "#FFFFFF", "--accent-h", TEXTO)
 

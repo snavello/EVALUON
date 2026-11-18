@@ -55,6 +55,13 @@
   --nd: #A57F39;             /* maqueta #C29A4F (2,38:1 sobre --tile) */
   --pe: #7488A4;
   --ext: #8C7AB0;
+  /* «Vence hoy» (lila) y «Vencido» (rojo brillante relleno): solo proceso.css y mapa.css (REQ-156/157) */
+  --hoy: #8C7AB0;
+  --hoy-bg: #E6DFF3;
+  --hoy-ink: #4B3A78;
+  --vencido: #D10F2F;
+  --vencido-bg: var(--vencido);          /* la etiqueta es rellena: su fondo es el propio rojo */
+  --vencido-ink: #FFFFFF;
   --s2: #868686;             /* serie neutra; maqueta #8E8E8E */
   --s3: #5C5E62;             /* tercera serie, gris medio-oscuro; la maqueta usaba #C9C9C9 (1,5:1) */
   --trk: #E2E2E2;
@@ -93,6 +100,12 @@
   --nd: #B98C39;
   --pe: #8094B0;
   --ext: #9A8AC0;
+  --hoy: #9A8AC0;
+  --hoy-bg: #2F2745;
+  --hoy-ink: #DCD2F7;
+  --vencido: #FF4D5E;
+  --vencido-bg: var(--vencido);
+  --vencido-ink: #1A0508;
   --s2: #8A8C91;
   --s3: #6A6D74;             /* maqueta #4A4C51 (2,06:1) */
   --trk: #2A2C31;

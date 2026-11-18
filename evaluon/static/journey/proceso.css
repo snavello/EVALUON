@@ -1,0 +1,65 @@
+/* El proceso a la vista (feature 018: REQ-156, REQ-157; T-347). Etiquetas de estado, «Vence hoy»,
+   «Vencido», advertencias y líneas de acción de la portada y del inicio. Todo color sale de
+   `var(--…)` de tokens.css (nada en hexadecimal ni `style=`). Cada estado lleva SIEMPRE su texto
+   escrito, además del color. `--hoy*` y `--vencido*` solo se nombran en esta hoja y en mapa.css;
+   aquí no se usa el lila de «externo» (lo vigila test_lila_exclusivo.py). */
+
+/* Etiqueta teñida de estado: Hecho, En curso, Todavía no, Con error. Borde sólido + símbolo + texto. */
+.pr-estado {
+  display: inline-flex; align-items: center; gap: .375rem;
+  padding: .125rem .625rem; border: 1px solid currentColor; border-radius: 999px;
+  font-size: .8125rem; font-weight: 600; line-height: 1.4; white-space: nowrap;
+}
+.pr-estado::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; flex: none; }
+.pr-estado.hecho { color: var(--ok-ink); background: var(--ok-bg); }
+.pr-estado.hecho::before { content: "\2713"; width: auto; height: auto; background: none; font-size: .75rem; }
+.pr-estado.en-curso { color: var(--pe-ink); background: var(--pe-bg); }
+.pr-estado.en-curso::before { background: none; border: 2px solid currentColor; border-top-color: transparent; }
+.pr-estado.todavia-no { color: var(--ink-2); background: var(--tile); border-style: dashed; }
+.pr-estado.todavia-no::before { background: none; border: 1.5px solid currentColor; }
+.pr-estado.con-error { color: var(--no-ink); background: var(--no-bg); }
+.pr-estado.con-error::before { content: "\00D7"; width: auto; height: auto; background: none; font-size: .9375rem; line-height: 1; }
+
+/* «Vence hoy»: etiqueta de texto, borde sólido y peso 700 sobre el lila (REQ-157). */
+.pr-hoy {
+  display: inline-block; padding: .125rem .625rem; border: 1.5px solid var(--hoy); border-radius: 6px;
+  background: var(--hoy-bg); color: var(--hoy-ink);
+  font-size: .8125rem; font-weight: 700; line-height: 1.4; white-space: nowrap;
+}
+
+/* «Vencido»: etiqueta RELLENA en rojo brillante, con el texto y los días. Distinta de las
+   teñidas de «Con error» y «No cumple» (REQ-157). */
+.pr-vencido {
+  display: inline-block; padding: .125rem .625rem; border: 1.5px solid var(--vencido); border-radius: 6px;
+  background: var(--vencido-bg); color: var(--vencido-ink);
+  font-size: .8125rem; font-weight: 700; line-height: 1.4; white-space: nowrap;
+}
+
+/* Advertencias: «N advertencias», con su texto, nunca solo un color. */
+.pr-advertencia {
+  display: inline-flex; align-items: center; gap: .375rem;
+  font-size: .8125rem; font-weight: 600; color: var(--nd-ink);
+}
+.pr-advertencia::before {
+  content: "!"; display: inline-grid; place-items: center; width: 1.125rem; height: 1.125rem;
+  border-radius: 50%; background: var(--nd-bg); border: 1px solid currentColor; font-size: .75rem;
+}
+.pr-advertencia-detalle { margin: .25rem 0 0; padding-left: 1.5rem; font-size: .8125rem; color: var(--ink-2); }
+
+/* Líneas de acción («Qué se puede hacer ahora»). La marca lateral y el punto con anillo llevan
+   el color de su vencimiento; la etiqueta con texto va al final de la línea. */
+.pr-acciones { list-style: none; margin: 0; padding: 0; }
+.pr-accion {
+  display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) auto; gap: .75rem; align-items: center;
+  padding: .625rem .75rem; border-top: 1px solid var(--line); border-left: 3px solid transparent;
+}
+.pr-accion .pr-punto { width: .75rem; height: .75rem; border-radius: 50%; background: var(--ink-3); justify-self: center; }
+.pr-accion .pr-que { color: var(--ink); font-weight: 500; min-width: 0; }
+.pr-accion .pr-que a { color: inherit; }
+.pr-accion .pr-que a:focus-visible, .pr-accion .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pr-accion.hoy { border-left-color: var(--hoy); }
+.pr-accion.hoy .pr-punto { background: var(--hoy); box-shadow: 0 0 0 3px var(--hoy-bg); }
+.pr-accion.vencido { border-left-color: var(--vencido); }
+.pr-accion.vencido .pr-punto { background: var(--vencido); box-shadow: 0 0 0 3px var(--tile), 0 0 0 5px var(--vencido); }
+.pr-restantes > summary { cursor: pointer; padding: .625rem .75rem; color: var(--ink); font-weight: 500; }
+.pr-restantes > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

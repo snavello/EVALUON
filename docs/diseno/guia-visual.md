@@ -57,6 +57,23 @@ Hasta T-331, los `--ev-*` siguen existiendo y apuntan a los tokens nuevos, para 
 
 Siguen siendo íconos de color con forma propia y el nombre al pasar el mouse o con el foco (decisión del 2026-10-07): círculo con símbolo blanco (tilde, cruz, signo de pregunta, reloj), un símbolo distinto por estado, nunca solo el color. Los colores salen de `--ok`, `--no`, `--nd`, `--pe` (y `--ext` para la información externa, que es una clase de requisito y no un estado). El símbolo blanco (`--ev-icono-simbolo`) tiene que llegar a 3:1 contra el círculo en los dos temas; por eso en el tema negro los círculos son un poco más oscuros que en la maqueta. El texto que nombra el estado usa `--X-ink` sobre `--X-bg`.
 
+### 3.1 «Vence hoy» y «Vencido» (feature 018, T-347)
+
+Dos tokens de color propios, **distintos de `--ext` y de `--no`**, que se usan solo en `evaluon/static/journey/proceso.css` y `mapa.css` (lo vigila `tests/journey/proceso/test_lila_exclusivo.py`). Las pantallas nuevas (inicio, portada, cuadro) no usan `--ext*` ni `ev-externo`.
+
+| Token | Claro | Negro | Uso |
+|---|---|---|---|
+| `--hoy` | `#8C7AB0` | `#9A8AC0` | Marca lateral y punto con anillo de lo que vence hoy |
+| `--hoy-bg` | `#E6DFF3` | `#2F2745` | Fondo de la etiqueta «Vence hoy» |
+| `--hoy-ink` | `#4B3A78` | `#DCD2F7` | Texto de la etiqueta |
+| `--vencido` | `#D10F2F` | `#FF4D5E` | Relleno de la etiqueta «Vencido» y marca lateral |
+| `--vencido-bg` | `var(--vencido)` | `var(--vencido)` | La etiqueta es rellena: su fondo es el propio rojo |
+| `--vencido-ink` | `#FFFFFF` | `#1A0508` | Texto de la etiqueta rellena |
+
+Contraste medido (los valores de partida del plan pasaron sin ajuste): «Vence hoy» texto/fondo 7,45:1 claro y 9,76:1 negro; marca `--hoy` contra `--bg`/`--tile`/`--tile-h` 3,80/3,46/3,22 claro y 6,31/5,72/5,19 negro; «Vencido» texto/relleno 5,50:1 claro y 6,06:1 negro; marca `--vencido` contra las tres superficies 5,50/5,00/4,65 claro y 6,03/5,47/4,97 negro.
+
+Forma (no solo color): «Vence hoy» es una etiqueta de texto con borde sólido y peso 700 sobre fondo lila; «Vencido» es una etiqueta **rellena** en rojo brillante con el texto «Vencido» y los días; «Con error» y «No cumple» son etiquetas teñidas con símbolo y `--no` desaturado. Los estados de `proceso.css` (`.pr-estado.hecho|en-curso|todavia-no|con-error`) llevan siempre el texto escrito y un símbolo.
+
 ## 4. Regla del verde lima
 
 El lima resalta, no decora ni estructura. Se usa en: pestaña activa (negro), contadores de las pestañas, avance de los procesos, la cifra más baja del orden económico, y la acción principal en el tema negro. Reglas:
