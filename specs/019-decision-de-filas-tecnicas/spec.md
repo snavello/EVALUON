@@ -1,6 +1,6 @@
 # Spec 019 · Las filas técnicas se deciden solo con el ok del informe técnico
 
-Estado: borrador · Fecha: 2026-11-18 · Aprobó: — · Carril: completo (ADR-0081; decisión del responsable del 2026-11-18, «Sí, carril completo»)
+Estado: aprobada · Fecha: 2026-11-18 · Aprobó: responsable del proyecto (2026-11-18, «Sí, apruebo») · Carril: completo (ADR-0081; decisión del responsable del 2026-11-18, «Sí, carril completo»)
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
