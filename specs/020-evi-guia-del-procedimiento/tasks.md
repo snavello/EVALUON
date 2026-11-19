@@ -2,7 +2,7 @@
 
 Plan: `specs/020-evi-guia-del-procedimiento/spec.md`, sección «Plan corto» (aprobado el 2026-11-18 por el responsable, «Cambia esto y da por aprobado todo»; ADR-0082)
 
-Despliegue: pendiente
+Despliegue: aprobado 2026-11-19 (responsable del proyecto, «Sí, desplegar»; en el piloto de 8000, commit fca767b5)
 
 > El tablero (`docs/tablero.md`) se genera de este archivo. Al aprobarse el despliegue, la línea de arriba pasa a `Despliegue: aprobado AAAA-MM-DD`.
 
