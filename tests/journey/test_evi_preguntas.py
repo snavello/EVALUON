@@ -36,7 +36,7 @@ PREGUNTA = "¿Qué es una subsanación?"
 RESPUESTA = "Es cuando se agrega a la oferta un documento que faltaba."
 
 # La huella de la instrucción de Evi: una versión publicada no se edita; un cambio es `evi-v2`.
-HUELLA_EVI_V1 = "8b34ed02a0686134974217fd2f14e41be8b2f9f0653268b77864f3e6a937bf94"
+HUELLA_EVI_V1 = "6819588fe7cec49a0d0c2392d213daeb19398abd4bac62eb27bce32abe49825d"
 # Cantidad de versiones publicadas de las otras instrucciones al empezar T-368 (tests/fixtures/instrucciones.sha256).
 PUBLICADAS_AL_EMPEZAR = 123
 
@@ -205,7 +205,7 @@ def test_req172_el_pedido_va_solo_a_la_ia_local_aunque_haya_una_externa(client, 
     assert len(fake_generation.calls) == 1
     opciones = fake_generation.options[0]
     assert opciones["base_url"] is None  # el motor local por omisión: GENERATION_URL
-    assert opciones["timeout"] == settings.AI_TIMEOUT_SECONDS == 60
+    assert opciones["timeout"] == settings.EVI_TIMEOUT_SECONDS == 50 < settings.AI_TIMEOUT_SECONDS
     assert generation.model_for(settings.GENERATION_URL) == settings.GENERATION_MODEL
 
 
@@ -410,3 +410,82 @@ def test_el_paso_5_no_dice_que_una_oferta_conviene():
     """T-368 (decisión del Coordinador): el verbo «conviene» suena a recomendación."""
     assert textos.PASOS[5].sirve.startswith("Permite comparar las ofertas por precio.")
     assert "conviene" not in textos.PASOS[5].sirve
+
+
+# --- Correcciones de la verificación del lote -----------------------------------------------------------
+
+
+def test_c1_evi_espera_menos_de_60_segundos_sin_tocar_el_tiempo_general(settings):
+    """REQ-173 (C-1): tope propio de 50 s; el general sigue en 60 y el script espera algo más que el servidor."""
+    assert settings.EVI_TIMEOUT_SECONDS == 50 and settings.AI_TIMEOUT_SECONDS == 60
+    js = (RAIZ / "evaluon" / "static" / "journey" / "evi.js").read_text(encoding="utf-8")
+    assert "ESPERA_MS = 55000" in js
+    assert "EVI_TIMEOUT_SECONDS: \"${EVI_TIMEOUT_SECONDS:-50}\"" in (RAIZ / "docker-compose.yml").read_text(encoding="utf-8")
+
+
+def test_c2_el_bloque_no_presenta_a_evi(client, caso_varios_en_curso):
+    """REQ-170 (C-2): bajo el título solo hay el rótulo, los ejemplos y el campo; ninguna nota."""
+    entrar(client, caso_varios_en_curso.user)
+    html = client.get(reverse("expedientes:evi")).content.decode()
+    bloque = html[html.index('<section class="evi-preg"'):html.index("</section>", html.index('<section class="evi-preg"'))]
+    assert "evi-preg-nota" not in bloque and not hasattr(textos, "PREGUNTA_AYUDA")
+    assert "Explica qué hay que completar" not in html
+
+
+def test_c3_el_contexto_no_trae_la_mas_baja_ni_nombres_de_oferentes(client, caso_varios_en_curso, fake_generation):
+    """REQ-172 (C-3): el estado que va al modelo no dice cuál es la oferta más baja ni cómo se llaman los
+    oferentes; el panel sí lo muestra."""
+    caso = caso_varios_en_curso
+    entrar(client, caso.user)
+    panel_html = _panel_de(client, _url_de("portada", caso))
+    assert "La más baja" in panel_html
+    responde(fake_generation)
+    preguntar(client, caso)
+    contexto = fake_generation.calls[0][0][1]["content"]
+    assert "La más baja" not in contexto and "más baja:" not in contexto
+    for oferta in caso.offers:
+        nombre = getattr(oferta, "supplier_name", None) or getattr(oferta, "bidder_name", None)
+        if nombre:
+            assert nombre not in contexto
+    assert "Sintético" not in contexto.split("ESTADO DEL PROCEDIMIENTO ABIERTO")[1]
+    assert preguntas.limpio("Oferta 1 (Oferente A Sintético): falta la hoja") == "Oferta 1: falta la hoja"
+    assert preguntas.limpio("La más baja: Oferta 2") == ""
+
+
+def test_m1_los_textos_de_lectura_del_panel_miden_14_px_o_mas():
+    """REQ-170 (M-1): ninguna regla de `evi.css` fija 13 px ni 12,5 px (las etiquetas quedan en 12)."""
+    css = (RAIZ / "evaluon" / "static" / "journey" / "evi.css").read_text(encoding="utf-8")
+    assert not re.search(r"font-size:\s*(13|12\.5)px", css)
+
+
+def test_m2_las_flechas_parten_del_paso_con_el_foco():
+    """REQ-166 (M-2): el teclado se mueve desde el nodo enfocado, no desde el seleccionado."""
+    js = (RAIZ / "evaluon" / "static" / "journey" / "evi.js").read_text(encoding="utf-8")
+    assert 'foco = document.activeElement.closest(".evi-nodo")' in js and "n = foco ? +foco.dataset.n" in js
+
+
+def test_p6_la_guia_explica_no_determinado_y_los_cuatro_estados_una_sola_vez(client, caso_varios_en_curso):
+    """REQ-167 (mejoras de las diez preguntas): el recuadro del punto «no determinado» en el paso 4 y el de los
+    cuatro estados una sola vez, en el circuito general; ambos también en el contexto del modelo."""
+    entrar(client, caso_varios_en_curso.user)
+    html = _panel_de(client, _url_de("portada", caso_varios_en_curso))
+    assert html.count("Qué es un punto «no determinado»") == 1
+    assert html.count("Qué significa cada estado") == 1
+    for nombre in ("Hecho", "En curso", "Todavía no", "Con error"):
+        assert f"<b>{nombre}:</b>" in html
+    assert "puede confirmar, corregir o rechazar" in html
+    guia = preguntas.guia()
+    assert "Qué es un punto «no determinado»" in guia and "- Con error:" in guia
+
+
+def test_p7_el_paso_7_dice_la_excepcion_del_mantenimiento():
+    """REQ-167: la carga del dictamen se habilita aunque falten los pasos 4 y 6 si el mantenimiento vence hoy o ya
+    venció (regla de `calculo.py`, paso 7)."""
+    primera = textos.PASOS[7].hacer[0]
+    assert "mantenimiento de las ofertas vence hoy o ya venció" in primera and "se habilita igual" in primera
+
+
+def test_p8_la_instruccion_refuerza_el_trato_de_usted():
+    """REQ-172: la instrucción trae el ejemplo de forma correcta e incorrecta."""
+    texto = preguntas.instrucciones()
+    assert "nunca de «vos» ni de «tú»" in texto and "Correcto: «Súbalo" in texto and "Incorrecto: «Súbelo»" in texto

@@ -82,9 +82,9 @@ def _nodos(panel):
 
 
 def _sin_preguntas(panel):
-    """El panel sin el bloque «Pregúntele a Evi» (T-368): lo fijo de la T-367 se comprueba sin él, que tiene su
-    propio título, su aviso y sus pruebas (`test_evi_preguntas.py`)."""
-    return re.sub(r'<section class="evi-preg".*?</section>', "", panel, flags=re.S)
+    """El panel sin el título «Pregúntele a Evi» y su rótulo «Experimental» (T-368): lo demás del bloque (el campo,
+    los ejemplos, cualquier texto) sigue vigilado por las pruebas de REQ-169 y REQ-170."""
+    return re.sub(r'<h4 id="evi-preg-t">.*?</h4>', "", panel, flags=re.S)
 
 
 def _seccion_de_paso(panel, n):
@@ -342,7 +342,7 @@ def test_req167_los_seis_terminos_estan_explicados(client, caso_recien_cargado):
                    "Qué es el informe técnico", "Qué es una subsanación", "Qué es un dictamen"):
         assert titulo in texto
     todos = [t for p in textos.PASOS.values() for t in p.terminos]
-    assert len(todos) == 6 and all(len(t.texto) > 60 for t in todos)
+    assert len(todos) == 7 and all(len(t.texto) > 60 for t in todos)
 
 
 def test_req167_los_textos_salen_de_un_solo_archivo():

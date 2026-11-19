@@ -597,6 +597,9 @@ ASSESSMENT_VISION_TILE_MAX_SIDE = 1600
 # Encendido por omisión. Apagado, el bloque de preguntas no aparece en el panel de Evi y su ruta responde
 # que no está disponible; el resto de Evi sigue igual. Lo mismo en docker-compose.yml y .env.example.
 EVI_QUESTIONS_ENABLED = env_bool("EVI_QUESTIONS_ENABLED", True)
+# Espera propia de Evi por la IA local, en segundos: menor que `AI_TIMEOUT_SECONDS` (60) para que el aviso de «no
+# pudo responder» llegue en menos de 60 s contando lo que tarda la página (verificación del lote, C-1).
+EVI_TIMEOUT_SECONDS = int(env_str("EVI_TIMEOUT_SECONDS", "50"))
 
 # --- Uso externo de la feature 016 (plan 016, "Plataforma externa" y "Costo y tope"; ADR-0066 y
 # ADR-0068; constitución 1.6) -------------------------------------------------------------------

@@ -103,4 +103,5 @@ def contexto(proceso=None, aqui=()):
                      "como_se_lee": textos.CIRCUITO_COMO_SE_LEE, "quien_decide": textos.CIRCUITO_QUIEN_DECIDE,
                      "para_recorrer": textos.CIRCUITO_PARA_RECORRER},
         "estados": [(e.value, e.texto) for e in pasos.Estado],
+        "estados_significado": {"titulo": textos.ESTADOS_TITULO, "lista": textos.ESTADOS_SIGNIFICADO},
     }

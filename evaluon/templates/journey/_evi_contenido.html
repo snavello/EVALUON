@@ -24,6 +24,7 @@
         <div class="bl"><h4>Cómo se lee</h4><p>{{ circuito.como_se_lee }}</p></div>
       </div>
       <aside class="recuadro"><h4>{{ circuito.quien_decide.titulo }}</h4><p>{{ circuito.quien_decide.texto }}</p></aside>
+      <aside class="recuadro"><h4>{{ estados_significado.titulo }}</h4>{% for nombre, texto in estados_significado.lista %}<p><b>{{ nombre }}:</b> {{ texto }}</p>{% endfor %}</aside>
       <p class="enlaces">{{ circuito.para_recorrer }}</p>
     </div>
     {% for nodo in nodos %}<div class="evi-paso" data-n="{{ nodo.numero }}" hidden>
@@ -56,7 +57,6 @@
   </div>
   {% if preguntas %}<section class="evi-preg" id="evi-preg" aria-labelledby="evi-preg-t" data-url="{{ preguntar_url }}" data-pensando="{{ preguntas_textos.pensando }}" data-falla="{{ preguntas_textos.falla }}">
     <h4 id="evi-preg-t">{{ preguntas_textos.titulo }} <span class="evi-exp">{{ preguntas_textos.rotulo }}</span></h4>
-    <p class="evi-preg-nota">{{ preguntas_textos.ayuda }}</p>
     {% csrf_token %}
     <div class="evi-ejemplos" role="group" aria-label="Preguntas de ejemplo">{% for ejemplo in preguntas_textos.ejemplos %}<button type="button" class="evi-ejemplo" data-ejemplo>{{ ejemplo }}</button>{% endfor %}</div>
     <div class="evi-preg-form" role="group" aria-label="Escriba su pregunta">

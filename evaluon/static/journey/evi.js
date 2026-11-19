@@ -185,7 +185,7 @@
 
   function alTeclear(e) {
     if (!mapa || !mapa.contains(document.activeElement)) { return; }
-    var k = e.key, n = S.sel || 1;
+    var k = e.key, foco = document.activeElement.closest(".evi-nodo"), n = foco ? +foco.dataset.n : (S.sel || 1);
     if (k === "ArrowRight" || k === "ArrowDown") { n = Math.min(7, n + 1); }
     else if (k === "ArrowLeft" || k === "ArrowUp") { n = Math.max(1, n - 1); }
     else if (k === "Home") { n = 1; }
@@ -235,7 +235,7 @@
   /* ---------- Pregúntele a Evi (T-368, experimental) ----------
      Un único POST con la pregunta; la respuesta llega ya escapada desde el servidor (nunca HTML del modelo) y se
      anuncia a los lectores de pantalla desde una región `status`. Si no llega en 70 s o falla, el mismo aviso llano. */
-  var ESPERA_MS = 70000;
+  var ESPERA_MS = 55000;
 
   function preguntar(texto) {
     var bloque = document.getElementById("evi-preg");

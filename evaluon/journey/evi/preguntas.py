@@ -10,7 +10,7 @@ Es una función experimental, por el carril liviano. Lo que la separa de todo lo
 - Solo la IA local (P4, P5): el pedido sale por `generation.generate`, el motor de `GENERATION_URL`. Este módulo
   no importa `evaluon.ai.external`.
 - Un solo motor (ADR-0057): como la Consulta, si el motor de lotes está ocupado con un trabajo o no responde
-  (`queries.services.consulta_notice`), no se pide y se avisa. El pedido espera `AI_TIMEOUT_SECONDS` (60 s).
+  (`queries.services.consulta_notice`), no se pide y se avisa. El pedido espera `EVI_TIMEOUT_SECONDS` (50 s por omisión).
 - La salida se tiene por texto: la vista la muestra escapada, nunca como HTML.
 - Evi no decide ni recomienda: lo dice la instrucción; el código no puede garantizarlo, por eso la función es
   experimental y rotulada, y las tres preguntas trampa se corren una vez contra la IA real
@@ -18,6 +18,7 @@ Es una función experimental, por el carril liviano. Lo que la separa de todo lo
 """
 
 import json
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -44,6 +45,18 @@ SCHEMA = {
 
 GUIDE_SOURCE = "la guía de Evi"
 
+# Del estado que se le manda al modelo se saca lo que empuja a recomendar (verificación del lote, C-3): cuál es
+# la oferta más baja o más alta y los nombres de los oferentes. El panel los sigue mostrando.
+_NOMBRE_DE_OFERENTE = re.compile(r"(Oferta \d+) \([^)]*\)")
+
+
+def limpio(texto):
+    """El texto de estado para el modelo: sin el nombre del oferente y `""` si dice cuál es la más baja o la
+    más alta."""
+    if re.search(r"más (baja|alta)", texto, re.I):
+        return ""
+    return _NOMBRE_DE_OFERENTE.sub(r"\1", texto)
+
 
 @dataclass
 class Resultado:
@@ -65,7 +78,10 @@ def guia():
     """La guía: los textos fijos de Evi, tal cual los ve la persona."""
     lineas = ["GUÍA DE EVI", "",
               f"{textos.CIRCUITO_TITULO}. {textos.CIRCUITO_QUE_ES}", f"Cómo se lee: {textos.CIRCUITO_COMO_SE_LEE}",
-              f"{textos.CIRCUITO_QUIEN_DECIDE.titulo}: {textos.CIRCUITO_QUIEN_DECIDE.texto}", ""]
+              f"{textos.CIRCUITO_QUIEN_DECIDE.titulo}: {textos.CIRCUITO_QUIEN_DECIDE.texto}",
+              f"{textos.ESTADOS_TITULO}:"]
+    lineas += [f"- {nombre}: {texto}" for nombre, texto in textos.ESTADOS_SIGNIFICADO]
+    lineas.append("")
     for definicion in pasos.PASOS:
         n = definicion.numero
         t = textos.PASOS[n]
@@ -84,19 +100,19 @@ def estado(proceso):
     """El estado del procedimiento abierto, con lo mismo que muestra «Qué hacer acá»."""
     lineas = ["ESTADO DEL PROCEDIMIENTO ABIERTO", f"Procedimiento: {proceso.procedure.number}", ""]
     for nodo in panel.nodos(proceso):
-        lineas.append(f"Paso {nodo.numero} ({nodo.nombre}): {nodo.estado_texto}. {nodo.dato}".rstrip())
+        lineas.append(f"Paso {nodo.numero} ({nodo.nombre}): {nodo.estado_texto}. {limpio(nodo.dato)}".rstrip())
         aca = nodo.aca
         if not aca:
             continue
-        for frase in (aca.resumen, aca.espera):
+        for frase in (limpio(aca.resumen), limpio(aca.espera)):
             if frase:
                 lineas.append(f"  {frase}")
         if aca.pendientes:
             lineas.append("  Falta hacer:")
-            lineas += [f"  - {texto}" for texto in aca.pendientes]
+            lineas += [f"  - {limpio(texto)}" for texto in aca.pendientes if limpio(texto)]
         else:
             lineas.append("  No hay nada pendiente en este paso.")
-        lineas += [f"  Aviso: {texto}" for texto in aca.avisos]
+        lineas += [f"  Aviso: {limpio(texto)}" for texto in aca.avisos if limpio(texto)]
     return "\n".join(lineas)
 
 
@@ -140,7 +156,7 @@ def preguntar(pregunta, proceso=None):
             resultado.motivo = f"motor no disponible: {aviso}"
             return resultado
         salida = generation.generate(pedido, SCHEMA, max_tokens=MAX_OUTPUT_TOKENS,
-                                     timeout=settings.AI_TIMEOUT_SECONDS)
+                                     timeout=settings.EVI_TIMEOUT_SECONDS)
     except AIServiceError as error:
         resultado.motivo = error.reason
         return resultado

@@ -111,7 +111,7 @@ body.app .evi-panel .evi-cab h2 { font-size: 20px; font-weight: 500; letter-spac
 .evi-nodo.sel.s-todavia_no { border-style: solid; }
 .evi-nodo .num {
   position: relative; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
-  background: var(--ink); color: var(--bg); font-family: var(--f); font-size: 13px; font-weight: 700; flex: none;
+  background: var(--ink); color: var(--bg); font-family: var(--f); font-size: 14px; font-weight: 700; flex: none;
   transition: background .24s, color .24s;
 }
 .evi-nodo.sel .num { background: var(--sel); color: var(--bg); }
@@ -127,7 +127,7 @@ body.app .evi-panel .evi-cab h2 { font-size: 20px; font-weight: 500; letter-spac
 [data-theme="negro"] .evi-nodo .aqui { background: var(--lime); color: var(--on-lime); }
 [data-theme="negro"] .evi-nodo .aqui::before { background: var(--on-lime); }
 .evi-nodo .cab { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
-.evi-nodo .cab .pill { margin-left: auto; padding: 1px 8px; gap: 4px; font-size: 12.5px; }
+.evi-nodo .cab .pill { margin-left: auto; padding: 1px 8px; gap: 4px; font-size: 14px; }
 .evi-nodo .corto, .evi-nodo .sim { display: none; }
 .evi-nodo .sim { position: absolute; top: -7px; right: -9px; width: 19px; height: 19px; border-radius: 50%; border: 1.5px solid currentColor; font-size: 12px; line-height: 1; font-weight: 700; place-items: center; }
 
@@ -141,7 +141,7 @@ body.app .evi-panel .evi-cab h2 { font-size: 20px; font-weight: 500; letter-spac
 .evi-panel .sim.con_error::before { content: "\00D7"; font-size: 14px; }
 
 /* Etiqueta de estado: con el texto escrito, nunca solo el color */
-.evi-panel .pill { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 2px 10px; border: 1px solid currentColor; border-radius: 999px; font-size: 13px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+.evi-panel .pill { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 2px 10px; border: 1px solid currentColor; border-radius: 999px; font-size: 14px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
 .evi-panel .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
 .evi-panel .pill.hecho { color: var(--ok-ink); background: var(--ok-bg); }
 .evi-panel .pill.hecho::before { content: "\2713"; width: auto; height: auto; background: none; font-size: 12px; }
@@ -151,7 +151,7 @@ body.app .evi-panel .evi-cab h2 { font-size: 20px; font-weight: 500; letter-spac
 .evi-panel .pill.todavia_no::before { background: none; border: 1.5px solid currentColor; }
 .evi-panel .pill.con_error { color: var(--no-ink); background: var(--no-bg); }
 .evi-panel .pill.con_error::before { content: "\00D7"; width: auto; height: auto; background: none; font-size: 15px; line-height: 1; }
-.evi-leyenda { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 12px 0 0; font-size: 13px; color: var(--ink-2); }
+.evi-leyenda { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 12px 0 0; font-size: 14px; color: var(--ink-2); }
 .evi-leyenda .pill { font-size: 12px; padding: 1px 9px; }
 .evi-leyenda .rayas, .evi-leyenda .llena { display: inline-flex; align-items: center; gap: 6px; }
 .evi-leyenda .rayas i { display: inline-block; width: 26px; border-top: 2px dashed var(--ink-3); }
@@ -187,7 +187,7 @@ body.app .evi-panel .bl h4 { font-size: 12px; font-weight: 600; letter-spacing: 
 .evi-panel .enlaces b { color: var(--ink); font-weight: 600; }
 .evi-panel .aca { margin: 18px 0 0; border-radius: 16px; background: var(--tile); border-left: 5px solid var(--sel); padding: 16px 20px 16px 18px; }
 body.app .evi-panel .aca h4 { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 16px; font-weight: 600; margin: 0 0 8px; letter-spacing: -.01em; }
-.evi-panel .aca h4 small { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.evi-panel .aca h4 small { font-size: 14px; font-weight: 500; color: var(--ink-2); }
 .evi-panel .aca p { margin: 0 0 8px; font-size: 15px; line-height: 1.5; }
 .evi-panel .aca ul { margin: 0 0 8px; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; line-height: 1.45; }
 .evi-panel .aca p:last-child, .evi-panel .aca ul:last-child { margin-bottom: 0; }
@@ -258,7 +258,7 @@ body.app .evi-panel .evi-preg h4 { display: flex; flex-wrap: wrap; align-items: 
 .evi-pensando { margin: 0; font-size: 15px; color: var(--ink-2); }
 .evi-resp { background: var(--tile); border-radius: 14px; padding: 12px 16px; }
 .evi-resp p { margin: 0 0 8px; font-size: 15px; line-height: 1.5; }
-.evi-resp .evi-resp-aviso, .evi-resp .evi-resp-fuente { font-size: 13px; color: var(--ink-2); margin: 0; }
+.evi-resp .evi-resp-aviso, .evi-resp .evi-resp-fuente { font-size: 14px; color: var(--ink-2); margin: 0; }
 .evi-resp .evi-resp-fuente { margin-top: 4px; font-weight: 600; }
 .evi-resp-falla { margin: 0; padding: 10px 14px; border-radius: 14px; background: var(--tile); font-size: 15px; }
 @media (max-width: 760px) {

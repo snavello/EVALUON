@@ -48,7 +48,7 @@ def _con_preguntas(contexto, procedure_id):
     contexto["preguntar_url"] = (reverse("expedientes:evi_preguntar_procedimiento", args=[procedure_id])
                                  if procedure_id else reverse("expedientes:evi_preguntar"))
     contexto["preguntas_textos"] = {
-        "titulo": textos.PREGUNTA_TITULO, "rotulo": textos.PREGUNTA_ROTULO, "ayuda": textos.PREGUNTA_AYUDA,
+        "titulo": textos.PREGUNTA_TITULO, "rotulo": textos.PREGUNTA_ROTULO,
         "ejemplos": textos.PREGUNTA_EJEMPLOS, "pensando": textos.PREGUNTA_PENSANDO,
         "falla": textos.PREGUNTA_FALLA, "maximo": preguntas.MAX_QUESTION_CHARS}
     return contexto

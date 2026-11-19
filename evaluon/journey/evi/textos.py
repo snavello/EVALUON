@@ -40,6 +40,15 @@ CIRCUITO_QUE_ES = ("Un procedimiento recorre siete pasos: se cargan los datos y 
 CIRCUITO_COMO_SE_LEE = ("No hace falta ir en orden: varios pasos pueden estar en marcha a la vez, y cada uno "
                         "muestra su propio estado.")
 CIRCUITO_QUIEN_DECIDE = Termino("Quién decide", "El sistema propone y la Comisión decide.")
+ESTADOS_TITULO = "Qué significa cada estado"
+ESTADOS_SIGNIFICADO = (
+    ("Hecho", "Lo que pide el paso ya está completo. Puede volver a «En curso» si aparece algo nuevo, como una "
+              "circular o un documento agregado a una oferta."),
+    ("En curso", "El paso ya empezó o se puede empezar, y todavía falta algo. Varios pasos pueden estar en curso "
+                 "a la vez."),
+    ("Todavía no", "El paso depende de otros que aún no están hechos. El propio paso dice de cuáles."),
+    ("Con error", "Algo falló, por ejemplo no se pudo tomar el dictamen del Portal. Hay que resolver el error."),
+)
 CIRCUITO_PARA_RECORRER = ("Con un procedimiento abierto, cada paso muestra qué falta en ese procedimiento. "
                           "Para recorrer el circuito, toque un paso del gráfico o use «Siguiente».")
 
@@ -85,6 +94,10 @@ PASOS = {
                "Cargue el informe técnico del área para las filas técnicas.",
                "Cuando el informe técnico esté aprobado, dé el ok."),
         terminos=(
+            Termino("Qué es un punto «no determinado»",
+                    "Es un requisito en el que el sistema no pudo concluir si la oferta cumple. Cita lo que "
+                    "encontró en el pliego y en la oferta, y la Comisión decide: puede confirmar, corregir o "
+                    "rechazar lo que se propone."),
             Termino("Qué es una hoja de compliance",
                     "Es un documento que se sube una vez por oferta. Reúne los chequeos que la Comisión hace "
                     "en sistemas externos: registro de proveedores, sanciones, deudas y validez de la póliza. "
@@ -121,7 +134,8 @@ PASOS = {
         que_es=("Es el documento donde la Comisión deja asentado el resultado de su evaluación. Se toma del "
                 "Portal cuando se publica, o se sube desde un archivo."),
         sirve="Cierra el procedimiento: con el dictamen cargado, pasa a «Terminados».",
-        hacer=("Termine los pasos 4 y 6.",
+        hacer=("Termine los pasos 4 y 6. Si el mantenimiento de las ofertas vence hoy o ya venció, la carga del "
+               "dictamen se habilita igual, sin esperar a esos pasos.",
                "Cargue el dictamen: tómelo del Portal o suba el archivo.",
                "Si el Portal ya publicó uno, apruebe su carga.",
                "Exporte la planilla y el cuadro comparativo si los necesita."),
@@ -133,8 +147,6 @@ PASOS = {
 # «Pregúntele a Evi» (REQ-171 a REQ-173; T-368, ADR-0082): lo que dice el bloque de preguntas.
 PREGUNTA_TITULO = "Pregúntele a Evi"
 PREGUNTA_ROTULO = "Experimental"
-PREGUNTA_AYUDA = ("Explica qué hay que completar y qué opciones existen. Las decisiones son siempre de la "
-                  "Comisión.")
 PREGUNTA_EJEMPLOS = ("¿Qué es un punto no determinado?", "¿Qué hago primero en un procedimiento recién cargado?",
                      "¿Qué es una subsanación?")
 PREGUNTA_PENSANDO = "Evi está pensando…"

@@ -69,6 +69,7 @@ x-app: &app
     PORTAL_USER_AGENT: ${PORTAL_USER_AGENT:-EVALUON/1.0 (lectura de procesos publicos)}
     # «Pregúntele a Evi» (feature 020, ADR-0082): encendido por omisión; false lo apaga.
     EVI_QUESTIONS_ENABLED: ${EVI_QUESTIONS_ENABLED:-true}
+    EVI_TIMEOUT_SECONDS: "${EVI_TIMEOUT_SECONDS:-50}"
     # Uso externo de la feature 016 (plan 016, ADR-0066 y ADR-0068): apagado por omisión. Los
     # valores por omisión son los de evaluon/settings.py (tests/test_compose_env.py comprueba
     # que coincidan). La clave del proveedor NO va aquí: solo la pone docker-compose.externo.yml
