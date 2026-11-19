@@ -60,7 +60,7 @@ Qué significa cada prefijo:
 | **010** | 010 | Asistente técnico: Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por… |  |
 | **011** | 011 | Pautas para documentos legibles por IA: Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y… |  |
 
-## Tareas (373)
+## Tareas (375)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -437,8 +437,10 @@ Qué significa cada prefijo:
 | **T-364** | 019 | Rechazar en el servicio de decisión todo pedido sobre una fila técnica por renglón, con el caso chico | terminada |
 | **T-365** | 019 | Listar las decisiones guardadas sobre filas técnicas (solo lectura) | terminada |
 | **T-366** | 019 | Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa | terminada |
+| **T-367** | 020 | Evi fija: botón en todas las pantallas, circuito con «Usted está aquí», recorrido guiado, textos de los siete pasos y… | en curso |
+| **T-368** | 020 | «Pregúntele a Evi», experimental: preguntas respondidas por la IA local | pendiente |
 
-## Requisitos (160)
+## Requisitos (164)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -601,9 +603,13 @@ Qué significa cada prefijo:
 | **REQ-166** | 020 | El recorrido debe ser guiado: Evi abre en el paso de la pantalla; con «Anterior», «Siguiente» o tocando un paso, ese… |  |
 | **REQ-167** | 020 | Cada paso debe explicar, con textos fijos en lenguaje llano: qué es, para qué sirve y qué tiene que hacer. Los términos… |  |
 | **REQ-168** | 020 | Con un procedimiento abierto, cada paso debe mostrar «Qué hacer acá»: lo que falta en ese procedimiento, en palabras… |  |
+| **REQ-170** | 020 | Evi se presenta sin explicaciones sobre sí mismo: el panel se titula «Evi» y no lleva subtítulos, lemas ni pies que… |  |
+| **REQ-171** | 020 | Debajo de lo fijo, «Pregúntele a Evi» debe permitir escribir una pregunta y recibir una respuesta redactada por la IA… |  |
+| **REQ-172** | 020 | La respuesta se apoya solo en los textos de la guía y en el estado del procedimiento abierto. Explica qué hay que… |  |
+| **REQ-173** | 020 | Las preguntas no deben afectar al resto: no cambian las instrucciones, la recuperación ni el modelo de la evaluación… |  |
 | **REQ-169** | 020 | Evi no decide ni recomienda: explica qué hay que completar y qué opciones existen. No escribe, no cambia ni guarda nada… |  |
 
-## Decisiones (ADR) (81)
+## Decisiones (ADR) (82)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -688,6 +694,7 @@ Qué significa cada prefijo:
 | **ADR-0079** |  | Inicio de la aplicación: lista de abiertos calculada en el servidor y presupuesto de 2 segundos | aceptado |
 | **ADR-0080** |  | Mapa del proceso: tarjetas de HTML y conectores SVG con geometría constante | aceptado |
 | **ADR-0081** |  | Carril liviano o completo: lo decide el responsable al empezar cada desarrollo | aceptado |
+| **ADR-0082** |  | «Pregúntele a Evi» va por el carril liviano, como función experimental | aceptado |
 
 ## Decisiones y definiciones de las instrucciones (D-NN) (68)
 
