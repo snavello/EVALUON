@@ -35,7 +35,7 @@ Qué significa cada prefijo:
 | **P10** |  | Simplicidad |  |
 | **P11** |  | Compuertas humanas |  |
 
-## Features (19)
+## Features (20)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -50,6 +50,7 @@ Qué significa cada prefijo:
 | **017** | 017 | Tableros de primer nivel y estética nueva: Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico… |  |
 | **018** | 018 | El proceso a la vista: Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los… |  |
 | **019** | 019 | Las filas técnicas se deciden solo con el ok del informe técnico: El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica… |  |
+| **020** | 020 | Evi, la guía del procedimiento: Un botón en cada pantalla abre el circuito de los siete pasos con «Usted está aquí», la explicación de cada… |  |
 | **004** | 004 | Evaluación asistida de ofertas: Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su… |  |
 | **005** | 005 | Hojas de compliance: La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no… |  |
 | **009** | 009 | Validación continua con la Comisión: Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus… |  |
@@ -437,7 +438,7 @@ Qué significa cada prefijo:
 | **T-365** | 019 | Listar las decisiones guardadas sobre filas técnicas (solo lectura) | terminada |
 | **T-366** | 019 | Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa | terminada |
 
-## Requisitos (153)
+## Requisitos (160)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -594,6 +595,13 @@ Qué significa cada prefijo:
 | **REQ-160** | 019 | Un pedido rechazado por REQ-159 no debe cambiar nada del cruce: ni su resultado, ni su estado, ni su historial de… |  |
 | **REQ-161** | 019 | Lo demás no cambia: la decisión de la Comisión sobre los cruces de filas no técnicas, y dar o retirar el ok del informe… |  |
 | **REQ-162** | 019 | El sistema debe poder listar las decisiones ya guardadas sobre cruces de filas técnicas por renglón (procedimiento… |  |
+| **REQ-163** | 020 | Toda pantalla con sesión iniciada debe mostrar el botón de Evi: chico, con el logo de la «E» con galera, con nombre… |  |
+| **REQ-164** | 020 | Al abrir Evi se debe ver el gráfico del circuito completo: los siete pasos con sus nombres y las uniones entre ellos… |  |
+| **REQ-165** | 020 | El gráfico debe marcar «Usted está aquí» sobre el paso que se resuelve en la pantalla abierta, en todas las pantallas… |  |
+| **REQ-166** | 020 | El recorrido debe ser guiado: Evi abre en el paso de la pantalla; con «Anterior», «Siguiente» o tocando un paso, ese… |  |
+| **REQ-167** | 020 | Cada paso debe explicar, con textos fijos en lenguaje llano: qué es, para qué sirve y qué tiene que hacer. Los términos… |  |
+| **REQ-168** | 020 | Con un procedimiento abierto, cada paso debe mostrar «Qué hacer acá»: lo que falta en ese procedimiento, en palabras… |  |
+| **REQ-169** | 020 | Evi no decide ni recomienda: explica qué hay que completar y qué opciones existen. No escribe, no cambia ni guarda nada… |  |
 
 ## Decisiones (ADR) (81)
 
