@@ -89,7 +89,7 @@ flowchart LR
 | [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 5 de 7 · Verificación | 24/24 | ██████████ 100% |
 | [019 · Las filas técnicas se deciden solo con el ok del informe técnico](#019) | El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica por renglón, llegue por donde llegue; la pantalla no cambia (decisión del responsable del 2026-11-18, carril completo) | 5 de 7 · Verificación | 3/3 | ██████████ 100% |
 | [020 · Evi, la guía del procedimiento](#020) | Un botón en cada pantalla abre el circuito de los siete pasos con «Usted está aquí», la explicación de cada paso y qué hacer en ese procedimiento; textos fijos, sin IA (decisión del responsable del 2026-11-18, carril liviano). Las preguntas respondidas por la IA local quedan para una segunda entrega experimental | 2 de 7 · Plan | 2/2 | ██████████ 100% |
-| [021 · Una imagen por proyecto de trabajo](#021) | Construir desde una copia de trabajo ya no pisa la imagen del piloto; el piloto conserva su nombre de imagen (falla hallada en el despliegue de la 020; decisión del responsable del 2026-11-19, carril liviano) | 2 de 7 · Plan | 0/1 | ░░░░░░░░░░ 0% |
+| [021 · Una imagen por proyecto de trabajo](#021) | Construir desde una copia de trabajo ya no pisa la imagen del piloto; el piloto conserva su nombre de imagen (falla hallada en el despliegue de la 020; decisión del responsable del 2026-11-19, carril liviano) | 2 de 7 · Plan | 1/1 | ██████████ 100% |
 
 <a id="001"></a>
 
@@ -2141,17 +2141,17 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
-- ▶ T-369 · El nombre de la imagen de la aplicación sale del proyecto de Compose; el piloto conserva el suyo (en curso)
 
 ### Qué se hizo
 
 - Etapas completas: Spec.
+- ✓ T-369 · El nombre de la imagen de la aplicación sale del proyecto de Compose; el piloto conserva el suyo (`26038390` 2026-11-19)
 
 ### Mapa de tareas
 
 ```mermaid
 flowchart TD
-  T369["▶ T-369 · El nombre de la imagen de la aplicación sal…"]:::active
+  T369["✓ T-369 · El nombre de la imagen de la aplicación sal…"]:::done
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
