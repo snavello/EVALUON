@@ -43,7 +43,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 |---|---|---|---|---|
 | T-364 | Rechazar en el servicio de decisión todo pedido sobre una fila técnica por renglón, con el caso chico | REQ-159, REQ-160, REQ-161 | — | terminada |
 | T-365 | Listar las decisiones guardadas sobre filas técnicas (solo lectura) | REQ-162 | — | terminada |
-| T-366 | Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa | REQ-162 | T-364, T-365 | pendiente |
+| T-366 | Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa | REQ-162 | T-364, T-365 | terminada |
 
 ## Detalle
 
