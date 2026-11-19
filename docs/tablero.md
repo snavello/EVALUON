@@ -28,6 +28,7 @@ flowchart LR
   F018["▶ 018 · El proceso a la vista"]:::active
   F019["▶ 019 · Las filas técnicas se deciden…"]:::active
   F020["▶ 020 · Evi, la guía del procedimiento"]:::active
+  F021["▶ 021 · Una imagen por proyecto de tr…"]:::active
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -88,6 +89,7 @@ flowchart LR
 | [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 5 de 7 · Verificación | 24/24 | ██████████ 100% |
 | [019 · Las filas técnicas se deciden solo con el ok del informe técnico](#019) | El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica por renglón, llegue por donde llegue; la pantalla no cambia (decisión del responsable del 2026-11-18, carril completo) | 5 de 7 · Verificación | 3/3 | ██████████ 100% |
 | [020 · Evi, la guía del procedimiento](#020) | Un botón en cada pantalla abre el circuito de los siete pasos con «Usted está aquí», la explicación de cada paso y qué hacer en ese procedimiento; textos fijos, sin IA (decisión del responsable del 2026-11-18, carril liviano). Las preguntas respondidas por la IA local quedan para una segunda entrega experimental | 2 de 7 · Plan | 2/2 | ██████████ 100% |
+| [021 · Una imagen por proyecto de trabajo](#021) | Construir desde una copia de trabajo ya no pisa la imagen del piloto; el piloto conserva su nombre de imagen (falla hallada en el despliegue de la 020; decisión del responsable del 2026-11-19, carril liviano) | 2 de 7 · Plan | 0/1 | ░░░░░░░░░░ 0% |
 
 <a id="001"></a>
 
@@ -2119,3 +2121,40 @@ flowchart TD
 | REQ-172 | La respuesta se apoya solo en los textos de la guía y en el estado del procedimiento abierto. Explica qué hay que completar y qué opciones existen; nunca decide ni recomienda: ante un pedido de decisión (por ejemplo, a quién adjudicar o si dar por cumplido un requisito) responde que eso lo decide la Comisión. Usa solo la IA local. | T-368 | ✓ cubierto |
 | REQ-173 | Las preguntas no deben afectar al resto: no cambian las instrucciones, la recuperación ni el modelo de la evaluación; se pueden apagar con un ajuste sin tocar lo demás; si la IA no contesta en 60 segundos o está ocupada, Evi lo dice y lo fijo sigue funcionando. Queda registrado quién preguntó, cuándo, la pregunta y la respuesta. | T-368 | ✓ cubierto |
 | REQ-169 | Evi no decide ni recomienda: explica qué hay que completar y qué opciones existen. No escribe, no cambia ni guarda nada del procedimiento, y no ofrece a un usuario un enlace que su rol no puede abrir. | T-367 | ✓ cubierto |
+
+<a id="021"></a>
+
+## 021 · Una imagen por proyecto de trabajo
+
+**Etapa actual:** 2 de 7 · Plan (1 dudas abiertas) · [carpeta](../specs/021-imagen-por-proyecto)
+
+```mermaid
+flowchart LR
+  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+- ▶ T-369 · El nombre de la imagen de la aplicación sale del proyecto de Compose; el piloto conserva el suyo (en curso)
+
+### Qué se hizo
+
+- Etapas completas: Spec.
+
+### Mapa de tareas
+
+```mermaid
+flowchart TD
+  T369["▶ T-369 · El nombre de la imagen de la aplicación sal…"]:::active
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```

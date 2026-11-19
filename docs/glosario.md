@@ -35,7 +35,7 @@ Qué significa cada prefijo:
 | **P10** |  | Simplicidad |  |
 | **P11** |  | Compuertas humanas |  |
 
-## Features (20)
+## Features (21)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -51,6 +51,7 @@ Qué significa cada prefijo:
 | **018** | 018 | El proceso a la vista: Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los… |  |
 | **019** | 019 | Las filas técnicas se deciden solo con el ok del informe técnico: El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica… |  |
 | **020** | 020 | Evi, la guía del procedimiento: Un botón en cada pantalla abre el circuito de los siete pasos con «Usted está aquí», la explicación de cada… |  |
+| **021** | 021 | Una imagen por proyecto de trabajo: Construir desde una copia de trabajo ya no pisa la imagen del piloto; el piloto conserva su nombre de imagen… |  |
 | **004** | 004 | Evaluación asistida de ofertas: Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su… |  |
 | **005** | 005 | Hojas de compliance: La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no… |  |
 | **009** | 009 | Validación continua con la Comisión: Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus… |  |
@@ -60,7 +61,7 @@ Qué significa cada prefijo:
 | **010** | 010 | Asistente técnico: Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por… |  |
 | **011** | 011 | Pautas para documentos legibles por IA: Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y… |  |
 
-## Tareas (375)
+## Tareas (376)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -439,6 +440,7 @@ Qué significa cada prefijo:
 | **T-366** | 019 | Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa | terminada |
 | **T-367** | 020 | Evi fija: botón en todas las pantallas, circuito con «Usted está aquí», recorrido guiado, textos de los siete pasos y… | terminada |
 | **T-368** | 020 | «Pregúntele a Evi», experimental: preguntas respondidas por la IA local | terminada |
+| **T-369** | 021 | El nombre de la imagen de la aplicación sale del proyecto de Compose; el piloto conserva el suyo | en curso |
 
 ## Requisitos (164)
 
