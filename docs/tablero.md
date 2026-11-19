@@ -27,6 +27,7 @@ flowchart LR
   F017["▶ 017 · Tableros de primer nivel y es…"]:::active
   F018["▶ 018 · El proceso a la vista"]:::active
   F019["▶ 019 · Las filas técnicas se deciden…"]:::active
+  F020["▶ 020 · Evi, la guía del procedimiento"]:::active
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -57,6 +58,7 @@ flowchart LR
   F014 --> F017
   F017 --> F018
   F004 --> F019
+  F018 --> F020
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -85,6 +87,7 @@ flowchart LR
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
 | [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 5 de 7 · Verificación | 24/24 | ██████████ 100% |
 | [019 · Las filas técnicas se deciden solo con el ok del informe técnico](#019) | El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica por renglón, llegue por donde llegue; la pantalla no cambia (decisión del responsable del 2026-11-18, carril completo) | 5 de 7 · Verificación | 3/3 | ██████████ 100% |
+| [020 · Evi, la guía del procedimiento](#020) | Un botón en cada pantalla abre el circuito de los siete pasos con «Usted está aquí», la explicación de cada paso y qué hacer en ese procedimiento; textos fijos, sin IA (decisión del responsable del 2026-11-18, carril liviano). Las preguntas respondidas por la IA local quedan para una segunda entrega experimental | 2 de 7 · Plan | 0/2 | ░░░░░░░░░░ 0% |
 
 <a id="001"></a>
 
@@ -2060,3 +2063,59 @@ flowchart TD
 | REQ-160 | Un pedido rechazado por REQ-159 no debe cambiar nada del cruce: ni su resultado, ni su estado, ni su historial de decisiones. Debe quedar registrado quién lo intentó, cuándo, sobre qué cruce, qué acción pidió y por qué se rechazó. La persona recibe un mensaje en lenguaje llano que dice que esa fila se decide con el ok del informe técnico. | T-364 | ✓ cubierto |
 | REQ-161 | Lo demás no cambia: la decisión de la Comisión sobre los cruces de filas no técnicas, y dar o retirar el ok del informe técnico, deben funcionar igual que antes de esta feature. La pantalla no cambia. | T-364 | ✓ cubierto |
 | REQ-162 | El sistema debe poder listar las decisiones ya guardadas sobre cruces de filas técnicas por renglón (procedimiento, oferta, requisito, acción, quién y cuándo). El listado no modifica ni borra nada. | T-365, T-366 | ✓ cubierto |
+
+<a id="020"></a>
+
+## 020 · Evi
+
+**Etapa actual:** 2 de 7 · Plan (1 dudas abiertas) · [carpeta](../specs/020-evi-guia-del-procedimiento)
+
+```mermaid
+flowchart LR
+  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+- ▶ T-367 · Evi fija: botón en todas las pantallas, circuito con «Usted está aquí», recorrido guiado, textos de los siete pasos y «Qué hacer acá» (en curso)
+- ○ T-368 · «Pregúntele a Evi», experimental: preguntas respondidas por la IA local (pendiente)
+
+### Qué se hizo
+
+- Etapas completas: Spec.
+
+### Mapa de tareas
+
+```mermaid
+flowchart TD
+  T367["▶ T-367 · Evi fija: botón en todas las pantallas, cir…"]:::active
+  T368["○ T-368 · «Pregúntele a Evi», experimental: preguntas…"]:::todo
+  T367 --> T368
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Requisitos
+
+| Requisito | Descripción | Tareas | Estado |
+|---|---|---|---|
+| REQ-163 | Toda pantalla con sesión iniciada debe mostrar el botón de Evi: chico, con el logo de la «E» con galera, con nombre legible para lectores de pantalla y una animación breve y sobria (al cargar la página y al pasar o enfocar, nunca en bucle). | T-367 | ▶ en proceso |
+| REQ-164 | Al abrir Evi se debe ver el gráfico del circuito completo: los siete pasos con sus nombres y las uniones entre ellos, entero y sin desplazamiento horizontal en cualquier ancho de pantalla desde 360 px. Con un procedimiento abierto, cada paso muestra su estado (Hecho, En curso, Todavía no, Con error) igual que la portada del procedimiento. | T-367 | ▶ en proceso |
+| REQ-165 | El gráfico debe marcar «Usted está aquí» sobre el paso que se resuelve en la pantalla abierta, en todas las pantallas de un procedimiento. Si en esa pantalla se resuelve más de un paso, se marcan todos. En una pantalla sin procedimiento (el inicio y las generales) se muestra el circuito general, sin marca y sin estados. | T-367 | ▶ en proceso |
+| REQ-166 | El recorrido debe ser guiado: Evi abre en el paso de la pantalla; con «Anterior», «Siguiente» o tocando un paso, ese paso se destaca, se dibujan sus uniones y cambia la explicación. «Ver el circuito completo» lo recorre solo de punta a punta, con pausa y forma de detenerlo. Todo se puede hacer con teclado, y con la preferencia de menos movimiento activada no hay animación. | T-367 | ▶ en proceso |
+| REQ-167 | Cada paso debe explicar, con textos fijos en lenguaje llano: qué es, para qué sirve y qué tiene que hacer. Los términos matriz de requisitos, circular, hoja de compliance, informe técnico, subsanación y dictamen tienen una explicación corta al lado. Los textos salen de un solo lugar y los aprueba el responsable. | T-367 | ▶ en proceso |
+| REQ-168 | Con un procedimiento abierto, cada paso debe mostrar «Qué hacer acá»: lo que falta en ese procedimiento, en palabras sencillas y con los mismos números que muestra la portada (por ejemplo, cuántos puntos quedan por decidir y cuántos esperan el informe técnico). No usa IA. | T-367 | ▶ en proceso |
+| REQ-170 | Evi se presenta sin explicaciones sobre sí mismo: el panel se titula «Evi» y no lleva subtítulos, lemas ni pies que digan qué es o para qué sirve. | T-367 | ▶ en proceso |
+| REQ-171 | Debajo de lo fijo, «Pregúntele a Evi» debe permitir escribir una pregunta y recibir una respuesta redactada por la IA local. El bloque lleva a la vista el rótulo «Experimental», y cada respuesta, el aviso de que puede equivocarse y no reemplaza al pliego ni a la decisión de la Comisión. | T-368 | ○ pendiente |
+| REQ-172 | La respuesta se apoya solo en los textos de la guía y en el estado del procedimiento abierto. Explica qué hay que completar y qué opciones existen; nunca decide ni recomienda: ante un pedido de decisión (por ejemplo, a quién adjudicar o si dar por cumplido un requisito) responde que eso lo decide la Comisión. Usa solo la IA local. | T-368 | ○ pendiente |
+| REQ-173 | Las preguntas no deben afectar al resto: no cambian las instrucciones, la recuperación ni el modelo de la evaluación; se pueden apagar con un ajuste sin tocar lo demás; si la IA no contesta en 60 segundos o está ocupada, Evi lo dice y lo fijo sigue funcionando. Queda registrado quién preguntó, cuándo, la pregunta y la respuesta. | T-368 | ○ pendiente |
+| REQ-169 | Evi no decide ni recomienda: explica qué hay que completar y qué opciones existen. No escribe, no cambia ni guarda nada del procedimiento, y no ofrece a un usuario un enlace que su rol no puede abrir. | T-367 | ▶ en proceso |
