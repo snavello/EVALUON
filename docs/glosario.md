@@ -433,9 +433,9 @@ Qué significa cada prefijo:
 | **T-361** | 018 | Corregir los hallazgos de la medición final (condicional) | terminada |
 | **T-362** | 018 | Corregir los hallazgos del corte vertical en el cuadro y en Indicadores | terminada |
 | **T-363** | 018 | Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido | terminada |
-| **T-364** | 019 | Rechazar en el servicio de decisión todo pedido sobre una fila técnica por renglón, con el caso chico | en curso |
-| **T-365** | 019 | Listar las decisiones guardadas sobre filas técnicas (solo lectura) | en curso |
-| **T-366** | 019 | Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa | pendiente |
+| **T-364** | 019 | Rechazar en el servicio de decisión todo pedido sobre una fila técnica por renglón, con el caso chico | terminada |
+| **T-365** | 019 | Listar las decisiones guardadas sobre filas técnicas (solo lectura) | terminada |
+| **T-366** | 019 | Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa | terminada |
 
 ## Requisitos (153)
 
