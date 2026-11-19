@@ -35,7 +35,7 @@ Qué significa cada prefijo:
 | **P10** |  | Simplicidad |  |
 | **P11** |  | Compuertas humanas |  |
 
-## Features (18)
+## Features (19)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -49,6 +49,7 @@ Qué significa cada prefijo:
 | **016** | 016 | Calidad medible y modelos por clase de dato: Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un… |  |
 | **017** | 017 | Tableros de primer nivel y estética nueva: Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico… |  |
 | **018** | 018 | El proceso a la vista: Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los… |  |
+| **019** | 019 | Las filas técnicas se deciden solo con el ok del informe técnico: El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica… |  |
 | **004** | 004 | Evaluación asistida de ofertas: Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su… |  |
 | **005** | 005 | Hojas de compliance: La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no… |  |
 | **009** | 009 | Validación continua con la Comisión: Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus… |  |
@@ -433,7 +434,7 @@ Qué significa cada prefijo:
 | **T-362** | 018 | Corregir los hallazgos del corte vertical en el cuadro y en Indicadores | terminada |
 | **T-363** | 018 | Rehacer las tarjetas del mapa: más anchas, tareas sin recorte y alto según el contenido | terminada |
 
-## Requisitos (149)
+## Requisitos (153)
 
 | Código | Feature | Qué es | · |
 |---|---|---|---|
@@ -586,6 +587,10 @@ Qué significa cada prefijo:
 | **REQ-156** | 018 | Todo estado se muestra con texto además del color, en los dos temas (claro y negro). |  |
 | **REQ-158** | 018 | El mapa del proceso es un grafo de los siete pasos. Cada paso es una tarjeta con su número, nombre, un dato clave, su… |  |
 | **REQ-157** | 018 | Lo que vence hoy se marca en lila, el color de alerta, con el texto «Vence hoy»: el paso o la acción a la que pertenece… |  |
+| **REQ-159** | 019 | El sistema debe rechazar todo pedido de confirmar, corregir o rechazar un cruce requisito–oferta de una fila técnica… |  |
+| **REQ-160** | 019 | Un pedido rechazado por REQ-159 no debe cambiar nada del cruce: ni su resultado, ni su estado, ni su historial de… |  |
+| **REQ-161** | 019 | Lo demás no cambia: la decisión de la Comisión sobre los cruces de filas no técnicas, y dar o retirar el ok del informe… |  |
+| **REQ-162** | 019 | El sistema debe poder listar las decisiones ya guardadas sobre cruces de filas técnicas por renglón (procedimiento… |  |
 
 ## Decisiones (ADR) (81)
 
