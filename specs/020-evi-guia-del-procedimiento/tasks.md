@@ -13,7 +13,7 @@ Estados: pendiente · en curso · en verificación · terminada · bloqueada
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
 | T-367 | Evi fija: botón en todas las pantallas, circuito con «Usted está aquí», recorrido guiado, textos de los siete pasos y «Qué hacer acá» | REQ-163, REQ-164, REQ-165, REQ-166, REQ-167, REQ-168, REQ-169, REQ-170 | — | terminada |
-| T-368 | «Pregúntele a Evi», experimental: preguntas respondidas por la IA local | REQ-171, REQ-172, REQ-173 | T-367 | pendiente |
+| T-368 | «Pregúntele a Evi», experimental: preguntas respondidas por la IA local | REQ-171, REQ-172, REQ-173 | T-367 | terminada |
 
 ### T-367 · Evi fija
 

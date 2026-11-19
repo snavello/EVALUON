@@ -87,7 +87,7 @@ flowchart LR
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
 | [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 5 de 7 · Verificación | 24/24 | ██████████ 100% |
 | [019 · Las filas técnicas se deciden solo con el ok del informe técnico](#019) | El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica por renglón, llegue por donde llegue; la pantalla no cambia (decisión del responsable del 2026-11-18, carril completo) | 5 de 7 · Verificación | 3/3 | ██████████ 100% |
-| [020 · Evi, la guía del procedimiento](#020) | Un botón en cada pantalla abre el circuito de los siete pasos con «Usted está aquí», la explicación de cada paso y qué hacer en ese procedimiento; textos fijos, sin IA (decisión del responsable del 2026-11-18, carril liviano). Las preguntas respondidas por la IA local quedan para una segunda entrega experimental | 2 de 7 · Plan | 1/2 | █████░░░░░ 50% |
+| [020 · Evi, la guía del procedimiento](#020) | Un botón en cada pantalla abre el circuito de los siete pasos con «Usted está aquí», la explicación de cada paso y qué hacer en ese procedimiento; textos fijos, sin IA (decisión del responsable del 2026-11-18, carril liviano). Las preguntas respondidas por la IA local quedan para una segunda entrega experimental | 2 de 7 · Plan | 2/2 | ██████████ 100% |
 
 <a id="001"></a>
 
@@ -2083,19 +2083,19 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
-- ○ T-368 · «Pregúntele a Evi», experimental: preguntas respondidas por la IA local (pendiente)
 
 ### Qué se hizo
 
 - Etapas completas: Spec.
 - ✓ T-367 · Evi fija: botón en todas las pantallas, circuito con «Usted está aquí», recorrido guiado, textos de los siete pasos y «Qué hacer acá» (`d79b04eb` 2026-11-19)
+- ✓ T-368 · «Pregúntele a Evi», experimental: preguntas respondidas por la IA local (`64e2318f` 2026-11-19, `3e0e66af` 2026-11-19)
 
 ### Mapa de tareas
 
 ```mermaid
 flowchart TD
   T367["✓ T-367 · Evi fija: botón en todas las pantallas, cir…"]:::done
-  T368["○ T-368 · «Pregúntele a Evi», experimental: preguntas…"]:::todo
+  T368["✓ T-368 · «Pregúntele a Evi», experimental: preguntas…"]:::done
   T367 --> T368
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
@@ -2115,7 +2115,7 @@ flowchart TD
 | REQ-167 | Cada paso debe explicar, con textos fijos en lenguaje llano: qué es, para qué sirve y qué tiene que hacer. Los términos matriz de requisitos, circular, hoja de compliance, informe técnico, subsanación y dictamen tienen una explicación corta al lado. Los textos salen de un solo lugar y los aprueba el responsable. | T-367 | ✓ cubierto |
 | REQ-168 | Con un procedimiento abierto, cada paso debe mostrar «Qué hacer acá»: lo que falta en ese procedimiento, en palabras sencillas y con los mismos números que muestra la portada (por ejemplo, cuántos puntos quedan por decidir y cuántos esperan el informe técnico). No usa IA. | T-367 | ✓ cubierto |
 | REQ-170 | Evi se presenta sin explicaciones sobre sí mismo: el panel se titula «Evi» y no lleva subtítulos, lemas ni pies que digan qué es o para qué sirve. | T-367 | ✓ cubierto |
-| REQ-171 | Debajo de lo fijo, «Pregúntele a Evi» debe permitir escribir una pregunta y recibir una respuesta redactada por la IA local. El bloque lleva a la vista el rótulo «Experimental», y cada respuesta, el aviso de que puede equivocarse y no reemplaza al pliego ni a la decisión de la Comisión. | T-368 | ○ pendiente |
-| REQ-172 | La respuesta se apoya solo en los textos de la guía y en el estado del procedimiento abierto. Explica qué hay que completar y qué opciones existen; nunca decide ni recomienda: ante un pedido de decisión (por ejemplo, a quién adjudicar o si dar por cumplido un requisito) responde que eso lo decide la Comisión. Usa solo la IA local. | T-368 | ○ pendiente |
-| REQ-173 | Las preguntas no deben afectar al resto: no cambian las instrucciones, la recuperación ni el modelo de la evaluación; se pueden apagar con un ajuste sin tocar lo demás; si la IA no contesta en 60 segundos o está ocupada, Evi lo dice y lo fijo sigue funcionando. Queda registrado quién preguntó, cuándo, la pregunta y la respuesta. | T-368 | ○ pendiente |
+| REQ-171 | Debajo de lo fijo, «Pregúntele a Evi» debe permitir escribir una pregunta y recibir una respuesta redactada por la IA local. El bloque lleva a la vista el rótulo «Experimental», y cada respuesta, el aviso de que puede equivocarse y no reemplaza al pliego ni a la decisión de la Comisión. | T-368 | ✓ cubierto |
+| REQ-172 | La respuesta se apoya solo en los textos de la guía y en el estado del procedimiento abierto. Explica qué hay que completar y qué opciones existen; nunca decide ni recomienda: ante un pedido de decisión (por ejemplo, a quién adjudicar o si dar por cumplido un requisito) responde que eso lo decide la Comisión. Usa solo la IA local. | T-368 | ✓ cubierto |
+| REQ-173 | Las preguntas no deben afectar al resto: no cambian las instrucciones, la recuperación ni el modelo de la evaluación; se pueden apagar con un ajuste sin tocar lo demás; si la IA no contesta en 60 segundos o está ocupada, Evi lo dice y lo fijo sigue funcionando. Queda registrado quién preguntó, cuándo, la pregunta y la respuesta. | T-368 | ✓ cubierto |
 | REQ-169 | Evi no decide ni recomienda: explica qué hay que completar y qué opciones existen. No escribe, no cambia ni guarda nada del procedimiento, y no ofrece a un usuario un enlace que su rol no puede abrir. | T-367 | ✓ cubierto |
