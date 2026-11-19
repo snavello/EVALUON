@@ -437,8 +437,8 @@ Qué significa cada prefijo:
 | **T-364** | 019 | Rechazar en el servicio de decisión todo pedido sobre una fila técnica por renglón, con el caso chico | terminada |
 | **T-365** | 019 | Listar las decisiones guardadas sobre filas técnicas (solo lectura) | terminada |
 | **T-366** | 019 | Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa | terminada |
-| **T-367** | 020 | Evi fija: botón en todas las pantallas, circuito con «Usted está aquí», recorrido guiado, textos de los siete pasos y… | en curso |
-| **T-368** | 020 | «Pregúntele a Evi», experimental: preguntas respondidas por la IA local | pendiente |
+| **T-367** | 020 | Evi fija: botón en todas las pantallas, circuito con «Usted está aquí», recorrido guiado, textos de los siete pasos y… | terminada |
+| **T-368** | 020 | «Pregúntele a Evi», experimental: preguntas respondidas por la IA local | terminada |
 
 ## Requisitos (164)
 
