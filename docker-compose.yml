@@ -12,9 +12,15 @@ name: evaluon
 # --rm app pytest` pruebe siempre el código de la copia de trabajo y no el que quedó en la
 # imagen. Un cambio en pyproject.toml o en el Dockerfile sí necesita reconstruir la imagen
 # (docker compose build app).
+# El nombre de la imagen sale del proyecto de Compose, con `evaluon` por omisión (T-369,
+# REQ-174): el piloto (proyecto `evaluon`) sigue resolviendo `evaluon-app:local` y una copia
+# de trabajo con `-p evaluon-t367` construye `evaluon-t367-app:local`. Con un nombre único,
+# las construcciones de las copias de trabajo pisaban la imagen del piloto
+# (specs/020-evi-guia-del-procedimiento/runbook.md, «Fallas conocidas»). El clon y la demo
+# usan a propósito la del piloto. tests/test_compose_imagen.py lo comprueba.
 x-app: &app
   build: .
-  image: evaluon-app:local
+  image: ${COMPOSE_PROJECT_NAME:-evaluon}-app:local
   environment:
     DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
     DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
