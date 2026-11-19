@@ -13,6 +13,8 @@
   <link rel="stylesheet" href="{% static 'journey/pase.css' %}">
   <link rel="stylesheet" href="{% static 'journey/avance.css' %}">
   <script src="{% static 'journey/pase.js' %}"></script>
+  {% if user.is_authenticated %}<link rel="stylesheet" href="{% static 'journey/evi.css' %}">
+  <script src="{% static 'journey/evi.js' %}" defer></script>{% endif %}
   {% block head %}{% endblock %}
 </head>
 <body class="app {% block body_class %}{% endblock %}">
@@ -24,5 +26,6 @@
     {% block content %}{% endblock %}
     </div>
   </main>
+  {% if user.is_authenticated %}{% include "journey/_evi_boton.html" %}{% endif %}
 </body>
 </html>

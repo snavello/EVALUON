@@ -22,12 +22,25 @@ def _avance(procedure_id):
     return avance_of(procedure) if procedure else None
 
 
+def _evi(match):
+    """Lo que el botón de Evi lleva en la página (T-367): desde dónde pedir su panel y qué pasos resuelve
+    esta pantalla. Sin consultas: sólo mira el nombre de la ruta. El panel se pide al abrirlo."""
+    from django.urls import reverse
+    from evaluon.journey.evi import pantallas
+    procedure_id, pasos = pantallas.de_la_ruta(match)
+    if procedure_id is None:
+        return {"url": reverse("expedientes:evi"), "pasos": ""}
+    return {"url": reverse("expedientes:evi_procedimiento", args=[procedure_id]),
+            "pasos": ",".join(str(n) for n in pasos)}
+
+
 def shell(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
         return {}
     out = {}
     match = getattr(request, "resolver_match", None)
+    out["evi_boton"] = _evi(match)
     procedure_id = match.kwargs.get("procedure_id") if match else None
     if procedure_id is not None and match.namespace == "expedientes":
         # Un invocable memoizado: la plantilla lo llama al resolver `avance_pedido` y recibe el
