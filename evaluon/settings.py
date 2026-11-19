@@ -593,6 +593,11 @@ ASSESSMENT_VISION_TILES = 2
 ASSESSMENT_VISION_TILE_OVERLAP = 0.05
 ASSESSMENT_VISION_TILE_MAX_SIDE = 1600
 
+# --- «Pregúntele a Evi» (feature 020, T-368; ADR-0082) -------------------------------------------
+# Encendido por omisión. Apagado, el bloque de preguntas no aparece en el panel de Evi y su ruta responde
+# que no está disponible; el resto de Evi sigue igual. Lo mismo en docker-compose.yml y .env.example.
+EVI_QUESTIONS_ENABLED = env_bool("EVI_QUESTIONS_ENABLED", True)
+
 # --- Uso externo de la feature 016 (plan 016, "Plataforma externa" y "Costo y tope"; ADR-0066 y
 # ADR-0068; constitución 1.6) -------------------------------------------------------------------
 # Todo apagado por omisión: con estos valores el sistema funciona como hoy y no abre ningún

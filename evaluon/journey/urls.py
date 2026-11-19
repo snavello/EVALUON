@@ -38,6 +38,8 @@ expedientes_urlpatterns = [
     # Evi (020, T-367): el contenido de su panel se pide al abrirlo; no se calcula con cada página.
     path("evi/", evi.general, name="evi"),
     path("<int:procedure_id>/evi/", evi.procedimiento, name="evi_procedimiento"),
+    path("evi/preguntar/", evi.preguntar_general, name="evi_preguntar"),
+    path("evi/preguntar/<int:procedure_id>/", evi.preguntar_procedimiento, name="evi_preguntar_procedimiento"),
     path("<int:procedure_id>/", portada.portada, name="portada"),
     path("<int:procedure_id>/barra/", portada.barra, name="barra"),
     path("<int:procedure_id>/fila/", portada.fila, name="fila"),

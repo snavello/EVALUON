@@ -54,6 +54,18 @@
       {% for t in nodo.textos.terminos %}<aside class="recuadro"><h4>{{ t.titulo }}</h4><p>{{ t.texto }}</p></aside>{% endfor %}
     </div>{% endfor %}
   </div>
+  {% if preguntas %}<section class="evi-preg" id="evi-preg" aria-labelledby="evi-preg-t" data-url="{{ preguntar_url }}" data-pensando="{{ preguntas_textos.pensando }}" data-falla="{{ preguntas_textos.falla }}">
+    <h4 id="evi-preg-t">{{ preguntas_textos.titulo }} <span class="evi-exp">{{ preguntas_textos.rotulo }}</span></h4>
+    <p class="evi-preg-nota">{{ preguntas_textos.ayuda }}</p>
+    {% csrf_token %}
+    <div class="evi-ejemplos" role="group" aria-label="Preguntas de ejemplo">{% for ejemplo in preguntas_textos.ejemplos %}<button type="button" class="evi-ejemplo" data-ejemplo>{{ ejemplo }}</button>{% endfor %}</div>
+    <div class="evi-preg-form" role="group" aria-label="Escriba su pregunta">
+      <label class="evi-vh" for="evi-preg-txt">Escriba su pregunta</label>
+      <input id="evi-preg-txt" type="text" name="pregunta" maxlength="{{ preguntas_textos.maximo }}" placeholder="Escriba su pregunta" autocomplete="off">
+      <button type="button" class="evi-btn" data-preguntar>Preguntar</button>
+    </div>
+    <div class="evi-preg-sal" id="evi-preg-sal" role="status" aria-live="polite"></div>
+  </section>{% endif %}
 </div>
 <div class="evi-controles" id="evi-controles">
   <button type="button" class="evi-btn sec" data-accion="ant"><span aria-hidden="true">&larr;</span> Anterior</button>

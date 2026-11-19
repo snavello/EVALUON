@@ -97,7 +97,7 @@ PASOS = {
     5: TextosPaso(
         que_es=("Ordena las ofertas por precio: el total y el precio de cada renglón, con la cotización del "
                 "Portal cuando la hay. Muestra cuál es la más baja y cuál la más alta."),
-        sirve=("Permite ver qué oferta conviene económicamente. El orden es una propuesta: lo decide la "
+        sirve=("Permite comparar las ofertas por precio. El orden es una propuesta: lo decide la "
                "Comisión."),
         hacer=("Controle que cada oferta tenga su total.",
                "Mire el orden y los precios por renglón.",
@@ -129,3 +129,16 @@ PASOS = {
                           "Lo redacta la Comisión; el sistema no lo escribe. Una vez cargado, el procedimiento "
                           "sale de la lista de abiertos."),)),
 }
+
+# «Pregúntele a Evi» (REQ-171 a REQ-173; T-368, ADR-0082): lo que dice el bloque de preguntas.
+PREGUNTA_TITULO = "Pregúntele a Evi"
+PREGUNTA_ROTULO = "Experimental"
+PREGUNTA_AYUDA = ("Explica qué hay que completar y qué opciones existen. Las decisiones son siempre de la "
+                  "Comisión.")
+PREGUNTA_EJEMPLOS = ("¿Qué es un punto no determinado?", "¿Qué hago primero en un procedimiento recién cargado?",
+                     "¿Qué es una subsanación?")
+PREGUNTA_PENSANDO = "Evi está pensando…"
+PREGUNTA_AVISO = ("Respuesta generada por la IA local. Puede equivocarse: no reemplaza al pliego ni a la decisión "
+                  "de la Comisión.")
+PREGUNTA_FALLA = "Evi no pudo responder ahora. La guía de arriba sigue disponible."
+PREGUNTA_VACIA = "Escriba una pregunta."

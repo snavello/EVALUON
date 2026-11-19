@@ -12,7 +12,7 @@
 
   var PAUSA_MS = 4800;
   var S = {abierto: false, pedido: 0, listo: false, sel: null, aqui: [], estados: false,
-           jugando: false, pausa: false, rastro: false, visitados: {}, t: null};
+           jugando: false, pausa: false, rastro: false, visitados: {}, t: null, preguntando: false};
   var mapa = null, svg = null, nodos = [], pasos = [], aristas = [];
 
   function reducido() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
@@ -176,6 +176,7 @@
                   volver: function () { detener(); ir(S.aqui[0]); }};
 
   function alHacerClic(e) {
+    if (alPreguntar(e)) { return; }
     var accion = e.target.closest("[data-accion]");
     if (accion && ACCIONES[accion.dataset.accion]) { ACCIONES[accion.dataset.accion](); return; }
     var paso = e.target.closest(".evi-nodo");
@@ -231,6 +232,52 @@
       });
   }
 
+  /* ---------- Pregúntele a Evi (T-368, experimental) ----------
+     Un único POST con la pregunta; la respuesta llega ya escapada desde el servidor (nunca HTML del modelo) y se
+     anuncia a los lectores de pantalla desde una región `status`. Si no llega en 70 s o falla, el mismo aviso llano. */
+  var ESPERA_MS = 70000;
+
+  function preguntar(texto) {
+    var bloque = document.getElementById("evi-preg");
+    var salida = document.getElementById("evi-preg-sal");
+    if (!bloque || !salida || S.preguntando) { return; }
+    texto = (texto || "").trim();
+    var cuerpo = new FormData();
+    var token = bloque.querySelector('input[name="csrfmiddlewaretoken"]');
+    cuerpo.append("pregunta", texto);
+    var aviso = function (clase, mensaje) {
+      var p = document.createElement("p");
+      p.className = clase; p.textContent = mensaje;
+      salida.textContent = ""; salida.appendChild(p);
+    };
+    aviso("evi-pensando", bloque.dataset.pensando);
+    S.preguntando = true;
+    var corte = new AbortController();
+    var reloj = setTimeout(function () { corte.abort(); }, ESPERA_MS);
+    var terminar = function () {
+      clearTimeout(reloj); S.preguntando = false;
+      todos("[data-preguntar], [data-ejemplo]").forEach(function (b) { b.disabled = false; });
+    };
+    todos("[data-preguntar], [data-ejemplo]").forEach(function (b) { b.disabled = true; });
+    fetch(bloque.dataset.url, {method: "POST", body: cuerpo, credentials: "same-origin", signal: corte.signal,
+                               headers: {"X-CSRFToken": token ? token.value : "", "X-Requested-With": "fetch"}})
+      .then(function (r) { return r.text().then(function (html) { return {ok: r.ok || r.status === 400, html: html}; }); })
+      .then(function (r) {
+        terminar();
+        if (!r.ok) { throw new Error("falla"); }
+        salida.innerHTML = r.html;
+      })
+      .catch(function () { terminar(); aviso("evi-resp-falla", bloque.dataset.falla); });
+  }
+
+  function alPreguntar(e) {
+    var ejemplo = e.target.closest("[data-ejemplo]");
+    var campo = document.getElementById("evi-preg-txt");
+    if (ejemplo && campo) { campo.value = ejemplo.textContent; preguntar(campo.value); return true; }
+    if (e.target.closest("[data-preguntar]") && campo) { preguntar(campo.value); return true; }
+    return false;
+  }
+
   /* ---------- Panel ---------- */
   function abrir() {
     S.abierto = true;
@@ -250,6 +297,9 @@
   boton.addEventListener("click", function () { if (S.abierto) { cerrar(false); } else { abrir(); } });
   cerrarBoton.addEventListener("click", function () { cerrar(true); });
   contenido.addEventListener("click", alHacerClic);
+  contenido.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.target.id === "evi-preg-txt") { e.preventDefault(); preguntar(e.target.value); }
+  });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && S.abierto) { e.preventDefault(); cerrar(true); return; }
     if (S.abierto) { alTeclear(e); }

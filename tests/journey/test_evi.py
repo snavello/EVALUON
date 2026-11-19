@@ -81,6 +81,12 @@ def _nodos(panel):
     return salida
 
 
+def _sin_preguntas(panel):
+    """El panel sin el bloque «Pregúntele a Evi» (T-368): lo fijo de la T-367 se comprueba sin él, que tiene su
+    propio título, su aviso y sus pruebas (`test_evi_preguntas.py`)."""
+    return re.sub(r'<section class="evi-preg".*?</section>', "", panel, flags=re.S)
+
+
 def _seccion_de_paso(panel, n):
     inicio = panel.index(f'<div class="evi-paso" data-n="{n}"')
     fin = panel.find('<div class="evi-paso" data-n=', inicio + 10)
@@ -441,7 +447,7 @@ def test_req170_el_titulo_es_evi_y_no_hay_texto_que_lo_presente(pantalla, client
     assert re.search(r'<h2 id="evi-titulo" tabindex="-1">Evi</h2>', cascara)
     assert _texto(cascara) == "Evi Cargando…"  # solo el título y la espera; el botón de cerrar lleva su nombre accesible
     assert cascara.count("<h2") == 1 and "<h1" not in cascara and "<footer" not in cascara
-    contenido = _texto(_panel_de(client, url))
+    contenido = _texto(_sin_preguntas(_panel_de(client, url)))
     assert not re.search(r"\bEvi\b", contenido)
     assert not re.search(r"asistente|guía|ayud|bienvenid|soy |sirve para ayudarle|le voy a", contenido, re.I)
 
@@ -476,7 +482,7 @@ def test_req169_ningun_texto_dice_que_el_sistema_decidio_ni_recomienda(client, c
     elige un ganador."""
     caso = caso_varios_en_curso
     entrar(client, caso.user)
-    texto = _texto(_panel_de(client, _url_de("portada", caso)))
+    texto = _texto(_sin_preguntas(_panel_de(client, _url_de("portada", caso))))
     prohibidas = r"el sistema (decidi|resolvi|eligi|determin[óo] que|adjudic)|recomend|recomiend|suger(?!encia)|sugier|adjudicar a|le aconsej"
     assert not re.search(prohibidas, texto, re.I)
     assert "la decide la Comisión" in texto or "lo decide la Comisión" in texto
