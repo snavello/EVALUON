@@ -108,10 +108,14 @@ button,select{font:inherit;color:inherit}
 .proc .cap{width:34px;height:34px;border-radius:50%;background:var(--tile-h);flex:none}
 
 /* ---------- Botón de Evi ---------- */
-.evi-btn{position:absolute;right:24px;bottom:24px;z-index:30;display:inline-flex;align-items:center;gap:10px;min-height:56px;padding:0 20px 0 14px;border-radius:999px;border:1.5px solid var(--ink);background:var(--bg);box-shadow:var(--sombra);cursor:pointer;font-size:16px;font-weight:600;letter-spacing:-.01em;transition:transform .24s var(--e-out),background .2s}
-.evi-btn:hover{background:var(--tile)}
-.evi-btn[aria-expanded="true"]{background:var(--tile)}
-.evi-btn:active{transform:scale(.98)}
+.evi-btn{position:absolute;right:24px;bottom:24px;z-index:30;width:48px;height:48px;padding:2px;border-radius:16px;border:0;background:none;cursor:pointer;filter:drop-shadow(0 6px 14px rgba(0,0,0,.28));transition:transform .24s var(--e-out)}
+.evi-btn:hover{transform:translateY(-2px)}
+.evi-btn:active{transform:scale(.97)}
+.evi-btn .tip{position:absolute;right:56px;top:50%;transform:translateY(-50%);background:var(--btn);color:var(--on-btn);font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .16s}
+.evi-btn:hover .tip,.evi-btn:focus-visible .tip{opacity:1}
+.sombrero{transform-box:fill-box;transform-origin:50% 100%}
+.evi-btn:hover .sombrero,.evi-btn.saluda .sombrero{animation:saludo 1s var(--e-io) 1}
+@keyframes saludo{0%{transform:none}25%{transform:translateY(-3px) rotate(-12deg)}55%{transform:translateY(-2px) rotate(5deg)}80%{transform:translateY(-1px) rotate(-3deg)}100%{transform:none}}
 
 /* ---------- Panel de Evi ---------- */
 .evi{position:absolute;right:24px;bottom:96px;z-index:40;width:min(820px,calc(100% - 48px));max-height:calc(100% - 118px);display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:22px;box-shadow:var(--sombra);transition:opacity .28s var(--e-out),transform .28s var(--e-out),visibility 0s linear 0s}
@@ -137,7 +141,7 @@ button,select{font:inherit;color:inherit}
 
 /* Mapa */
 .mapa-caja{background:var(--tile);border-radius:18px;padding:18px 22px 12px;position:relative}
-.mapa{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:auto auto;column-gap:40px;row-gap:26px;padding:14px 22px 4px 0;background-image:radial-gradient(var(--mapa-punto) 1px,transparent 1px);background-size:22px 22px}
+.mapa{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:auto auto;column-gap:48px;row-gap:36px;padding:14px 0 4px 0;background-image:radial-gradient(var(--mapa-punto) 1px,transparent 1px);background-size:22px 22px}
 .aristas{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
 .aristas .base{fill:none;stroke:var(--ink-3);stroke-width:2;stroke-linecap:round}
 .aristas .base.rayas{stroke-dasharray:6 6}
@@ -164,6 +168,17 @@ button,select{font:inherit;color:inherit}
 .nodo .cab{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
 .nodo .cab .pill{margin-left:auto}
 .nodo .cab .pill{padding:1px 8px;gap:4px;font-size:12.5px}
+.nodo .num{position:relative}
+.nodo .corto,.nodo .sim{display:none}
+.nodo .sim{position:absolute;top:-7px;right:-9px;width:19px;height:19px;border-radius:50%;border:1.5px solid currentColor;font-size:12px;line-height:1;font-weight:700;place-items:center}
+.sim.hecho{color:var(--ok-ink);background:var(--ok-bg)}
+.sim.hecho::before{content:"\2713"}
+.sim.en_curso{color:var(--pe-ink);background:var(--pe-bg)}
+.sim.en_curso::before{content:"";width:8px;height:8px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent}
+.sim.todavia_no{color:var(--ink-2);background:var(--tile);border-style:dashed}
+.sim.todavia_no::before{content:"";width:7px;height:7px;border-radius:50%;border:1.5px solid currentColor}
+.sim.con_error{color:var(--no-ink);background:var(--no-bg)}
+.sim.con_error::before{content:"\00D7";font-size:14px}
 .pill{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:2px 10px;border:1px solid currentColor;border-radius:999px;font-size:13px;font-weight:600;line-height:1.4;white-space:nowrap}
 .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
 .pill.hecho{color:var(--ok-ink);background:var(--ok-bg)}
@@ -217,6 +232,24 @@ button,select{font:inherit;color:inherit}
 .recuadro h4::before{content:"?";display:grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--ink);font-size:12px;font-weight:700;flex:none}
 .recuadro p{margin:0;font-size:14px;line-height:1.5;color:var(--ink-2)}
 .estados-intro{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+.preg{margin:22px 0 14px;border:1.5px dashed var(--ink-3);border-radius:16px;padding:14px 16px 16px}
+.preg h4{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:16px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+.exp{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:1px 9px;border-radius:999px;background:var(--lime);color:var(--on-lime);border:1px solid var(--ink)}
+.preg-nota{margin:0 0 10px;font-size:14px;color:var(--ink-2)}
+.ejemplos{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.ejemplos button{min-height:44px;padding:8px 14px;border-radius:14px;border:1px solid var(--ink-3);background:var(--bg);font-size:14px;text-align:left;cursor:pointer;line-height:1.3}
+.ejemplos button:hover{background:var(--tile);border-color:var(--ink)}
+.preg-form{display:flex;gap:8px}
+.preg-form input{flex:1;min-width:0;min-height:44px;border:1px solid var(--ink-3);border-radius:999px;padding:0 16px;background:var(--bg);color:var(--ink);font-size:15px}
+.preg-sal{margin-top:12px}
+.burbuja{background:var(--tile-h);border-radius:14px 14px 4px 14px;padding:8px 14px;margin:0 0 8px auto;max-width:90%;width:fit-content;font-size:14px}
+.respuesta{background:var(--tile);border-radius:14px;padding:12px 16px}
+.respuesta p{margin:0 0 8px;font-size:15px;line-height:1.5}
+.respuesta .fuente,.respuesta .aviso-ia{font-size:13px;color:var(--ink-2);margin:0}
+.respuesta .fuente{margin-top:4px;font-weight:600}
+.pensando{margin:0;font-size:15px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.pensando::before{content:"";width:12px;height:12px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:gira .8s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
 .evi-pie{border-top:1px solid var(--line);padding:11px 24px 12px;font-size:13px;color:var(--ink-2);display:flex;gap:8px;align-items:center}
 .evi-pie b{color:var(--ink);font-weight:600}
 .fade{animation:entra .36s var(--e-out)}
@@ -246,23 +279,34 @@ button,select{font:inherit;color:inherit}
   .bloques{grid-template-columns:1fr}
   .bloque.alto{grid-row:auto;min-height:150px}
   .evi-btn{right:14px;bottom:14px}
-  .evi{left:8px;right:8px;width:auto;top:8px;bottom:84px;max-height:none;border-radius:18px}
+  .evi{left:8px;right:8px;width:auto;top:8px;bottom:72px;max-height:none;border-radius:18px}
   .evi-cab{padding:12px 12px 10px 16px}
-  .evi-cuerpo{padding:14px 14px 4px}
-  .mapa-caja{padding:12px;border-radius:14px}
-  .mapa{display:flex;flex-direction:column;gap:8px;padding:0;background:none}
-  .aristas{display:none}
-  .nodo{display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;row-gap:2px;align-items:center;padding:10px 12px;position:static}
-  .nodo.sel{padding:9px 11px}
-  .nodo .cab{display:contents}
-  .nodo .num{grid-row:1/3;grid-column:1}
-  .nodo .nombre{grid-column:2;grid-row:1}
-  .nodo .dato{grid-column:2;grid-row:2}
-  .nodo.sel .dato{display:block}
-  .nodo.sel .dato:empty{display:none}
-  .nodo .pill{grid-column:3;grid-row:1/3;align-self:center}
-  .nodo.sel .dep{display:block;grid-column:2/4;grid-row:3;margin-top:2px}
-  .nodo .aqui{position:static;grid-column:2/4;grid-row:4;justify-self:start;margin-top:6px}
+  .evi-cuerpo{padding:14px 10px 4px}
+  .mapa-caja{padding:10px 8px 8px;border-radius:14px}
+  .mapa{grid-template-columns:repeat(4,minmax(0,1fr));column-gap:14px;row-gap:30px;padding:0;background:none}
+  .mapa .nodo,.mapa .nodo.sel,.mapa .nodo.s-todavia_no{background:none;border:0;box-shadow:none;padding:0;gap:4px;align-items:center;text-align:center;border-radius:10px}
+  .mapa .nodo:hover{border:0}
+  .nodo .nombre,.nodo .pill,.nodo .dato,.nodo .dep{display:none}
+  .nodo .corto{display:block;font-size:12px;font-weight:600;line-height:1.2;min-height:29px;text-align:center;hyphens:manual}
+  .nodo .sim{display:grid}
+  .nodo .num{width:34px;height:34px;font-size:15px;background:var(--mapa-nodo);color:var(--ink);border:3px solid var(--ink-3)}
+  .nodo.s-hecho .num{border-color:var(--ok)}
+  .nodo.s-en_curso .num{border-color:var(--pe)}
+  .nodo.s-con_error .num{border-color:var(--no)}
+  .nodo.s-todavia_no .num{border-style:dashed}
+  .mapa .nodo.sel .num{background:var(--sel);color:var(--bg);box-shadow:0 0 0 4px color-mix(in srgb,var(--sel) 22%,transparent)}
+  [data-theme="negro"] .mapa .nodo.sel .num{color:#0B0C0E}
+  .nodo .cab{display:flex;justify-content:center}
+  .nodo .aqui{position:static;flex:none;order:3}
+  .nodo .aqui[hidden]{display:inline-flex!important;visibility:hidden}
+  .nodo[data-n="1"],.nodo[data-n="2"],.nodo[data-n="4"],.nodo[data-n="6"]{justify-content:flex-end}
+  .nodo[data-n="1"] .aqui,.nodo[data-n="2"] .aqui,.nodo[data-n="4"] .aqui,.nodo[data-n="6"] .aqui{order:0}
+  .nodo[data-n="1"] .corto,.nodo[data-n="2"] .corto,.nodo[data-n="4"] .corto,.nodo[data-n="6"] .corto{order:1}
+  .nodo[data-n="1"] .cab,.nodo[data-n="2"] .cab,.nodo[data-n="4"] .cab,.nodo[data-n="6"] .cab{order:2}
+  .nodo[data-n="3"] .cab,.nodo[data-n="5"] .cab,.nodo[data-n="7"] .cab{order:0}
+  .nodo[data-n="3"] .corto,.nodo[data-n="5"] .corto,.nodo[data-n="7"] .corto{order:1}
+  .nodo[data-n="3"] .aqui,.nodo[data-n="1"] .aqui{align-self:flex-start}
+  .nodo[data-n="6"] .aqui,.nodo[data-n="7"] .aqui{align-self:flex-end}
   .dos{grid-template-columns:1fr}
   .texto h3{font-size:22px}
   .recorrido{padding:10px 12px;gap:8px}
@@ -271,6 +315,9 @@ button,select{font:inherit;color:inherit}
   .contexto .sep{display:none}
   .recorrido .btn{flex:1 1 auto;padding:0 12px}
   .evi-pie{padding:10px 14px}
+  .preg{padding:12px}
+  .preg-form{flex-wrap:wrap}
+  .preg-form .btn{flex:1}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
@@ -338,9 +385,17 @@ button,select{font:inherit;color:inherit}
       <div class="cuerpo" id="cuerpo"></div>
     </div>
 
-    <button type="button" class="evi-btn" id="evi-btn" aria-expanded="true" aria-controls="evi">
-      <svg class="logo" width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo-evi"/></svg>
-      <span>Evi</span><span class="vh"> , el asistente: abrir o cerrar la guía</span>
+    <button type="button" class="evi-btn" id="evi-btn" aria-expanded="true" aria-controls="evi" aria-label="Evi, el asistente: abrir o cerrar la guía">
+      <svg class="logo" width="44" height="44" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <rect width="64" height="64" rx="16" fill="var(--lg-bg)"/>
+        <path d="M18 31H47V38.5H27V40.5H42V48H27V50H47V57.5H18Z" fill="var(--lg-e)"/>
+        <g transform="rotate(-8 32 24)"><g class="sombrero">
+          <rect x="21" y="5" width="22" height="19" rx="3" fill="var(--lg-hat)"/>
+          <rect x="21" y="16.5" width="22" height="4.5" fill="var(--lg-band)"/>
+          <rect x="13" y="21" width="38" height="5.5" rx="2.75" fill="var(--lg-hat)"/>
+        </g></g>
+      </svg>
+      <span class="tip" aria-hidden="true">Evi, su asistente</span>
     </button>
 
     <section class="evi" id="evi" role="dialog" aria-labelledby="evi-titulo">
@@ -361,6 +416,13 @@ button,select{font:inherit;color:inherit}
           <p class="leyenda" id="leyenda"></p>
         </div>
         <div class="texto" id="texto" aria-live="polite"></div>
+        <section class="preg" id="preg" aria-labelledby="preg-t">
+          <h4 id="preg-t">Pregúntele a Evi <span class="exp">Experimental</span> <span class="dev" tabindex="0" title="Hoy el sistema no tiene este asistente de preguntas: requiere conectar la IA local con las guías y las especificaciones, y dejar registro de cada pregunta y respuesta." aria-label="Requiere desarrollo. Hoy el sistema no tiene este asistente de preguntas.">requiere desarrollo</span></h4>
+          <p class="preg-nota">Es una maqueta: no hay IA. Solo responden los ejemplos, escritos de antemano.</p>
+          <div class="ejemplos" id="ejemplos"></div>
+          <form class="preg-form" id="preg-form"><label class="vh" for="preg-txt">Escriba su pregunta</label><input id="preg-txt" type="text" placeholder="Escriba su pregunta" autocomplete="off"><button type="submit" class="btn">Preguntar</button></form>
+          <div class="preg-sal" id="preg-sal" aria-live="polite"></div>
+        </section>
       </div>
       <div class="recorrido" id="recorrido">
         <button type="button" class="btn sec" id="b-ant">&larr; Anterior</button>
@@ -441,6 +503,7 @@ const PASOS = [
     aca: ["Todavía no se puede cargar: <b>depende de los pasos 4 y 6</b>. Cuando estén hechos, va a aparecer «Cargar el dictamen».", "Si el mantenimiento de las ofertas vence hoy o ya venció, aparece igual."],
     recuadros: [["Qué es un dictamen", "Lo redacta la Comisión; el sistema no lo escribe. Una vez cargado, el procedimiento sale de la lista de abiertos."]] }
 ];
+const CORTO = ["Pliego", "Matriz", "Ofertas", "Cumpli&shy;miento", "Compa&shy;ración", "Evalua&shy;ción", "Dictamen"];
 const P = n => PASOS[n - 1];
 const viene = n => ARISTAS.filter(a => a[1] === n).map(a => a[0]);
 const sigue = n => ARISTAS.filter(a => a[0] === n).map(a => a[1]);
@@ -501,8 +564,8 @@ function armarMapa() {
     b.type = "button"; b.className = "nodo"; b.dataset.n = p.n;
     b.style.gridColumn = CASILLA[p.n][0]; b.style.gridRow = CASILLA[p.n][1];
     b.innerHTML = `<span class="aqui" hidden>Usted está aquí</span>
-      <span class="cab"><span class="num">${p.n}</span><span class="pill"></span></span>
-      <span class="nombre">${p.nombre}</span><span class="dato"></span>
+      <span class="cab"><span class="num">${p.n}<span class="sim" aria-hidden="true"></span></span><span class="pill"></span></span>
+      <span class="nombre">${p.nombre}</span><span class="corto" aria-hidden="true">${CORTO[p.n - 1]}</span><span class="dato"></span>
       <span class="dep">${viene(p.n).length ? "Viene de: " + lista(viene(p.n)) : "Se puede empezar sin esperar a otro paso"}</span>`;
     b.addEventListener("click", () => { detener(); ir(p.n); });
     mapa.appendChild(b);
@@ -516,6 +579,7 @@ function actualizarNodos() {
     $(".aqui", b).hidden = S.pantalla !== n;
     const pill = $(".pill", b);
     pill.hidden = !hay; pill.className = "pill " + e; pill.textContent = hay ? EST[e] : "";
+    const sim = $(".sim", b); sim.hidden = !hay; sim.className = "sim " + e;
     $(".dato", b).textContent = hay ? (S.error && n === 3 ? "Un documento no se pudo leer" : P(n).dato) : "";
     if (S.sel === n) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
     b.setAttribute("aria-label", `Paso ${n}: ${P(n).nombre}.` + (hay ? " " + EST[e] + "." : "") + (S.pantalla === n ? " Usted está aquí." : ""));
@@ -534,21 +598,26 @@ function redondeada(pts, r) {
 }
 function trazar() {
   const svg = $("#aristas");
-  if (!svg || angosto()) return;
-  const nodo = n => { const e = mapa.querySelector(`.nodo[data-n="${n}"]`); return { l: e.offsetLeft, r: e.offsetLeft + e.offsetWidth, y: e.offsetTop + 28 }; };
-  if (!nodo(1).r) return;
+  if (!svg) return;
+  const nar = angosto();
+  const R = n => {
+    const b = mapa.querySelector(`.nodo[data-n="${n}"]`);
+    if (nar) { const c = $(".num", b), l = b.offsetLeft + c.offsetLeft, t = b.offsetTop + c.offsetTop; return { l, r: l + c.offsetWidth, t, b: t + c.offsetHeight, cx: l + c.offsetWidth / 2, cy: t + c.offsetHeight / 2 }; }
+    const l = b.offsetLeft, t = b.offsetTop; return { l, r: l + b.offsetWidth, t, b: t + b.offsetHeight, cx: l + b.offsetWidth / 2, cy: t + 28 };
+  };
+  if (!R(1).r) return;
   svg.setAttribute("width", mapa.clientWidth); svg.setAttribute("height", mapa.clientHeight);
-  const hueco = nodo(4).l - nodo(2).r, mit = hueco / 2;
+  const ofs = nar ? 6 : 10;
   ARISTAS.forEach(([a, b]) => {
-    const A = nodo(a), B = nodo(b); let pts, dir = 1;
-    if (a === 3 && b === 4) pts = [[A.r, A.y], [B.l - mit, A.y], [B.l - mit, B.y], [B.l, B.y]];
-    else if (a === 4 && b === 5) { const x = A.r + mit - 5; pts = [[A.r, A.y], [x, A.y], [x, B.y], [B.r, B.y]]; dir = -1; }
-    else if (a === 4 && b === 7) { const x = A.r + mit + 5; pts = [[A.r, A.y], [x, A.y], [x, B.y], [B.l, B.y]]; }
-    else if (a === 6 && b === 7) { const x = A.r + 15; pts = [[A.r, A.y], [x, A.y], [x, B.y], [B.r, B.y]]; dir = -1; }
-    else pts = [[A.r, A.y], [B.l, B.y]];
-    const fin = pts[pts.length - 1], linea = pts.slice(); linea[linea.length - 1] = [fin[0] - 7 * dir, fin[1]];
-    const d = redondeada(linea, 10);
-    const punta = `M${fin[0]} ${fin[1]} L${fin[0] - 9 * dir} ${fin[1] - 5} L${fin[0] - 9 * dir} ${fin[1] + 5}Z`;
+    const A = R(a), B = R(b); let pts, dir = [1, 0];
+    if (a === 3 && b === 4) { const x = (R(2).r + B.l) / 2; pts = [[A.r, A.cy], [x, A.cy], [x, B.cy + ofs], [B.l, B.cy + ofs]]; }
+    else if (a === 4 && b === 7) { const x = (A.r + R(6).l) / 2; pts = [[A.r, A.cy + ofs], [x, A.cy + ofs], [x, B.cy], [B.l, B.cy]]; }
+    else if ((a === 4 && b === 5) || (a === 6 && b === 7)) { pts = [[A.cx, A.b], [A.cx, B.t]]; dir = [0, 1]; }
+    else pts = [[A.r, A.cy], [B.l, B.cy]];
+    const fin = pts[pts.length - 1], linea = pts.slice();
+    linea[linea.length - 1] = [fin[0] - 7 * dir[0], fin[1] - 7 * dir[1]];
+    const d = redondeada(linea, 10), bx = fin[0] - 9 * dir[0], by = fin[1] - 9 * dir[1], px = -dir[1] * 5, py = dir[0] * 5;
+    const punta = `M${fin[0]} ${fin[1]} L${bx + px} ${by + py} L${bx - px} ${by - py}Z`;
     const g = svg.querySelector(`g[data-a="${a}-${b}"]`);
     g.querySelector(".base").setAttribute("d", d); g.querySelector(".luz").setAttribute("d", d);
     g.querySelector(".punta").setAttribute("d", punta); g.querySelector(".punta-luz").setAttribute("d", punta);
@@ -684,6 +753,49 @@ document.addEventListener("keydown", e => {
   e.preventDefault(); detener(); ir(n); mapa.querySelector(`.nodo[data-n="${n}"]`).focus();
 });
 
+/* ---------- Preguntas a Evi (experimental; no hay IA: respuestas escritas de antemano) ---------- */
+const EJEMPLOS = [
+  { q: "¿Qué es un punto no determinado?", fuente: "la guía del paso 6",
+    a: ["Es un punto donde el sistema no pudo concluir si la oferta cumple o no, porque dudó o no pudo comprobar lo que dice el documento.", "En esos casos no inventa un resultado: lo deja «no determinado», cita lo que encontró y le pide a la Comisión que decida. En cada uno puede confirmar, corregir o rechazar."] },
+  { q: "¿Puedo cargar el dictamen si falta un informe técnico?", fuente: "la guía del paso 7",
+    a: ["Por lo general todavía no. «Cargar el dictamen» aparece cuando los pasos 4 y 6 están hechos, y el paso 4 no se da por hecho mientras haya puntos que esperan el informe técnico.", "La excepción es que el mantenimiento de las ofertas venza hoy o ya haya vencido: en ese caso la opción aparece igual. Qué hacer entonces lo decide la Comisión."] },
+  { q: "¿Qué pasa si llega una circular después de validar la matriz?", fuente: "la guía del paso 2",
+    a: ["Si la circular cambia el pliego, el paso 2 vuelve solo a «En curso»: nadie tiene que marcarlo.", "Se abre una versión nueva de la matriz con lo que cambió marcado, y una persona de la Comisión tiene que validarla otra vez. La versión anterior no se pierde."] },
+  { q: "¿A qué oferta hay que adjudicar?", fuente: "la guía del paso 5 y el principio «el sistema propone, la Comisión decide»",
+    a: ["Eso no lo puedo decir ni recomendar: elegir a quién adjudicar es una decisión de la Comisión Evaluadora.", "Lo que sí puedo mostrarle es el orden por precio del paso 5, que es una propuesta, y qué ofertas cumplen según lo que la Comisión fue decidiendo."] }
+];
+const SIN_RESPUESTA = { fuente: "ninguna: en la maqueta no hay IA", a: ["En esta maqueta solo responden las preguntas de ejemplo de arriba. En la aplicación real, Evi contestaría con la IA local, apoyándose en las guías y en las especificaciones.", "Pruebe con uno de los ejemplos."] };
+const normal = t => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+let tPreg = null;
+function responder(texto) {
+  const n = normal(texto);
+  let e = EJEMPLOS.find(x => normal(x.q) === n);
+  if (!e && /adjudic|recomiend|recomend|quien gana|cual conviene/.test(n)) e = EJEMPLOS[3];
+  return e || SIN_RESPUESTA;
+}
+function preguntar(texto) {
+  const sal = $("#preg-sal"); if (!texto.trim()) return;
+  const esc = t => t.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  sal.innerHTML = `<p class="burbuja">${esc(texto)}</p><div class="respuesta"><p class="pensando">Evi está pensando…</p></div>`;
+  clearTimeout(tPreg);
+  tPreg = setTimeout(() => {
+    const e = responder(texto);
+    $(".respuesta", sal).innerHTML = e.a.map(p => `<p>${p}</p>`).join("") +
+      `<p class="aviso-ia">Respuesta generada por la IA local. Puede equivocarse: no reemplaza al pliego ni a la decisión de la Comisión.</p><p class="fuente">Basada en: ${e.fuente}</p>`;
+  }, 1000);
+}
+$("#ejemplos").innerHTML = EJEMPLOS.map((e, i) => `<button type="button" data-i="${i}">${e.q}</button>`).join("");
+$("#ejemplos").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) preguntar(EJEMPLOS[+b.dataset.i].q); });
+$("#preg-form").addEventListener("submit", ev => { ev.preventDefault(); const i = $("#preg-txt"); preguntar(i.value); i.value = ""; });
+
+/* ---------- Saludo del sombrero: una vez al cargar y de vez en cuando; quieto con movimiento reducido ---------- */
+function saludar() {
+  if (reducido()) return;
+  boton.classList.add("saluda");
+  setTimeout(() => boton.classList.remove("saluda"), 1100);
+}
+setTimeout(saludar, 700); setInterval(saludar, 40000);
+
 /* ---------- Controles de la maqueta ---------- */
 function tema(nombre) {
   S.tema = nombre; document.documentElement.toggleAttribute("data-theme", nombre === "negro");
@@ -709,7 +821,8 @@ if (qs.get("error") === "1") { S.error = true; $("#ck-error").checked = true; }
 pintarPantalla();
 S.sel = qs.get("paso") ? +qs.get("paso") : (S.pantalla > 0 ? S.pantalla : null);
 if (S.sel) S.visitados.add(S.sel);
-if (qs.get("cerrado") === "1") { cerrar(false); } else { panel.inert = false; render(); }
+if (qs.get("preg") !== null && qs.get("preg") !== "") { preguntar(EJEMPLOS[+qs.get("preg")].q); }
+if (qs.get("cerrado") === "1") { cerrar(false); } else { panel.inert = false; render(); if (qs.get("preg") !== null && qs.get("preg") !== "") setTimeout(() => $("#preg").scrollIntoView({ block: "end" }), 1300); }
 })();
 </script>
 </body>
