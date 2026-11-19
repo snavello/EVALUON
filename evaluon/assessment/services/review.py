@@ -36,6 +36,7 @@ from evaluon.assessment.services.evaluate import current_result
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType
 from evaluon.audit.models import Outcome as EventOutcome
+from evaluon.offers.services import sheets
 
 DECIDE_OPERATION = "evaluon.assessment.services.review.decide"
 HISTORY_OPERATION = "evaluon.assessment.services.review.history"
@@ -52,10 +53,11 @@ class ReviewRefused(ValueError):
     """No se guardó la decisión. `reason` es el motivo que queda en el registro y `field`, el
     dato que lo impidió. El mensaje es para la persona: español llano."""
 
-    def __init__(self, message, reason, field=None):
+    def __init__(self, message, reason, field=None, detail=None):
         super().__init__(message)
         self.reason = reason
         self.field = field
+        self.detail = detail or {}
 
 
 @dataclass(frozen=True)
@@ -129,7 +131,8 @@ def effective_outcome(result):
 def _refuse_record(error, action, channel, user, detail):
     audit.record(
         EventType.EVAL_DECISION, outcome=EventOutcome.REJECTED, channel=channel, user=user,
-        detail={**detail, "action": action, "reason": error.reason, "message": str(error)})
+        detail={**detail, **error.detail, "action": action, "reason": error.reason,
+                "message": str(error)})
 
 
 def decide(user, result_id, action, *, outcome_after="", note="", channel=Channel.SCREEN):
@@ -156,6 +159,13 @@ def _decide(user, result_id, action, outcome_after, note, channel):
     except (Result.DoesNotExist, TypeError, ValueError):
         raise ReviewRefused("No hay un resultado con ese número.", "result_not_found",
                             "result")
+    if sheets.is_item_row(result.requirement):
+        # Una fila técnica por renglón se decide solo con el ok del informe técnico (REQ-159):
+        # antes de mirar si el resultado fue reemplazado, para que el motivo sea siempre el mismo.
+        raise ReviewRefused(
+            "Esta fila es técnica y no se decide acá: la resuelve el informe técnico del área. "
+            "Para cerrarla, dé el ok del informe técnico de la oferta.", "technical_row",
+            "result", detail={"offer": result.offer_id, "requirement": result.requirement_id})
     if current_result(result.offer, result.requirement).pk != result.pk:
         raise ReviewRefused(
             "Hay una evaluación más nueva de este requisito: revise la propuesta nueva.",

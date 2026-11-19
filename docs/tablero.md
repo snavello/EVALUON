@@ -84,7 +84,7 @@ flowchart LR
 | [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 27/38 | ███████░░░ 71% |
 | [017 · Tableros de primer nivel y estética nueva](#017) | Cada sección abre con un tablero de información agregada y el detalle se despliega debajo del mosaico; ingreso con pendiente general, orden económico y plazos; estética negro, grises y blanco con verde lima, selector de tema, fotos del perfil con tono unificado y avance de los procesos largos (decisión del responsable del 2026-10-21) | 4 de 7 · Desarrollo | 26/32 | ████████░░ 81% |
 | [018 · El proceso a la vista](#018) | Inicio con la lista de procedimientos y sus acciones, portada del procedimiento como foto del estado de los siete pasos (varios en curso a la vez) y cuadro de cumplimiento requisitos por ofertas con pliego y oferta lado a lado; solo cambia la exposición (decisión del responsable del 2026-11-17) | 5 de 7 · Verificación | 24/24 | ██████████ 100% |
-| [019 · Las filas técnicas se deciden solo con el ok del informe técnico](#019) | El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica por renglón, llegue por donde llegue; la pantalla no cambia (decisión del responsable del 2026-11-18, carril completo) | 4 de 7 · Desarrollo | 0/3 | ░░░░░░░░░░ 0% |
+| [019 · Las filas técnicas se deciden solo con el ok del informe técnico](#019) | El sistema rechaza y deja anotado todo pedido de confirmar, corregir o rechazar un cruce de una fila técnica por renglón, llegue por donde llegue; la pantalla no cambia (decisión del responsable del 2026-11-18, carril completo) | 4 de 7 · Desarrollo | 1/3 | ███░░░░░░░ 33% |
 
 <a id="001"></a>
 
@@ -2027,20 +2027,20 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
-- ▶ T-364 · Rechazar en el servicio de decisión todo pedido sobre una fila técnica por renglón, con el caso chico (en curso)
+- **Próximo paso:** Desarrollar: 2 tareas sin terminar.
 - ▶ T-365 · Listar las decisiones guardadas sobre filas técnicas (solo lectura) (en curso)
 - ○ T-366 · Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa (pendiente)
 
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
+- ✓ T-364 · Rechazar en el servicio de decisión todo pedido sobre una fila técnica por renglón, con el caso chico (`9576cbc0` 2026-11-18)
 
 ### Mapa de tareas
 
 ```mermaid
 flowchart TD
-  T364["▶ T-364 · Rechazar en el servicio de decisión todo pe…"]:::active
+  T364["✓ T-364 · Rechazar en el servicio de decisión todo pe…"]:::done
   T365["▶ T-365 · Listar las decisiones guardadas sobre filas…"]:::active
   T366["○ T-366 · Cierre: listado sobre los procedimientos re…"]:::todo
   T364 --> T366
@@ -2056,7 +2056,7 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-159 | El sistema debe rechazar todo pedido de confirmar, corregir o rechazar un cruce requisito–oferta de una fila técnica por renglón. Lo rechaza siempre: llegue por donde llegue el pedido, lo haga quien lo haga, y tenga o no la oferta el ok del informe técnico (dado, retirado o nunca dado). | T-364 | ▶ en proceso |
-| REQ-160 | Un pedido rechazado por REQ-159 no debe cambiar nada del cruce: ni su resultado, ni su estado, ni su historial de decisiones. Debe quedar registrado quién lo intentó, cuándo, sobre qué cruce, qué acción pidió y por qué se rechazó. La persona recibe un mensaje en lenguaje llano que dice que esa fila se decide con el ok del informe técnico. | T-364 | ▶ en proceso |
-| REQ-161 | Lo demás no cambia: la decisión de la Comisión sobre los cruces de filas no técnicas, y dar o retirar el ok del informe técnico, deben funcionar igual que antes de esta feature. La pantalla no cambia. | T-364 | ▶ en proceso |
+| REQ-159 | El sistema debe rechazar todo pedido de confirmar, corregir o rechazar un cruce requisito–oferta de una fila técnica por renglón. Lo rechaza siempre: llegue por donde llegue el pedido, lo haga quien lo haga, y tenga o no la oferta el ok del informe técnico (dado, retirado o nunca dado). | T-364 | ✓ cubierto |
+| REQ-160 | Un pedido rechazado por REQ-159 no debe cambiar nada del cruce: ni su resultado, ni su estado, ni su historial de decisiones. Debe quedar registrado quién lo intentó, cuándo, sobre qué cruce, qué acción pidió y por qué se rechazó. La persona recibe un mensaje en lenguaje llano que dice que esa fila se decide con el ok del informe técnico. | T-364 | ✓ cubierto |
+| REQ-161 | Lo demás no cambia: la decisión de la Comisión sobre los cruces de filas no técnicas, y dar o retirar el ok del informe técnico, deben funcionar igual que antes de esta feature. La pantalla no cambia. | T-364 | ✓ cubierto |
 | REQ-162 | El sistema debe poder listar las decisiones ya guardadas sobre cruces de filas técnicas por renglón (procedimiento, oferta, requisito, acción, quién y cuándo). El listado no modifica ni borra nada. | T-365, T-366 | ▶ en proceso |
