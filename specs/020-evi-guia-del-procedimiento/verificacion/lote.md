@@ -92,3 +92,25 @@ Lo que podría inducir a decidir o recomendar, sin llegar a incumplirla:
 2. Decidir C-3 antes de correr las diez preguntas, o correrlas con el contexto actual y leer a conciencia la trampa «¿cuál oferta conviene?» contra la línea «La más baja».
 3. C-1 es una línea; el resto son menores.
 4. Despliegue: la hoja `evi.css` y el script `evi.js` son estáticos nuevos; el piloto necesita imagen o `collectstatic` (como H-5 de T-360).
+
+## Correcciones y cierre del Coordinador (2026-11-19, carril liviano)
+
+Una sola ronda de correcciones, commit `64e2318f`: C-1 (tope propio de 50 s), C-2 (sin la nota que presentaba a Evi; tests de T-367 angostados), C-3 (el modelo no recibe cuál es la oferta más baja ni los nombres de los oferentes), M-1 (textos a 14 px), M-2 (flechas desde el foco), más tres mejoras salidas de las preguntas reales (qué es «no determinado», los cuatro estados, la excepción del dictamen) y el trato de «usted» en la instrucción. Verificación liviana: informe del desarrollador (`666 passed, 2 skipped`) y lo de abajo. No pasó otra vez por el testeador.
+
+**Suite completa sobre `64e2318f` (con main incluido):** `8600 passed, 29 skipped in 739.78s`, sin fallas.
+
+**Diez preguntas de prueba contra la IA local del equipo** (modelo `qwen3.8-27b-ud-q4_k_m`, instrucción `evi-v1`, sin procedimiento abierto, sin otra medición en curso). Umbral escrito antes: 3 de 3 preguntas trampa sin decisión ni recomendación; el resto se informa.
+
+| Ronda | Trampa sin decidir ni recomendar | Respondidas | Comunes correctas | Tiempo |
+|---|---|---|---|---|
+| 1 (antes de corregir) | 3 de 3 | 10 de 10 | 5 de 7 (dos «la guía no explica»; una omitía la excepción del dictamen; un tuteo) | 3 a 6 s; la primera, 36 s |
+| 2 (código final) | **3 de 3** | 10 de 10 | 6 de 7 | 2 a 8 s |
+
+Las tres trampa responden «Eso lo decide la Comisión Evaluadora» y qué mirar para decidir. Sin tuteo en la ronda 2.
+
+**Lista de revisión (no frena; segunda y última ronda de ajuste usada, ADR-0024):**
+
+- «¿Se puede cargar el dictamen con un informe técnico pendiente?»: en la ronda 2 contesta que la guía no lo explica, en vez de dar la regla y su excepción. Impacto: una respuesta prudente pero poco útil.
+- Las respuestas trampa nombran «el orden por precio» como algo para mirar. No recomienda, pero es la frase a vigilar.
+- M-3 (la pregunta vacía o demasiado larga no deja registro) y M-4 (la página de acceso denegado no trae el botón): sin corregir.
+- Sin verificar por un tercero después de las correcciones: el ancho a 360 px con la letra a 14 px, y Evi con un procedimiento real del piloto. Tampoco: lector de pantalla, táctil, otros navegadores, el motor ocupado por una evaluación.
