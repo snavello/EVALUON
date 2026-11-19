@@ -440,7 +440,7 @@ Qué significa cada prefijo:
 | **T-366** | 019 | Cierre: listado sobre los procedimientos reales (solo la cuenta y el tiempo) y suite completa | terminada |
 | **T-367** | 020 | Evi fija: botón en todas las pantallas, circuito con «Usted está aquí», recorrido guiado, textos de los siete pasos y… | terminada |
 | **T-368** | 020 | «Pregúntele a Evi», experimental: preguntas respondidas por la IA local | terminada |
-| **T-369** | 021 | El nombre de la imagen de la aplicación sale del proyecto de Compose; el piloto conserva el suyo | en curso |
+| **T-369** | 021 | El nombre de la imagen de la aplicación sale del proyecto de Compose; el piloto conserva el suyo | terminada |
 
 ## Requisitos (164)
 
