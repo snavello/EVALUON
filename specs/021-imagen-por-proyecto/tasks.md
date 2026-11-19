@@ -12,7 +12,7 @@ Estados: pendiente · en curso · en verificación · terminada · bloqueada
 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
-| T-369 | El nombre de la imagen de la aplicación sale del proyecto de Compose; el piloto conserva el suyo | REQ-174, REQ-175 | — | en curso |
+| T-369 | El nombre de la imagen de la aplicación sale del proyecto de Compose; el piloto conserva el suyo | REQ-174, REQ-175 | — | terminada |
 
 ### T-369 · Imagen por proyecto
 
