@@ -2,7 +2,7 @@
 
 Plan: `specs/019-decision-de-filas-tecnicas/plan.md` (aprobado el 2026-11-18 por el responsable, «Sí, apruebo»; sin ADR nuevo)
 
-Despliegue: pendiente
+Despliegue: aprobado 2026-11-18 (responsable del proyecto, «Sí, desplegar»; en el piloto de 8000, commit f2f78179)
 
 > El tablero (`docs/tablero.md`) se genera de este archivo. Al aprobarse el despliegue, la línea de arriba pasa a `Despliegue: aprobado AAAA-MM-DD`.
 
