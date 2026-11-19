@@ -1,0 +1,27 @@
+{% load static %}{% comment %}El botón de Evi y la cáscara de su panel, en toda pantalla con sesión (020, REQ-163, REQ-170). El botón es chico y lleva solo el logo (la «E» con galera); su nombre accesible es «Evi». El panel se titula solo «Evi»: sin subtítulo, lema ni pie. El contenido llega al abrirlo (`data-url`, `journey/_evi_contenido.html`); `data-pasos` dice qué paso o pasos resuelve esta pantalla. Los colores del logo salen de tokens (evi.css), no del HTML.{% endcomment %}<button type="button" class="evi-boton" id="evi-boton" aria-label="Evi" aria-expanded="false" aria-controls="evi-panel" data-url="{{ evi_boton.url }}" data-pasos="{{ evi_boton.pasos }}">
+  <svg class="evi-logo" width="44" height="44" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <rect class="lg-fondo" width="64" height="64" rx="16"/>
+    <path class="lg-e" d="M18 31H47V38.5H27V40.5H42V48H27V50H47V57.5H18Z"/>
+    <g transform="rotate(-8 32 24)"><g class="sombrero">
+      <rect class="lg-copa" x="21" y="5" width="22" height="19" rx="3"/>
+      <rect class="lg-cinta" x="21" y="16.5" width="22" height="4.5"/>
+      <rect class="lg-ala" x="13" y="21" width="38" height="5.5" rx="2.75"/>
+    </g></g>
+  </svg>
+</button>
+<section class="evi-panel" id="evi-panel" role="dialog" aria-labelledby="evi-titulo" hidden>
+  <div class="evi-cab">
+    <svg class="evi-logo" width="40" height="40" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <rect class="lg-fondo" width="64" height="64" rx="16"/>
+      <path class="lg-e" d="M18 31H47V38.5H27V40.5H42V48H27V50H47V57.5H18Z"/>
+      <g transform="rotate(-8 32 24)">
+        <rect class="lg-copa" x="21" y="5" width="22" height="19" rx="3"/>
+        <rect class="lg-cinta" x="21" y="16.5" width="22" height="4.5"/>
+        <rect class="lg-ala" x="13" y="21" width="38" height="5.5" rx="2.75"/>
+      </g>
+    </svg>
+    <h2 id="evi-titulo" tabindex="-1">Evi</h2>
+    <button type="button" class="evi-cerrar" id="evi-cerrar" aria-label="Cerrar Evi"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>
+  </div>
+  <div class="evi-contenido" id="evi-contenido"><p class="evi-cargando">Cargando…</p></div>
+</section>

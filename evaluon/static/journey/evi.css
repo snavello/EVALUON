@@ -1,0 +1,272 @@
+/* Evi (feature 020, T-367): el botón con el logo y el panel con el circuito de siete pasos. Salió del prototipo
+   aprobado (docs/diseno/evi/index.html). Todo color sale de `var(--…)` de tokens.css (nada en hexadecimal ni
+   `style=`): sirve para los dos temas. Letra de 14 px o más en los textos y 12 px en las etiquetas. Sin recursos
+   de afuera. Con `prefers-reduced-motion` no hay animación (al final). Los selectores van bajo `.evi-panel` o con
+   el prefijo `evi-` para no tocar las demás hojas. */
+
+/* ---------- Logo: la «E» con galera. Los colores del tema claro y del negro, de tokens ---------- */
+.evi-boton, .evi-panel {
+  --lg-bg: var(--btn); --lg-e: var(--lime); --lg-hat: var(--bg); --lg-band: var(--lime);
+  --sel: var(--ink);
+}
+[data-theme="negro"] .evi-boton, [data-theme="negro"] .evi-panel {
+  --lg-bg: var(--lime); --lg-e: var(--bg); --lg-hat: var(--bg); --lg-band: var(--lime);
+  --sel: var(--lime);
+}
+.evi-logo { display: block; flex: none; }
+.evi-logo .lg-fondo { fill: var(--lg-bg); }
+.evi-logo .lg-e { fill: var(--lg-e); }
+.evi-logo .lg-copa, .evi-logo .lg-ala { fill: var(--lg-hat); }
+.evi-logo .lg-cinta { fill: var(--lg-band); }
+.evi-logo .sombrero { transform-box: fill-box; transform-origin: 50% 100%; }
+
+/* ---------- Botón ---------- */
+.evi-boton {
+  position: fixed; right: 20px; bottom: 20px; z-index: 900; width: 44px; height: 44px; padding: 0; margin: 0;
+  border: 0; border-radius: 14px; background: none; cursor: pointer; line-height: 0;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .28));
+  transition: transform .2s var(--e-out);
+}
+.evi-boton:hover { transform: translateY(-2px); }
+.evi-boton:active { transform: scale(.97); }
+.evi-boton:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 14px; }
+/* La galera saluda una sola vez: al cargar (`saluda`, lo pone evi.js) y al pasar o enfocar. Nunca en bucle. */
+.evi-boton:hover .sombrero, .evi-boton:focus-visible .sombrero, .evi-boton.saluda .sombrero {
+  animation: evi-saludo 1s var(--e-io) 1;
+}
+@keyframes evi-saludo {
+  0% { transform: none; } 25% { transform: translateY(-3px) rotate(-12deg); }
+  55% { transform: translateY(-2px) rotate(5deg); } 80% { transform: translateY(-1px) rotate(-3deg); }
+  100% { transform: none; }
+}
+
+/* ---------- Panel ---------- */
+.evi-panel {
+  position: fixed; right: 20px; bottom: 76px; z-index: 910; width: min(820px, calc(100vw - 40px));
+  max-height: calc(100vh - 96px); max-height: calc(100dvh - 96px);
+  display: flex; flex-direction: column; background: var(--bg); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 22px;
+  box-shadow: 0 18px 48px rgba(23, 26, 32, .18), 0 2px 8px rgba(23, 26, 32, .08);
+  font-family: var(--f); font-size: 15px; line-height: 1.5; font-variant-numeric: tabular-nums;
+  animation: evi-abre .28s var(--e-out);
+}
+[data-theme="negro"] .evi-panel { box-shadow: 0 18px 48px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .4); }
+.evi-panel[hidden], .evi-panel [hidden] { display: none !important; }
+.evi-panel *, .evi-panel *::before, .evi-panel *::after { box-sizing: border-box; }
+@keyframes evi-abre { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.evi-panel :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+.evi-cab { display: flex; align-items: center; gap: 14px; padding: 16px 18px 14px 22px; border-bottom: 1px solid var(--line); flex: none; }
+body.app .evi-panel .evi-cab h2 { font-size: 20px; font-weight: 500; letter-spacing: -.02em; margin: 0; line-height: 1.15; }
+.evi-cab h2:focus { outline: none; }
+.evi-cab h2:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.evi-cerrar {
+  margin: 0 0 0 auto; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); display: grid; place-items: center; cursor: pointer; flex: none;
+}
+.evi-cerrar:hover { background: var(--tile); }
+.evi-contenido { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.evi-cargando { margin: 0; padding: 22px 24px; color: var(--ink-2); font-size: 15px; }
+.evi-cuerpo { overflow: auto; padding: 18px 24px 8px; scrollbar-width: thin; min-height: 0; flex: 1; }
+.evi-contexto { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; font-size: 14px; color: var(--ink-2); margin: 0 0 14px; }
+.evi-contexto b { color: var(--ink); font-weight: 600; }
+
+/* Botones */
+.evi-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; margin: 0; padding: 0 20px;
+  border-radius: 999px; border: 1.5px solid var(--btn); background: var(--btn); color: var(--on-btn);
+  font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s;
+}
+.evi-btn:hover:not(:disabled) { background: var(--btn-h); border-color: var(--btn-h); }
+.evi-btn.sec { background: transparent; color: var(--ink); border-color: var(--ink-3); }
+.evi-btn.sec:hover:not(:disabled) { background: var(--tile); border-color: var(--ink); }
+.evi-btn:disabled { opacity: .45; cursor: not-allowed; }
+.evi-btn.chico { padding: 0 14px; }
+
+/* ---------- Gráfico ---------- */
+.evi-mapa-caja { background: var(--tile); border-radius: 18px; padding: 18px 22px 12px; position: relative; }
+.evi-mapa {
+  position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: auto auto;
+  column-gap: 48px; row-gap: 36px; padding: 14px 0 4px;
+  background-image: radial-gradient(var(--mapa-punto) 1px, transparent 1px); background-size: 22px 22px;
+}
+.evi-aristas { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.evi-aristas .base { fill: none; stroke: var(--ink-3); stroke-width: 2; stroke-linecap: round; }
+.evi-aristas .base.rayas { stroke-dasharray: 6 6; }
+.evi-aristas .punta { fill: var(--ink-3); }
+.evi-aristas .luz { fill: none; stroke: var(--sel); stroke-width: 3.5; stroke-linecap: butt; stroke-dasharray: 1 2; stroke-dashoffset: 1; --d: 0s; transition: stroke-dashoffset .16s linear; }
+.evi-aristas .luz.on { stroke-dashoffset: 0; transition: stroke-dashoffset .5s var(--e-io) var(--d); }
+.evi-aristas .punta-luz { fill: var(--sel); opacity: 0; --d2: .4s; transition: opacity .12s; }
+.evi-aristas .punta-luz.on { opacity: 1; transition: opacity .2s var(--d2); }
+
+.evi-nodo.c1 { grid-column: 1; } .evi-nodo.c2 { grid-column: 2; } .evi-nodo.c3 { grid-column: 3; } .evi-nodo.c4 { grid-column: 4; }
+.evi-nodo.f1 { grid-row: 1; } .evi-nodo.f2 { grid-row: 2; }
+.evi-nodo {
+  position: relative; z-index: 1; text-align: left; display: flex; flex-direction: column; gap: 8px; margin: 0;
+  padding: 11px 11px 12px; border-radius: 14px; background: var(--mapa-nodo); color: var(--ink); border: 1px solid var(--line);
+  cursor: pointer; min-width: 0; font: inherit; transition: border-color .24s, box-shadow .24s, background .24s;
+}
+.evi-nodo:hover { border-color: var(--ink-3); }
+.evi-nodo.s-todavia_no { background: var(--mapa-nodo-n); border: 1.5px dashed var(--ink-3); }
+.evi-nodo.sel { border: 2px solid var(--sel); box-shadow: 0 0 0 4px color-mix(in srgb, var(--sel) 16%, transparent), 0 8px 22px rgba(0, 0, 0, .12); padding: 10px 10px 11px; }
+.evi-nodo.sel.s-todavia_no { border-style: solid; }
+.evi-nodo .num {
+  position: relative; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--ink); color: var(--bg); font-family: var(--f); font-size: 14px; font-weight: 700; flex: none;
+  transition: background .24s, color .24s;
+}
+.evi-nodo.sel .num { background: var(--sel); color: var(--bg); }
+[data-theme="negro"] .evi-nodo.sel .num { color: var(--bg); }
+.evi-nodo .nombre { font-size: 14px; font-weight: 600; line-height: 1.25; letter-spacing: -.005em; }
+.evi-nodo .dato, .evi-nodo .dep { display: none; font-size: 12px; line-height: 1.3; color: var(--ink-2); }
+.evi-nodo .aqui {
+  position: absolute; top: -13px; left: 10px; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; line-height: 1;
+  padding: 5px 9px 5px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.evi-nodo .aqui.sin { display: none; }
+.evi-nodo .aqui::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--lime); flex: none; }
+[data-theme="negro"] .evi-nodo .aqui { background: var(--lime); color: var(--on-lime); }
+[data-theme="negro"] .evi-nodo .aqui::before { background: var(--on-lime); }
+.evi-nodo .cab { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.evi-nodo .cab .pill { margin-left: auto; padding: 1px 8px; gap: 4px; font-size: 14px; }
+.evi-nodo .corto, .evi-nodo .sim { display: none; }
+.evi-nodo .sim { position: absolute; top: -7px; right: -9px; width: 19px; height: 19px; border-radius: 50%; border: 1.5px solid currentColor; font-size: 12px; line-height: 1; font-weight: 700; place-items: center; }
+
+.evi-panel .sim.hecho { color: var(--ok-ink); background: var(--ok-bg); }
+.evi-panel .sim.hecho::before { content: "\2713"; }
+.evi-panel .sim.en_curso { color: var(--pe-ink); background: var(--pe-bg); }
+.evi-panel .sim.en_curso::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; }
+.evi-panel .sim.todavia_no { color: var(--ink-2); background: var(--tile); border-style: dashed; }
+.evi-panel .sim.todavia_no::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; }
+.evi-panel .sim.con_error { color: var(--no-ink); background: var(--no-bg); }
+.evi-panel .sim.con_error::before { content: "\00D7"; font-size: 14px; }
+
+/* Etiqueta de estado: con el texto escrito, nunca solo el color */
+.evi-panel .pill { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 2px 10px; border: 1px solid currentColor; border-radius: 999px; font-size: 14px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+.evi-panel .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.evi-panel .pill.hecho { color: var(--ok-ink); background: var(--ok-bg); }
+.evi-panel .pill.hecho::before { content: "\2713"; width: auto; height: auto; background: none; font-size: 12px; }
+.evi-panel .pill.en_curso { color: var(--pe-ink); background: var(--pe-bg); }
+.evi-panel .pill.en_curso::before { background: none; border: 2px solid currentColor; border-top-color: transparent; }
+.evi-panel .pill.todavia_no { color: var(--ink-2); background: var(--tile); border-style: dashed; }
+.evi-panel .pill.todavia_no::before { background: none; border: 1.5px solid currentColor; }
+.evi-panel .pill.con_error { color: var(--no-ink); background: var(--no-bg); }
+.evi-panel .pill.con_error::before { content: "\00D7"; width: auto; height: auto; background: none; font-size: 15px; line-height: 1; }
+.evi-leyenda { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 12px 0 0; font-size: 14px; color: var(--ink-2); }
+.evi-leyenda .pill { font-size: 12px; padding: 1px 9px; }
+.evi-leyenda .rayas, .evi-leyenda .llena { display: inline-flex; align-items: center; gap: 6px; }
+.evi-leyenda .rayas i { display: inline-block; width: 26px; border-top: 2px dashed var(--ink-3); }
+.evi-leyenda .llena i { display: inline-block; width: 26px; border-top: 2px solid var(--ink-3); }
+
+/* ---------- Controles del recorrido ---------- */
+.evi-controles { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 24px; border-top: 1px solid var(--line); background: var(--bg); flex: none; border-radius: 0 0 22px 22px; }
+.evi-repro { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.evi-cuenta { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
+.evi-puntos { display: flex; gap: 5px; }
+.evi-puntos i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); opacity: .45; transition: all .24s; }
+.evi-puntos i.on { opacity: 1; background: var(--sel); width: 20px; border-radius: 4px; }
+
+/* ---------- Explicación ---------- */
+.evi-texto { margin: 20px 0 0; }
+.evi-paso { animation: evi-entra .36s var(--e-out); }
+@keyframes evi-entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.evi-paso-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 4px; }
+.evi-panel .ojo { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+body.app .evi-panel .evi-paso h3 { font-size: 26px; font-weight: 400; letter-spacing: -.025em; line-height: 1.12; margin: 2px 0 6px; }
+.evi-panel .evi-paso > h3 + .dos { margin-top: 12px; }
+.evi-panel .dato-paso { margin: 0 0 14px; font-size: 14px; color: var(--ink-2); }
+.evi-panel .aqui-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 10px; }
+[data-theme="negro"] .evi-panel .aqui-chip { background: var(--lime); color: var(--on-lime); }
+.evi-panel .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; }
+body.app .evi-panel .bl h4 { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 4px; line-height: 1.3; }
+.evi-panel .bl p { margin: 0; font-size: 15px; line-height: 1.5; }
+.evi-hacer { margin-top: 16px; }
+.evi-panel .hacer-lista { margin: 0; padding: 0; list-style: none; counter-reset: p; display: grid; gap: 6px; }
+.evi-panel .hacer-lista li { counter-increment: p; display: grid; grid-template-columns: 24px 1fr; gap: 8px; font-size: 15px; line-height: 1.45; }
+.evi-panel .hacer-lista li::before { content: counter(p); display: grid; place-items: center; width: 22px; height: 22px; margin-top: 1px; border-radius: 50%; background: var(--tile-h); font-size: 12px; font-weight: 700; }
+.evi-panel .enlaces { margin: 14px 0 0; font-size: 14px; color: var(--ink-2); }
+.evi-panel .enlaces b { color: var(--ink); font-weight: 600; }
+.evi-panel .aca { margin: 18px 0 0; border-radius: 16px; background: var(--tile); border-left: 5px solid var(--sel); padding: 16px 20px 16px 18px; }
+body.app .evi-panel .aca h4 { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 16px; font-weight: 600; margin: 0 0 8px; letter-spacing: -.01em; }
+.evi-panel .aca h4 small { font-size: 14px; font-weight: 500; color: var(--ink-2); }
+.evi-panel .aca p { margin: 0 0 8px; font-size: 15px; line-height: 1.5; }
+.evi-panel .aca ul { margin: 0 0 8px; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; line-height: 1.45; }
+.evi-panel .aca p:last-child, .evi-panel .aca ul:last-child { margin-bottom: 0; }
+.evi-panel .aca b { font-weight: 700; }
+.evi-panel .aca .evi-aviso { color: var(--ink-2); font-size: 14px; }
+.evi-panel .recuadro { margin: 14px 0 0; border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; background: var(--bg); }
+body.app .evi-panel .recuadro h4 { font-size: 14px; font-weight: 600; margin: 0 0 4px; display: flex; gap: 8px; align-items: center; letter-spacing: 0; line-height: 1.3; }
+.evi-panel .recuadro h4::before { content: "?"; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--ink); font-size: 12px; font-weight: 700; flex: none; }
+.evi-panel .recuadro p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+
+/* ---------- Angosto (hasta 760 px): el gráfico pasa a grilla de 4 × 2 con nodos chicos ---------- */
+@media (max-width: 760px) {
+  .evi-boton { right: 14px; bottom: 14px; }
+  .evi-panel { left: 8px; right: 8px; width: auto; top: 8px; bottom: 70px; max-height: none; border-radius: 18px; }
+  .evi-cab { padding: 12px 12px 10px 16px; }
+  .evi-cuerpo { padding: 14px 10px 4px; }
+  .evi-mapa-caja { padding: 10px 8px 8px; border-radius: 14px; }
+  .evi-mapa { column-gap: 14px; row-gap: 30px; padding: 0; background: none; }
+  .evi-mapa .evi-nodo, .evi-mapa .evi-nodo.sel, .evi-mapa .evi-nodo.s-todavia_no { background: none; border: 0; box-shadow: none; padding: 0; gap: 4px; align-items: center; text-align: center; border-radius: 10px; }
+  .evi-mapa .evi-nodo:hover { border: 0; }
+  .evi-nodo .nombre, .evi-nodo .cab .pill, .evi-nodo .dato, .evi-nodo .dep { display: none; }
+  .evi-nodo .corto { display: block; font-size: 12px; font-weight: 600; line-height: 1.2; min-height: 29px; text-align: center; hyphens: manual; max-width: 100%; }
+  .evi-nodo .sim { display: grid; }
+  .evi-nodo .num { width: 34px; height: 34px; font-size: 15px; background: var(--mapa-nodo); color: var(--ink); border: 3px solid var(--ink-3); }
+  .evi-nodo.s-hecho .num { border-color: var(--ok); }
+  .evi-nodo.s-en_curso .num { border-color: var(--pe); }
+  .evi-nodo.s-con_error .num { border-color: var(--no); }
+  .evi-nodo.s-todavia_no .num { border-style: dashed; }
+  .evi-mapa .evi-nodo.sel .num { background: var(--sel); color: var(--bg); box-shadow: 0 0 0 4px color-mix(in srgb, var(--sel) 22%, transparent); }
+  .evi-nodo .cab { display: flex; justify-content: center; }
+  /* La marca «Usted está aquí» entra en la columna: en dos líneas, sobre el número arriba y bajo el nombre abajo. */
+  .evi-nodo .aqui { position: static; flex: none; order: 3; white-space: normal; text-align: center; border-radius: 10px; padding: 3px 5px; line-height: 1.15; width: 100%; justify-content: center; }
+  .evi-nodo .aqui::before { display: none; }
+  .evi-nodo .aqui.sin { display: block; visibility: hidden; min-height: 29px; padding: 0; }
+  .evi-nodo.f1 { justify-content: flex-end; }
+  .evi-nodo.f1 .aqui { order: 0; }
+  .evi-nodo.f1 .corto { order: 1; }
+  .evi-nodo.f1 .cab { order: 2; }
+  .evi-nodo.f2 .cab { order: 0; }
+  .evi-nodo.f2 .corto { order: 1; }
+  .evi-contexto .sep { display: none; }
+  .evi-panel .dos { grid-template-columns: 1fr; }
+  body.app .evi-panel .evi-paso h3 { font-size: 22px; }
+  .evi-controles { padding: 10px 12px; gap: 8px; border-radius: 0 0 18px 18px; }
+  .evi-cuenta { display: none; }
+  .evi-controles .evi-btn { flex: 1 1 auto; padding: 0 12px; }
+  .evi-repro { flex: 1 1 100%; }
+  .evi-repro .evi-btn { flex: 1 1 auto; }
+  .evi-panel .aca { padding: 14px 14px 14px 14px; }
+}
+@media (max-width: 900px) and (min-width: 761px) {
+  .evi-mapa { column-gap: 30px; }
+}
+/* ---------- Pregúntele a Evi (T-368; experimental) ---------- */
+.evi-preg { margin: 22px 0 6px; border: 1.5px dashed var(--ink-3); border-radius: 16px; padding: 14px 16px 16px; }
+body.app .evi-panel .evi-preg h4 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+.evi-exp { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 1px 9px; border-radius: 999px; background: var(--lime); color: var(--on-lime); border: 1px solid var(--ink); }
+.evi-preg-nota { margin: 0 0 10px; font-size: 14px; color: var(--ink-2); }
+.evi-ejemplos { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.evi-ejemplo { min-height: 44px; padding: 8px 14px; border-radius: 14px; border: 1px solid var(--ink-3); background: var(--bg); color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer; line-height: 1.3; }
+.evi-ejemplo:hover:not(:disabled) { background: var(--tile); border-color: var(--ink); }
+.evi-ejemplo:disabled { opacity: .45; cursor: not-allowed; }
+.evi-preg-form { display: flex; gap: 8px; }
+.evi-preg-form input { flex: 1; min-width: 0; min-height: 44px; border: 1px solid var(--ink-3); border-radius: 999px; padding: 0 16px; background: var(--bg); color: var(--ink); font: inherit; font-size: 15px; }
+.evi-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.evi-preg-sal { margin-top: 12px; }
+.evi-preg-sal:empty { margin-top: 0; }
+.evi-pensando { margin: 0; font-size: 15px; color: var(--ink-2); }
+.evi-resp { background: var(--tile); border-radius: 14px; padding: 12px 16px; }
+.evi-resp p { margin: 0 0 8px; font-size: 15px; line-height: 1.5; }
+.evi-resp .evi-resp-aviso, .evi-resp .evi-resp-fuente { font-size: 14px; color: var(--ink-2); margin: 0; }
+.evi-resp .evi-resp-fuente { margin-top: 4px; font-weight: 600; }
+.evi-resp-falla { margin: 0; padding: 10px 14px; border-radius: 14px; background: var(--tile); font-size: 15px; }
+@media (max-width: 760px) {
+  .evi-preg { padding: 12px; }
+  .evi-preg-form { flex-wrap: wrap; }
+  .evi-preg-form .evi-btn { flex: 1; }
+}
+@media print { .evi-boton, .evi-panel { display: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  .evi-boton *, .evi-panel, .evi-panel *, .evi-panel *::before, .evi-panel *::after, .evi-boton { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

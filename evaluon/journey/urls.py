@@ -11,7 +11,7 @@ from django.urls import include, path
 from evaluon.journey import temas
 from evaluon.journey.sections import SECTIONS
 from evaluon.journey.temas import s1_pliego, s5_normas
-from evaluon.journey.views import avance, cuadro, index, normativas, nuevo, portada, procedure, stages
+from evaluon.journey.views import avance, cuadro, evi, index, normativas, nuevo, portada, procedure, stages
 
 app_name = "journey"
 
@@ -35,6 +35,11 @@ expedientes_urlpatterns = [
     # La normativa no está atada a ningún procedimiento (T-225).
     path("normativas/", normativas.general, name="normativas_general"),
     path("normativas/", include(s5_normas.general_urlpatterns)),
+    # Evi (020, T-367): el contenido de su panel se pide al abrirlo; no se calcula con cada página.
+    path("evi/", evi.general, name="evi"),
+    path("<int:procedure_id>/evi/", evi.procedimiento, name="evi_procedimiento"),
+    path("evi/preguntar/", evi.preguntar_general, name="evi_preguntar"),
+    path("evi/preguntar/<int:procedure_id>/", evi.preguntar_procedimiento, name="evi_preguntar_procedimiento"),
     path("<int:procedure_id>/", portada.portada, name="portada"),
     path("<int:procedure_id>/barra/", portada.barra, name="barra"),
     path("<int:procedure_id>/fila/", portada.fila, name="fila"),

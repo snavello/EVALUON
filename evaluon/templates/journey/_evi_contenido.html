@@ -1,0 +1,79 @@
+{% comment %}El contenido del panel de Evi (020, REQ-164 a REQ-168, REQ-170; T-367): el gráfico del circuito con sus siete pasos y ocho uniones, el texto de cada paso (todos dibujados, uno visible por vez) y los controles del recorrido. Lo pide `evi.js` al abrir el panel. No lleva enlaces: ningún rol recibe uno que no pueda abrir. Los textos son los de `journey/evi/textos.py`; los estados y «Qué hacer acá», los del cálculo de la portada. Sin estilos ni scripts en línea.{% endcomment %}<div class="evi-cuerpo" id="evi-cuerpo" data-aqui="{{ aqui|join:',' }}" data-estados="{% if procedure %}1{% else %}0{% endif %}">
+  <p class="evi-contexto">{% if procedure %}<span>Procedimiento <b>{{ procedure.number }}</b></span>{% if aqui %}<span class="sep" aria-hidden="true">·</span><span>Su pantalla corresponde <b>{{ aqui_texto }}</b></span>{% endif %}{% else %}<span>No hay un procedimiento abierto.</span>{% endif %}</p>
+  <div class="evi-mapa-caja">
+    <div class="evi-mapa" id="evi-mapa" role="group" aria-label="Circuito de un procedimiento: siete pasos">
+      <svg class="evi-aristas" id="evi-aristas" aria-hidden="true" focusable="false">
+        {% for c in conectores %}<g data-a="{{ c }}"><path class="base"/><path class="punta"/><path class="luz" pathLength="1"/><path class="punta-luz"/></g>
+        {% endfor %}
+      </svg>
+      {% for nodo in nodos %}<button type="button" class="evi-nodo c{{ nodo.columna }} f{{ nodo.fila }}{% if nodo.estado %} s-{{ nodo.estado }}{% endif %}" data-n="{{ nodo.numero }}" aria-label="Paso {{ nodo.numero }}: {{ nodo.nombre }}.{% if nodo.estado %} {{ nodo.estado_texto }}.{% endif %}{% if nodo.aqui %} Usted está aquí.{% endif %}">
+        {% if nodo.aqui %}<span class="aqui">Usted está aquí</span>{% else %}<span class="aqui sin" aria-hidden="true"></span>{% endif %}
+        <span class="cab"><span class="num">{{ nodo.numero }}{% if nodo.estado %}<span class="sim {{ nodo.estado }}" aria-hidden="true"></span>{% endif %}</span>{% if nodo.estado %}<span class="pill {{ nodo.estado }}">{{ nodo.estado_texto }}</span>{% endif %}</span>
+        <span class="nombre">{{ nodo.nombre }}</span><span class="corto" aria-hidden="true">{{ nodo.corto }}</span>{% if nodo.estado %}<span class="dato">{{ nodo.dato }}</span>{% endif %}
+        <span class="dep">{% if nodo.viene %}Viene de: {{ nodo.viene }}{% else %}Se puede empezar sin esperar a otro paso{% endif %}</span>
+      </button>{% endfor %}
+    </div>
+    <p class="evi-leyenda">{% if procedure %}{% for valor, texto in estados %}<span class="pill {{ valor }}">{{ texto }}</span>{% endfor %}<span class="llena"><i></i> Llena: lo anterior está hecho</span><span class="rayas"><i></i> De rayas: puede cambiar</span>{% else %}<span class="llena"><i></i> Cada línea une un paso con el que viene después</span>{% endif %}</p>
+  </div>
+  <div class="evi-texto" id="evi-texto" aria-live="polite">
+    <div class="evi-paso" data-n="0">
+      <div class="ojo">El circuito</div>
+      <h3>{{ circuito.titulo }}</h3>
+      <div class="dos">
+        <div class="bl"><h4>Qué es</h4><p>{{ circuito.que_es }}</p></div>
+        <div class="bl"><h4>Cómo se lee</h4><p>{{ circuito.como_se_lee }}</p></div>
+      </div>
+      <aside class="recuadro"><h4>{{ circuito.quien_decide.titulo }}</h4><p>{{ circuito.quien_decide.texto }}</p></aside>
+      <aside class="recuadro"><h4>{{ estados_significado.titulo }}</h4>{% for nombre, texto in estados_significado.lista %}<p><b>{{ nombre }}:</b> {{ texto }}</p>{% endfor %}</aside>
+      <p class="enlaces">{{ circuito.para_recorrer }}</p>
+    </div>
+    {% for nodo in nodos %}<div class="evi-paso" data-n="{{ nodo.numero }}" hidden>
+      <div class="evi-paso-cab">
+        <span class="ojo">Paso {{ nodo.numero }} de 7</span>
+        {% if nodo.estado %}<span class="pill {{ nodo.estado }}">{{ nodo.estado_texto }}</span>{% endif %}
+        {% if nodo.aqui %}<span class="aqui-chip">Usted está aquí</span>{% endif %}
+        {% if aqui and not nodo.aqui %}<button type="button" class="evi-btn sec chico" data-accion="volver">Volver al paso de mi pantalla</button>{% endif %}
+      </div>
+      <h3>{{ nodo.nombre }}</h3>
+      {% if nodo.dato %}<p class="dato-paso">{{ nodo.dato }}</p>{% endif %}
+      <div class="dos">
+        <div class="bl"><h4>Qué es</h4><p>{{ nodo.textos.que_es }}</p></div>
+        <div class="bl"><h4>Para qué sirve</h4><p>{{ nodo.textos.sirve }}</p></div>
+      </div>
+      <div class="bl evi-hacer"><h4>Qué tiene que hacer</h4><ol class="hacer-lista">{% for linea in nodo.textos.hacer %}<li>{{ linea }}</li>{% endfor %}</ol></div>
+      <p class="enlaces">{% if nodo.viene %}<b>Viene de:</b> {{ nodo.viene }}.{% else %}<b>Se puede empezar</b> sin esperar a otro paso.{% endif %} {% if nodo.habilita %}<b>Habilita:</b> {{ nodo.habilita }}.{% else %}<b>Es el final de su rama:</b> no habilita otro paso.{% endif %}</p>
+      {% if nodo.aca %}<section class="aca" aria-label="Qué hacer acá">
+        <h4>Qué hacer acá <small>en {{ procedure.number }}</small></h4>
+        {% if nodo.aca.resumen %}<p>{{ nodo.aca.resumen }}</p>{% endif %}
+        {% if nodo.aca.espera %}<p>{{ nodo.aca.espera }}</p>{% endif %}
+        {% if nodo.aca.pendientes %}<p><b>Lo que falta hacer:</b></p>
+        <ul>{% for texto in nodo.aca.pendientes %}<li>{{ texto }}</li>{% endfor %}</ul>
+        {% else %}<p><b>{% if nodo.estado == "hecho" %}No hay nada pendiente en este paso.{% else %}Por ahora no hay nada para hacer en este paso.{% endif %}</b></p>{% endif %}
+        {% if nodo.aca.avisos %}<p class="evi-aviso">{% if nodo.aca.avisos|length == 1 %}Hay un aviso que no frena nada:{% else %}Hay {{ nodo.aca.avisos|length }} avisos que no frenan nada:{% endif %}</p>
+        <ul class="evi-aviso">{% for texto in nodo.aca.avisos %}<li>{{ texto }}</li>{% endfor %}</ul>{% endif %}
+      </section>{% endif %}
+      {% for t in nodo.textos.terminos %}<aside class="recuadro"><h4>{{ t.titulo }}</h4><p>{{ t.texto }}</p></aside>{% endfor %}
+    </div>{% endfor %}
+  </div>
+  {% if preguntas %}<section class="evi-preg" id="evi-preg" aria-labelledby="evi-preg-t" data-url="{{ preguntar_url }}" data-pensando="{{ preguntas_textos.pensando }}" data-falla="{{ preguntas_textos.falla }}">
+    <h4 id="evi-preg-t">{{ preguntas_textos.titulo }} <span class="evi-exp">{{ preguntas_textos.rotulo }}</span></h4>
+    {% csrf_token %}
+    <div class="evi-ejemplos" role="group" aria-label="Preguntas de ejemplo">{% for ejemplo in preguntas_textos.ejemplos %}<button type="button" class="evi-ejemplo" data-ejemplo>{{ ejemplo }}</button>{% endfor %}</div>
+    <div class="evi-preg-form" role="group" aria-label="Escriba su pregunta">
+      <label class="evi-vh" for="evi-preg-txt">Escriba su pregunta</label>
+      <input id="evi-preg-txt" type="text" name="pregunta" maxlength="{{ preguntas_textos.maximo }}" placeholder="Escriba su pregunta" autocomplete="off">
+      <button type="button" class="evi-btn" data-preguntar>Preguntar</button>
+    </div>
+    <div class="evi-preg-sal" id="evi-preg-sal" role="status" aria-live="polite"></div>
+  </section>{% endif %}
+</div>
+<div class="evi-controles" id="evi-controles">
+  <button type="button" class="evi-btn sec" data-accion="ant"><span aria-hidden="true">&larr;</span> Anterior</button>
+  <button type="button" class="evi-btn" data-accion="sig">Siguiente <span aria-hidden="true">&rarr;</span></button>
+  <span class="evi-repro">
+    <button type="button" class="evi-btn sec" data-accion="play"><span aria-hidden="true">&#9654;</span> Ver el circuito completo</button>
+    <button type="button" class="evi-btn sec" data-accion="pausa" hidden>Pausar</button>
+    <button type="button" class="evi-btn sec" data-accion="stop" hidden>Detener</button>
+  </span>
+  <span class="evi-cuenta"><span class="evi-cuenta-txt" aria-live="polite"></span><span class="evi-puntos" aria-hidden="true">{% for nodo in nodos %}<i></i>{% endfor %}</span></span>
+</div>
