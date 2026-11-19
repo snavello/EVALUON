@@ -1,6 +1,6 @@
 # Plan 019 · Las filas técnicas se deciden solo con el ok del informe técnico
 
-Estado: borrador · Fecha: 2026-11-18 · Aprobó: —
+Estado: aprobado · Fecha: 2026-11-18 · Aprobó: responsable del proyecto (2026-11-18, «Sí, apruebo»)
 
 Spec: `specs/019-decision-de-filas-tecnicas/spec.md` (aprobada el 2026-11-18). Carril completo (ADR-0081); verificación plena en las tareas que tocan la decisión (toca lógica y un principio, P3).
 
