@@ -2,7 +2,7 @@
 
 Plan: `specs/021-imagen-por-proyecto/spec.md`, sección «Plan corto» (aprobado el 2026-11-19 por el responsable, «Sí, corregir»)
 
-Despliegue: pendiente
+Despliegue: aprobado 2026-11-19 (responsable del proyecto, «Sí, actualizar»; raíz del piloto en ad34cfe1, sin reiniciar servicios: el piloto resuelve la misma imagen `evaluon-app:local`, huella sin cambios)
 
 > El tablero (`docs/tablero.md`) se genera de este archivo. Al aprobarse el despliegue, la línea de arriba pasa a `Despliegue: aprobado AAAA-MM-DD`.
 
